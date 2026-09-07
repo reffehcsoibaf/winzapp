@@ -845,6 +845,14 @@ DEFAULT_SETTINGS = {
         "media_max_days": 30,
         "media_max_mb": 100,
         "probe_video_duration_on_download": False
+    },
+    "ai_accessibility": {
+        "enabled": False,
+        "gemini_api_key": "",
+        "transcribe_audio": True,
+        "describe_images": True,
+        "describe_videos": True,
+        "pdf_to_accessible_text": True
     }
 }
 

@@ -1036,5 +1036,14 @@
     "contact_details_title": "Kontakt",
     "contact_pick_number": "Ten kontakt ma więcej niż jeden numer. Wybierz jeden:",
     "contact_no_number": "Ta wizytówka kontaktu nie zawiera numeru telefonu.",
-    "search_contact_label": "&Szukaj kontaktu"
+    "search_contact_label": "&Szukaj kontaktu",
+    "tab_ai_accessibility": "AI i dostępność",
+    "ai_accessibility_enabled_label": "Włącz funkcje AI (transkrypcja i opis)",
+    "gemini_api_key_label": "Klucz API Gemini",
+    "gemini_api_key_help_label": "Uzyskaj bezpłatnie na aistudio.google.com/apikey",
+    "ai_transcribe_audio_label": "Transkrybuj wiadomości głosowe",
+    "ai_describe_images_label": "Opisuj otrzymane obrazy",
+    "ai_describe_videos_label": "Opisuj otrzymane filmy",
+    "ai_pdf_accessible_label": "Konwertuj otrzymane pliki PDF na dostępny tekst",
+    "invalid_gemini_api_key": "Podaj prawidłowy klucz API Gemini lub wyłącz funkcje AI."
 }

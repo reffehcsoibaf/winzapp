@@ -1036,5 +1036,14 @@
     "contact_details_title": "Contacto",
     "contact_pick_number": "Este contacto tem mais do que um número. Escolha um:",
     "contact_no_number": "Este cartão de contacto não traz nenhum número de telefone.",
-    "search_contact_label": "&Procurar contacto"
+    "search_contact_label": "&Procurar contacto",
+    "tab_ai_accessibility": "IA e Acessibilidade",
+    "ai_accessibility_enabled_label": "Ativar funcionalidades de IA (transcrição e descrição)",
+    "gemini_api_key_label": "Chave de API do Gemini",
+    "gemini_api_key_help_label": "Obtenha gratuitamente em aistudio.google.com/apikey",
+    "ai_transcribe_audio_label": "Transcrever mensagens de áudio/voz",
+    "ai_describe_images_label": "Descrever imagens recebidas",
+    "ai_describe_videos_label": "Descrever vídeos recebidos",
+    "ai_pdf_accessible_label": "Converter PDFs recebidos em texto acessível",
+    "invalid_gemini_api_key": "Indique uma chave de API do Gemini válida, ou desative as funcionalidades de IA."
 }

@@ -1047,6 +1047,57 @@ class SettingsDialog(wx.Dialog):
         self._notebook.AddPage(self._calls_page, i18n.t("tab_calls"))
         self._call_alerts_check.Bind(wx.EVT_CHECKBOX, self._on_call_alerts_toggle)
 
+        # ── AI / Accessibility tab ──────────────────────────────────────────
+        # Lets a screen-reader user turn a voice note, image, video or PDF
+        # into navigable text via the Gemini API. The API key field is left
+        # as a plain (unmasked) text control on purpose: masking helps
+        # against shoulder-surfing, which matters less here than a blind
+        # user being able to have their screen reader read the key back to
+        # confirm it was typed/pasted correctly.
+        self._ai_page = wx.Panel(self._notebook)
+        ai_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._ai_enabled_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_accessibility_enabled_label")
+        )
+        ai_sizer.Add(self._ai_enabled_check, 0, wx.ALL, 8)
+
+        self._ai_api_key_label = wx.StaticText(
+            self._ai_page, label=i18n.t("gemini_api_key_label")
+        )
+        ai_sizer.Add(self._ai_api_key_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._ai_api_key_field = wx.TextCtrl(self._ai_page, style=wx.TE_DONTWRAP)
+        ai_sizer.Add(self._ai_api_key_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        self._ai_api_key_help_label = wx.StaticText(
+            self._ai_page, label=i18n.t("gemini_api_key_help_label")
+        )
+        ai_sizer.Add(self._ai_api_key_help_label, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
+
+        self._ai_transcribe_audio_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_transcribe_audio_label")
+        )
+        ai_sizer.Add(self._ai_transcribe_audio_check, 0, wx.ALL, 8)
+
+        self._ai_describe_images_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_describe_images_label")
+        )
+        ai_sizer.Add(self._ai_describe_images_check, 0, wx.ALL, 8)
+
+        self._ai_describe_videos_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_describe_videos_label")
+        )
+        ai_sizer.Add(self._ai_describe_videos_check, 0, wx.ALL, 8)
+
+        self._ai_pdf_accessible_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_pdf_accessible_label")
+        )
+        ai_sizer.Add(self._ai_pdf_accessible_check, 0, wx.ALL, 8)
+
+        self._ai_page.SetSizer(ai_sizer)
+        self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
+        self._ai_enabled_check.Bind(wx.EVT_CHECKBOX, self._on_ai_enabled_toggle)
+
         # ── Button row ───────────────────────────────────────────────────────
         btn_sizer = wx.StdDialogButtonSizer()
         self._ok_btn = wx.Button(self, wx.ID_OK, label=i18n.t("ok"))
@@ -1338,6 +1389,24 @@ class SettingsDialog(wx.Dialog):
             storage.get("probe_video_duration_on_download", False)
         )
         self._load_auto_download_types(storage.get("auto_download_media_types"))
+
+        # AI / Accessibility
+        ai_settings = self.main_window.settings.get("ai_accessibility", {})
+        self._ai_enabled_check.SetValue(ai_settings.get("enabled", False))
+        self._ai_api_key_field.SetValue(ai_settings.get("gemini_api_key", ""))
+        self._ai_transcribe_audio_check.SetValue(
+            ai_settings.get("transcribe_audio", True)
+        )
+        self._ai_describe_images_check.SetValue(
+            ai_settings.get("describe_images", True)
+        )
+        self._ai_describe_videos_check.SetValue(
+            ai_settings.get("describe_videos", True)
+        )
+        self._ai_pdf_accessible_check.SetValue(
+            ai_settings.get("pdf_to_accessible_text", True)
+        )
+        self._update_ai_fields_state()
 
         audio_playback = self.main_window.settings.get("audio_playback", {})
         self._mark_audio_played_check.SetValue(
@@ -1761,6 +1830,19 @@ class SettingsDialog(wx.Dialog):
         """A popup is meaningful only while incoming-call alerts are enabled."""
         self._call_popup_check.Enable(self._call_alerts_check.GetValue())
 
+    def _on_ai_enabled_toggle(self, event):
+        self._update_ai_fields_state()
+        event.Skip()
+
+    def _update_ai_fields_state(self):
+        """The API key and per-type toggles only matter while AI features are on."""
+        enabled = self._ai_enabled_check.GetValue()
+        self._ai_api_key_field.Enable(enabled)
+        self._ai_transcribe_audio_check.Enable(enabled)
+        self._ai_describe_images_check.Enable(enabled)
+        self._ai_describe_videos_check.Enable(enabled)
+        self._ai_pdf_accessible_check.Enable(enabled)
+
     def _validate(self) -> bool:
         """Return True if all values are valid; show an error and return False otherwise."""
         # Custom save folder: only meaningful when that mode is the one
@@ -2001,6 +2083,17 @@ class SettingsDialog(wx.Dialog):
                     self,
                 )
                 return False
+
+        if self._ai_enabled_check.GetValue() and not self._ai_api_key_field.GetValue().strip():
+            self._notebook.SetSelection(self._notebook.FindPage(self._ai_page))
+            wx.MessageBox(
+                self.main_window.i18n.t("invalid_gemini_api_key"),
+                self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            self._ai_api_key_field.SetFocus()
+            return False
 
         return True
 
@@ -2405,6 +2498,16 @@ class SettingsDialog(wx.Dialog):
             "mark_audio_played_in_list"
         ] = self._mark_audio_played_check.GetValue()
 
+        # AI / Accessibility
+        self.main_window.settings["ai_accessibility"] = {
+            "enabled": self._ai_enabled_check.GetValue(),
+            "gemini_api_key": self._ai_api_key_field.GetValue().strip(),
+            "transcribe_audio": self._ai_transcribe_audio_check.GetValue(),
+            "describe_images": self._ai_describe_images_check.GetValue(),
+            "describe_videos": self._ai_describe_videos_check.GetValue(),
+            "pdf_to_accessible_text": self._ai_pdf_accessible_check.GetValue(),
+        }
+
         # Persist and propagate
         self.main_window.save_settings()
         # Reload sound objects so per-event enabled/path changes (and the new
@@ -2469,6 +2572,7 @@ class SettingsDialog(wx.Dialog):
         self._notebook.SetPageText(9, i18n.t("tab_files_saving"))
         self._notebook.SetPageText(10, i18n.t("tab_audio_playback"))
         self._notebook.SetPageText(11, i18n.t("tab_calls"))
+        self._notebook.SetPageText(12, i18n.t("tab_ai_accessibility"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
@@ -2609,6 +2713,15 @@ class SettingsDialog(wx.Dialog):
         self._media_max_mb_label.SetLabel(i18n.t("media_max_mb_label"))
         self._alert_private_preview.refresh_label()
         self._alert_group_preview.refresh_label()
+
+        # AI / Accessibility tab
+        self._ai_enabled_check.SetLabel(i18n.t("ai_accessibility_enabled_label"))
+        self._ai_api_key_label.SetLabel(i18n.t("gemini_api_key_label"))
+        self._ai_api_key_help_label.SetLabel(i18n.t("gemini_api_key_help_label"))
+        self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
+        self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
+        self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))
+        self._ai_pdf_accessible_check.SetLabel(i18n.t("ai_pdf_accessible_label"))
 
         # Regenerate speed labels — decimal separator may have changed with language
         cur_sel = self._audio_speed_combo.GetSelection()
