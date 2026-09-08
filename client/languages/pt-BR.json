@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Pergunte algo específico sobre esta mídia:",
     "ai_result_ask_btn": "&Perguntar",
     "ai_result_asking_msg": "Perguntando ao Gemini...",
-    "ai_result_ask_error_title": "Não foi possível responder"
+    "ai_result_ask_error_title": "Não foi possível responder",
+    "menu_restart_wa_session": "&Reiniciar conexão do WhatsApp",
+    "restart_wa_session_started_msg": "Reiniciando a conexão do WhatsApp..."
 }

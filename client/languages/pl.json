@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Zapytaj o coś konkretnego dotyczącego tych multimediów:",
     "ai_result_ask_btn": "&Zapytaj",
     "ai_result_asking_msg": "Pytanie do Gemini...",
-    "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi"
+    "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi",
+    "menu_restart_wa_session": "&Uruchom ponownie połączenie z WhatsApp",
+    "restart_wa_session_started_msg": "Ponowne uruchamianie połączenia z WhatsApp..."
 }

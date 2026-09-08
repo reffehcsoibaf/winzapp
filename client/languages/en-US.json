@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Ask something specific about this media:",
     "ai_result_ask_btn": "&Ask",
     "ai_result_asking_msg": "Asking Gemini...",
-    "ai_result_ask_error_title": "Couldn't get an answer"
+    "ai_result_ask_error_title": "Couldn't get an answer",
+    "menu_restart_wa_session": "&Restart WhatsApp connection",
+    "restart_wa_session_started_msg": "Restarting the WhatsApp connection..."
 }

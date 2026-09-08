@@ -2312,6 +2312,7 @@ class MainWindow(wx.Frame):
         self._ID_RESYNC_ALL    = wx.NewIdRef()
         self._ID_SYNC_MEDIA    = wx.NewIdRef()
         self._ID_OFFLINE_MENU  = wx.NewIdRef()
+        self._ID_RESTART_WA_SESSION = wx.NewIdRef()
         self._ID_SHORTCUTS     = wx.NewIdRef()
         self._ID_FORCE_UPDATE  = wx.NewIdRef()
         self._ID_FORCE_REINSTALL_ZIP = wx.NewIdRef()
@@ -2336,6 +2337,13 @@ class MainWindow(wx.Frame):
         file_menu.Append(
             self._ID_DISCONNECT,
             f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D",
+        )
+        file_menu.Append(
+            self._ID_RESTART_WA_SESSION,
+            f"{self.i18n.t('menu_restart_wa_session')}\tCtrl+Alt+Shift+R",
+        )
+        self.Bind(
+            wx.EVT_MENU, self._on_menu_restart_wa_session, id=self._ID_RESTART_WA_SESSION
         )
         file_menu.AppendSeparator()
         file_menu.Append(
@@ -3077,6 +3085,23 @@ class MainWindow(wx.Frame):
             self,
         ) == wx.YES:
             self._on_disconnect()
+
+    def _on_menu_restart_wa_session(self, event=None):
+        """
+        Arquivo > Reiniciar conexão do WhatsApp / Ctrl+Alt+Shift+R.
+
+        Manual escape hatch for when the automatic recovery machinery
+        (health checks, dead-page detection, etc.) hasn't kicked back in on
+        its own: recreates the WPPConnect Chrome session in place, without
+        touching the paired credentials, the local database, or closing
+        WinZapp itself — exactly what _restart_wpp_session() already does
+        automatically in other situations, just triggered here on request.
+        Safe to invoke even when the connection is actually fine; the
+        cooldown/re-entrancy guards inside _restart_wpp_session() make a
+        redundant call a no-op rather than something disruptive.
+        """
+        self.output(self.i18n.t("restart_wa_session_started_msg"))
+        threading.Thread(target=self._restart_wpp_session, daemon=True).start()
 
     def _on_disconnect(self, event=None, wipe=True):
         """Disconnect from WhatsApp: drop credentials, stop WebSocket and show
