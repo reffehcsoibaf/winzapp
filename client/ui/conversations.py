@@ -28,6 +28,14 @@ from core.audio_transcode import transcode_audio_to_wav
 from core.attachment_types import classify_attachment_media_type
 from core.sound_system import load_sound
 from core.link_preview import find_first_url, fetch_link_preview
+from core.gemini_client import (
+    transcribe_audio as _gemini_transcribe_audio,
+    describe_visual_media as _gemini_describe_visual_media,
+    ask_about_visual_media as _gemini_ask_about_visual_media,
+    pdf_to_accessible_text as _gemini_pdf_to_accessible_text,
+    GeminiClientError,
+)
+from ui.dialogs.ai_result_dialog import AIResultDialog
 from ui.accessible import (
     AccessibleSearchConversations,
     AccessibleRecordVoiceMessage,
@@ -4353,6 +4361,24 @@ class ConversationsPanel(wx.Panel):
                 lambda e, m=msg: self._on_menu_copy_file(m),
                 copy_file_item,
             )
+
+        # ── AI transcription/description (Gemini) ───────────────────────────
+        # Only offered for the media types we actually know how to handle,
+        # and only once the feature has been turned on with a key in
+        # Settings > IA e Acessibilidade — _ai_accessibility_settings()
+        # returns None in that case, so the item is simply not shown rather
+        # than shown-but-broken.
+        if msg_type in _MEDIA_TYPES:
+            ai_settings = self._ai_accessibility_settings()
+            if ai_settings is not None:
+                ai_label = self._ai_menu_label_for_type(msg_type, i18n)
+                if ai_label:
+                    ai_item = menu.Append(wx.ID_ANY, f"{ai_label}\tCtrl+Alt+T")
+                    self.Bind(
+                        wx.EVT_MENU,
+                        lambda e, m=msg: self._on_menu_ai_process(m),
+                        ai_item,
+                    )
 
         # ── Contact card actions (issue #84) ─────────────────────────────
         # These used to exist only as two Tab-reachable buttons next to the
@@ -10411,6 +10437,150 @@ class ConversationsPanel(wx.Panel):
             except Exception as exc:
                 print(f"[_on_menu_copy_file] Error copying file: {exc}")
                 wx.CallAfter(self.main_window.output, self.main_window.i18n.t("msg_copy_error"))
+
+        threading.Thread(target=_run, daemon=True).start()
+
+    # ── AI transcription/description (Gemini) ───────────────────────────────
+
+    def _ai_accessibility_settings(self):
+        """
+        Return the ai_accessibility settings dict if the feature is actually
+        usable right now (master switch on + a non-empty API key saved),
+        otherwise None. Callers use None to simply not show the menu item,
+        rather than showing it and failing when clicked.
+        """
+        settings = self.main_window.settings.get("ai_accessibility", {})
+        if not settings.get("enabled"):
+            return None
+        if not (settings.get("gemini_api_key") or "").strip():
+            return None
+        return settings
+
+    def _ai_menu_label_for_type(self, msg_type: str, i18n) -> str:
+        """Label for the context-menu item, or '' if this message type/toggle
+        combination isn't one we offer AI processing for."""
+        settings = self._ai_accessibility_settings()
+        if settings is None:
+            return ""
+        if msg_type == "audioMessage" and settings.get("transcribe_audio", True):
+            return i18n.t("ai_transcribe_audio_menu")
+        if msg_type == "imageMessage" and settings.get("describe_images", True):
+            return i18n.t("ai_describe_image_menu")
+        if msg_type == "videoMessage" and settings.get("describe_videos", True):
+            return i18n.t("ai_describe_video_menu")
+        if msg_type == "documentMessage" and settings.get("pdf_to_accessible_text", True):
+            # The Gemini prompt used below is written specifically for PDFs;
+            # _on_menu_ai_process() double-checks the real mimetype before
+            # calling it and silently declines non-PDF documents, but we
+            # still offer the menu item here for any documentMessage since
+            # we cannot cheaply know the mimetype without touching the menu
+            # construction hot path.
+            return i18n.t("ai_pdf_accessible_menu")
+        return ""
+
+    def _on_menu_ai_process(self, msg: dict):
+        """
+        Send this message's media (audio, image, video or PDF) to Gemini and
+        show the result in a navigable window (AIResultDialog). The network
+        call runs on a background thread so the UI — and the screen reader
+        along with it — never freezes while waiting for Gemini to respond.
+        """
+        ai_settings = self._ai_accessibility_settings()
+        if ai_settings is None:
+            wx.MessageBox(
+                self.main_window.i18n.t("ai_not_configured_msg"),
+                self.main_window.app_name,
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
+            return
+
+        msg_type = msg.get("messageType", "")
+        msg_id = msg.get("key", {}).get("id", "")
+        if not msg_id:
+            return
+
+        # Documents: only PDFs are supported today — the Gemini prompt in
+        # core/gemini_client.py's pdf_to_accessible_text() is written
+        # specifically for PDF structure, so anything else (docx, apk, xlsx…)
+        # is declined here rather than sent and mishandled.
+        if msg_type == "documentMessage":
+            msg_obj = msg.get("message") or {}
+            inner = msg_obj.get("documentMessage") or {}
+            mimetype = (inner.get("mimetype") or "").split(";")[0].strip().lower()
+            if mimetype != "application/pdf":
+                wx.MessageBox(
+                    self.main_window.i18n.t("ai_pdf_only_msg"),
+                    self.main_window.app_name,
+                    wx.OK | wx.ICON_INFORMATION,
+                    self,
+                )
+                return
+
+        default_file = self._resolve_media_filename(msg)
+        media_path = data_path("media", f"{msg_id}.wzmedia")
+        api_key = ai_settings.get("gemini_api_key", "")
+        is_video = msg_type == "videoMessage"
+
+        self.main_window.output(self.main_window.i18n.t("ai_processing_msg"))
+
+        def _run():
+            if not self._ensure_media_on_disk(msg, media_path):
+                wx.CallAfter(
+                    self.main_window.output,
+                    self.main_window.i18n.t("ai_media_download_error_msg"),
+                )
+                return
+            try:
+                with open(media_path, "rb") as fh:
+                    content = decrypt_bytes(fh.read(), self.main_window.key)
+
+                tmp_dir = tempfile.mkdtemp(prefix="wz_ai_")
+                tmp_path = os.path.join(tmp_dir, default_file)
+                with open(tmp_path, "wb") as fh:
+                    fh.write(content)
+
+                if msg_type == "audioMessage":
+                    result_text = _gemini_transcribe_audio(tmp_path, api_key)
+                    title = self.main_window.i18n.t("ai_result_transcription_title")
+                    ask_fn = None
+                elif msg_type in ("imageMessage", "videoMessage"):
+                    result_text = _gemini_describe_visual_media(
+                        tmp_path, api_key, is_video=is_video
+                    )
+                    title = self.main_window.i18n.t("ai_result_description_title")
+                    # Kept alive by closing over tmp_path/api_key/is_video —
+                    # tmp_dir is only cleaned up when the OS clears the temp
+                    # folder, so the file is still there for follow-up
+                    # questions asked while this dialog stays open.
+                    ask_fn = lambda q, p=tmp_path, k=api_key, v=is_video: (
+                        _gemini_ask_about_visual_media(p, k, q, is_video=v)
+                    )
+                else:  # documentMessage, already confirmed to be a PDF above
+                    result_text = _gemini_pdf_to_accessible_text(tmp_path, api_key)
+                    title = self.main_window.i18n.t("ai_result_pdf_title")
+                    ask_fn = None
+
+                def _show_result(text=result_text, dlg_title=title, fn=ask_fn):
+                    dlg = AIResultDialog(self.main_window, dlg_title, text, ask_fn=fn)
+                    dlg.ShowModal()
+                    dlg.Destroy()
+
+                wx.CallAfter(_show_result)
+            except GeminiClientError as exc:
+                wx.CallAfter(
+                    wx.MessageBox,
+                    str(exc),
+                    self.main_window.app_name,
+                    wx.OK | wx.ICON_ERROR,
+                    self,
+                )
+            except Exception as exc:
+                logging.exception("[_on_menu_ai_process] Unexpected error: %s", exc)
+                wx.CallAfter(
+                    self.main_window.output,
+                    self.main_window.i18n.t("ai_unexpected_error_msg"),
+                )
 
         threading.Thread(target=_run, daemon=True).start()
 

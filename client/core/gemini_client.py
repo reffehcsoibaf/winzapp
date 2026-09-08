@@ -158,6 +158,35 @@ def describe_visual_media(
     return _generate_text(client, model, prompt, media_part)
 
 
+def ask_about_visual_media(
+    file_path: str,
+    api_key: str,
+    question: str,
+    *,
+    model: str = DEFAULT_MODEL,
+    is_video: bool = False,
+) -> str:
+    """
+    Responde a uma pergunta específica sobre uma imagem ou vídeo já
+    descrito antes — por exemplo, o preço de um produto num encarte
+    promocional, ou um valor específico numa fatura, que a descrição geral
+    não tenha mencionado.
+    """
+    client = _build_client(api_key)
+    media_part = _upload_or_inline(client, file_path)
+
+    tipo = "vídeo" if is_video else "imagem"
+    prompt = (
+        f"Com base neste {tipo}, responda em português do Brasil à "
+        f"seguinte pergunta de forma direta e específica: {question.strip()}\n"
+        "Se a informação pedida não estiver visível ou não puder ser "
+        "determinada com confiança, diga isso claramente em vez de "
+        "adivinhar. Responda apenas com a resposta, sem comentários "
+        "adicionais."
+    )
+    return _generate_text(client, model, prompt, media_part)
+
+
 def pdf_to_accessible_text(
     file_path: str,
     api_key: str,
