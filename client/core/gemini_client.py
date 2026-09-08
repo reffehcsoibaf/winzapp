@@ -27,6 +27,25 @@ from google.genai import types
 from google.genai.errors import APIError, ClientError
 
 
+# Python's mimetypes module doesn't know several audio extensions commonly
+# seen in WhatsApp voice/media messages (WPPConnect/WhatsApp itself uses
+# .ogg/.opus for voice notes, which Python DOES recognise correctly — this
+# covers formats that show up in forwarded/shared audio instead). Without
+# this, a file like a forwarded .m4a gets guessed as
+# "application/octet-stream", which the Gemini API rejects outright with
+# "Unsupported MIME type" instead of processing it as audio.
+_EXTRA_MIME_TYPES = {
+    ".m4a": "audio/mp4",
+    ".3gp": "audio/3gpp",
+    ".3gpp": "audio/3gpp",
+    ".amr": "audio/amr",
+    ".aac": "audio/aac",
+    ".opus": "audio/ogg",
+}
+for _ext, _mime in _EXTRA_MIME_TYPES.items():
+    mimetypes.add_type(_mime, _ext)
+
+
 # Modelo padrão. "gemini-2.5-flash" é rápido e de baixo custo, adequado para
 # transcrição/descrição em tempo real. Pode futuramente virar uma opção na
 # aba de configurações, se quiser deixar o usuário escolher entre
@@ -88,6 +107,13 @@ def _generate_text(client: genai.Client, model: str, prompt: str, media_part) ->
         )
     except ClientError as exc:
         # Erros comuns: chave inválida, cota excedida, arquivo rejeitado.
+        if "Unsupported MIME type" in str(exc):
+            raise GeminiClientError(
+                "O Gemini não reconheceu o formato deste arquivo. Isso pode "
+                "acontecer com formatos de áudio/vídeo menos comuns — "
+                "avise o desenvolvedor para que esse formato seja tratado "
+                f"corretamente. Detalhe técnico: {exc}"
+            ) from exc
         raise GeminiClientError(
             "O Gemini recusou o pedido. Verifique se a chave de API está "
             f"correta e se ainda há cota disponível. Detalhe técnico: {exc}"
