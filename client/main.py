@@ -3094,18 +3094,22 @@ class MainWindow(wx.Frame):
         (health checks, dead-page detection, etc.) hasn't kicked back in on
         its own. Unlike calling _restart_wpp_session() directly, this always
         gives the person a clear, visible outcome instead of a silent
-        no-op — the three things that can happen:
+        no-op — the four things that can happen:
 
             1. The WPPConnect Node server itself isn't answering at all
                (status-session probe fails) — this restart only recreates
                the browser session *inside* an already-running Node
                process, so it cannot fix a dead Node process. Told plainly,
                with closing/reopening WinZapp suggested instead.
-            2. _restart_wpp_session()'s own cooldown/re-entrancy guard
+            2. The session is already CONNECTED — restarting would only
+               force an unnecessary disconnect/reconnect blip on a
+               connection that's already fine, so this is declined with a
+               clear "already connected" message instead of running.
+            3. _restart_wpp_session()'s own cooldown/re-entrancy guard
                blocked it (e.g. called twice within
                _WPP_SESSION_RESTART_COOLDOWN seconds) — told plainly, with
                how long to wait.
-            3. It actually ran — confirmed, with a note that reconnecting
+            4. It actually ran — confirmed, with a note that reconnecting
                still takes a few seconds.
         """
         self.output(self.i18n.t("restart_wa_session_started_msg"))
@@ -3119,6 +3123,12 @@ class MainWindow(wx.Frame):
                     self.app_name,
                     wx.OK | wx.ICON_WARNING,
                     self,
+                )
+                return
+
+            if status in ("CONNECTED", "open"):
+                wx.CallAfter(
+                    self.output, self.i18n.t("restart_wa_session_already_connected_msg")
                 )
                 return
 
