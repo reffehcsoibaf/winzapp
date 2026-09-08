@@ -1065,5 +1065,8 @@
     "ai_result_asking_msg": "Perguntando ao Gemini...",
     "ai_result_ask_error_title": "Não foi possível responder",
     "menu_restart_wa_session": "&Reiniciar conexão do WhatsApp",
-    "restart_wa_session_started_msg": "Reiniciando a conexão do WhatsApp..."
+    "restart_wa_session_started_msg": "Reiniciando a conexão do WhatsApp...",
+    "restart_wa_session_node_unreachable_msg": "O servidor do WhatsApp não está respondendo — esse reinício rápido não é suficiente neste caso. Feche e abra o WinZapp novamente.",
+    "restart_wa_session_cooldown_msg": "Um reinício já foi feito há pouco tempo. Aguarde cerca de 2 minutos antes de tentar de novo.",
+    "restart_wa_session_done_msg": "Reinício solicitado. Aguarde alguns segundos para a reconexão."
 }

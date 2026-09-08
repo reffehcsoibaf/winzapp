@@ -1065,5 +1065,8 @@
     "ai_result_asking_msg": "Pytanie do Gemini...",
     "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi",
     "menu_restart_wa_session": "&Uruchom ponownie połączenie z WhatsApp",
-    "restart_wa_session_started_msg": "Ponowne uruchamianie połączenia z WhatsApp..."
+    "restart_wa_session_started_msg": "Ponowne uruchamianie połączenia z WhatsApp...",
+    "restart_wa_session_node_unreachable_msg": "Serwer WhatsApp nie odpowiada — to szybkie ponowne uruchomienie tego nie naprawi. Zamknij i otwórz WinZapp ponownie.",
+    "restart_wa_session_cooldown_msg": "Ponowne uruchomienie zostało już wykonane chwilę temu. Odczekaj około 2 minut przed ponowną próbą.",
+    "restart_wa_session_done_msg": "Zażądano ponownego uruchomienia. Poczekaj kilka sekund na ponowne połączenie."
 }
