@@ -10518,7 +10518,23 @@ class ConversationsPanel(wx.Panel):
                 return
 
         default_file = self._resolve_media_filename(msg)
-        media_path = data_path("media", f"{msg_id}.wzmedia")
+
+        # Voice messages are cached in a separate folder/format
+        # (voice_messages/<id>.msv, with the message-id prefix stripped)
+        # from every other media type (media/<id>.wzmedia) — see
+        # _save_message_media() above, which is the reference for this.
+        # copy_file's own media_path (data_path("media", ...)) is actually
+        # wrong for audioMessage too; that's the pre-existing bug behind
+        # "Copiar arquivo" not working for voice messages either.
+        if msg_type == "audioMessage":
+            clean_msg_id = msg_id
+            if "_" in msg_id:
+                parts = msg_id.split("_")
+                clean_msg_id = parts[2] if len(parts) > 2 else parts[-1]
+            media_path = data_path("voice_messages", f"{clean_msg_id}.msv")
+        else:
+            media_path = data_path("media", f"{msg_id}.wzmedia")
+
         api_key = ai_settings.get("gemini_api_key", "")
         is_video = msg_type == "videoMessage"
 
