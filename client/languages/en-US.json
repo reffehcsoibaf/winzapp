@@ -1063,11 +1063,5 @@
     "ai_result_ask_label": "Ask something specific about this media:",
     "ai_result_ask_btn": "&Ask",
     "ai_result_asking_msg": "Asking Gemini...",
-    "ai_result_ask_error_title": "Couldn't get an answer",
-    "menu_restart_wa_session": "&Restart WhatsApp connection",
-    "restart_wa_session_started_msg": "Restarting the WhatsApp connection...",
-    "restart_wa_session_node_unreachable_msg": "The WhatsApp server isn't responding — this quick restart can't fix that. Close and reopen WinZapp instead.",
-    "restart_wa_session_cooldown_msg": "A restart was already done a moment ago. Wait about 2 minutes before trying again.",
-    "restart_wa_session_done_msg": "Restart requested. Give it a few seconds to reconnect.",
-    "restart_wa_session_already_connected_msg": "Already connected — no need to restart."
+    "ai_result_ask_error_title": "Couldn't get an answer"
 }

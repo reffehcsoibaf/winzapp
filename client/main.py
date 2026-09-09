@@ -2312,7 +2312,6 @@ class MainWindow(wx.Frame):
         self._ID_RESYNC_ALL    = wx.NewIdRef()
         self._ID_SYNC_MEDIA    = wx.NewIdRef()
         self._ID_OFFLINE_MENU  = wx.NewIdRef()
-        self._ID_RESTART_WA_SESSION = wx.NewIdRef()
         self._ID_SHORTCUTS     = wx.NewIdRef()
         self._ID_FORCE_UPDATE  = wx.NewIdRef()
         self._ID_FORCE_REINSTALL_ZIP = wx.NewIdRef()
@@ -2337,13 +2336,6 @@ class MainWindow(wx.Frame):
         file_menu.Append(
             self._ID_DISCONNECT,
             f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D",
-        )
-        file_menu.Append(
-            self._ID_RESTART_WA_SESSION,
-            f"{self.i18n.t('menu_restart_wa_session')}\tCtrl+Alt+Shift+R",
-        )
-        self.Bind(
-            wx.EVT_MENU, self._on_menu_restart_wa_session, id=self._ID_RESTART_WA_SESSION
         )
         file_menu.AppendSeparator()
         file_menu.Append(
@@ -3085,66 +3077,6 @@ class MainWindow(wx.Frame):
             self,
         ) == wx.YES:
             self._on_disconnect()
-
-    def _on_menu_restart_wa_session(self, event=None):
-        """
-        Arquivo > Reiniciar conexão do WhatsApp / Ctrl+Alt+Shift+R.
-
-        Manual escape hatch for when the automatic recovery machinery
-        (health checks, dead-page detection, etc.) hasn't kicked back in on
-        its own. Unlike calling _restart_wpp_session() directly, this always
-        gives the person a clear, visible outcome instead of a silent
-        no-op — the four things that can happen:
-
-            1. The WPPConnect Node server itself isn't answering at all
-               (status-session probe fails) — this restart only recreates
-               the browser session *inside* an already-running Node
-               process, so it cannot fix a dead Node process. Told plainly,
-               with closing/reopening WinZapp suggested instead.
-            2. The session is already CONNECTED — restarting would only
-               force an unnecessary disconnect/reconnect blip on a
-               connection that's already fine, so this is declined with a
-               clear "already connected" message instead of running.
-            3. _restart_wpp_session()'s own cooldown/re-entrancy guard
-               blocked it (e.g. called twice within
-               _WPP_SESSION_RESTART_COOLDOWN seconds) — told plainly, with
-               how long to wait.
-            4. It actually ran — confirmed, with a note that reconnecting
-               still takes a few seconds.
-        """
-        self.output(self.i18n.t("restart_wa_session_started_msg"))
-
-        def _run():
-            status = self._raw_session_status()
-            if not status:
-                wx.CallAfter(
-                    wx.MessageBox,
-                    self.i18n.t("restart_wa_session_node_unreachable_msg"),
-                    self.app_name,
-                    wx.OK | wx.ICON_WARNING,
-                    self,
-                )
-                return
-
-            if status in ("CONNECTED", "open"):
-                wx.CallAfter(
-                    self.output, self.i18n.t("restart_wa_session_already_connected_msg")
-                )
-                return
-
-            before_ts = getattr(self, "_last_wpp_session_restart_ts", 0)
-            self._restart_wpp_session()
-            actually_ran = (
-                getattr(self, "_last_wpp_session_restart_ts", 0) != before_ts
-            )
-            if not actually_ran:
-                wx.CallAfter(
-                    self.output, self.i18n.t("restart_wa_session_cooldown_msg")
-                )
-                return
-            wx.CallAfter(self.output, self.i18n.t("restart_wa_session_done_msg"))
-
-        threading.Thread(target=_run, daemon=True).start()
 
     def _on_disconnect(self, event=None, wipe=True):
         """Disconnect from WhatsApp: drop credentials, stop WebSocket and show

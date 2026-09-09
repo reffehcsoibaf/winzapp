@@ -1063,11 +1063,5 @@
     "ai_result_ask_label": "Pregunta algo específico sobre este contenido:",
     "ai_result_ask_btn": "&Preguntar",
     "ai_result_asking_msg": "Preguntando a Gemini...",
-    "ai_result_ask_error_title": "No se pudo responder",
-    "menu_restart_wa_session": "&Reiniciar conexión de WhatsApp",
-    "restart_wa_session_started_msg": "Reiniciando la conexión de WhatsApp...",
-    "restart_wa_session_node_unreachable_msg": "El servidor de WhatsApp no responde — este reinicio rápido no puede solucionarlo. Cierra y vuelve a abrir WinZapp.",
-    "restart_wa_session_cooldown_msg": "Ya se hizo un reinicio hace poco. Espera unos 2 minutos antes de intentarlo de nuevo.",
-    "restart_wa_session_done_msg": "Reinicio solicitado. Espera unos segundos para que se reconecte.",
-    "restart_wa_session_already_connected_msg": "Ya está conectado — no es necesario reiniciar."
+    "ai_result_ask_error_title": "No se pudo responder"
 }

@@ -849,7 +849,7 @@ DEFAULT_SETTINGS = {
         # Which categories the auto-download covers. All of them by default —
         # see auto_download_allows(). Links are not a category here.
         "auto_download_media_types": list(AUTO_DOWNLOAD_MEDIA_TYPES),
-        "media_max_days": 30,
+        "media_max_days": 1,
         "media_max_mb": 100,
         "probe_video_duration_on_download": False
     },
