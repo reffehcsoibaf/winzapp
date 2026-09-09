@@ -734,14 +734,21 @@ DEFAULT_SETTINGS = {
         "language": "",
         "notifications_enabled": True,
         "keep_muted_chats_silent_when_open": True,
-        "updates_enabled": True,
+        "updates_enabled": False,
         # Alpha channel (one build per commit on main) — opt-in, see
         # client/updater.py's select_release().
         "alpha_updates_enabled": False,
         "noise_reduction_enabled": False,
-        "first_run": True,
-        "api_type_first_run_asked": False,
-        "hotkey_first_run_asked": False,
+        # These three flags mark the corresponding first-run prompts as
+        # "already asked" from the start, so a fresh install goes straight
+        # to normal use instead of stopping at three consecutive dialogs
+        # (custom/remote API choice, autostart offer, global hotkey offer).
+        # Each behaviour stays fully available afterwards through Settings
+        # or the Arquivo menu — this only skips the one-time ask, defaulting
+        # to "no" for all three (local API, no autostart, no global hotkey).
+        "first_run": False,
+        "api_type_first_run_asked": True,
+        "hotkey_first_run_asked": True,
         "autostart": False,
         "show_tray_icon": True,
         "terms_alert_displayed": False,
