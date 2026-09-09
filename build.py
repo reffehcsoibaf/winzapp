@@ -273,14 +273,20 @@ def _prepare_ffmpeg():
 FFMPEG_EXE = _prepare_ffmpeg()
 
 # Directories inside api/ that must NOT be copied
-# NOTE: node_modules is intentionally NOT excluded here — without it, a
-# fresh WinZapp.zip extract has to run `npm install` on first launch using
-# the bundled portable Node.js, which depends on the target machine's
-# network access and can fail on Node/npm version mismatches. Bundling
-# node_modules trades ~600MB of extra package size for a truly "just open
-# it" portable experience with no first-run install step at all.
+# NOTE: node_modules IS excluded on purpose (reverted after a brief
+# experiment bundling it — see git history around this line). Bundling it
+# added ~600MB to the package (too heavy for people on slower connections
+# or modest hardware — exactly the audience this app serves) and, in
+# practice, produced a corrupted copy on at least one build (a
+# MODULE_NOT_FOUND inside body-parser at runtime). The original reason for
+# excluding it stands: keep the download small, and let the first launch
+# run `npm install` using the bundled portable Node.js in client/node/ —
+# which works reliably as long as that Node is a genuine LTS build (the
+# earlier failure here was Node's "Current" line, not this approach
+# itself; see ensure_api_modules_installed() in main.py for the check that
+# skips this entirely once node_modules already exists).
 API_EXCLUDE_DIRS  = {
-    "wppconnect_tokens", "userDataDir", ".git", "__pycache__",
+    "wppconnect_tokens", "userDataDir", ".git", "__pycache__", "node_modules",
     ".github", ".husky", ".vscode", "src", "log", "tokens", "uploads",
     "WhatsAppImages", "tests", "coverage",
     ".cache",
