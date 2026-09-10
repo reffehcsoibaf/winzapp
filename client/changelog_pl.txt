@@ -139,3 +139,15 @@ POPRAWKI
 - Transkrypcja wiadomości głosowych kończyła się błędem "nie udało się pobrać multimediów": są one przechowywane w innym folderze/formacie niż pozostałe multimedia, a kod transkrypcji używał złej ścieżki.
 
 - Pliki audio w formacie .m4a (oraz inne mniej popularne, jak .amr i .aac) były odrzucane przez Gemini jako nierozpoznane jako audio przez Pythona.
+
+V1.1.0.2
+
+Ta wersja naprawia błąd przy opisywaniu wideo i dodaje mówione powiadomienie o postępie podczas żądań AI.
+
+POPRAWKI
+
+- Opisywanie wideo (i innych większych plików) czasami kończyło się błędem "plik nie jest w stanie aktywnym". Gemini potrzebuje czasu na przetworzenie przesłanych plików, zanim będzie mógł je przeanalizować, a WinZapp teraz czeka na zakończenie tego przetwarzania przed kontynuowaniem.
+
+ULEPSZENIA
+
+- Mówione przypomnienie co 8 sekund ("Nadal przetwarzanie przez Gemini...") podczas trwania transkrypcji, opisu lub konwersji PDF, w tym pytań uzupełniających dla obrazów i wideo. Wcześniej oczekiwanie mogło przebiegać w całkowitej ciszy.

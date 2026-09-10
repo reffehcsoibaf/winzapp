@@ -139,3 +139,15 @@ CORRECCIONES
 - Transcribir mensajes de voz daba error de "no se pudo descargar el archivo multimedia": se guardan en una carpeta y formato distintos al resto de multimedia, y el código de transcripción usaba la ruta equivocada.
 
 - Los archivos de audio en formato .m4a (y otros menos comunes, como .amr y .aac) eran rechazados por Gemini por no ser reconocidos como audio por Python.
+
+V1.1.0.2
+
+Esta versión corrige un error al describir vídeos y añade un aviso hablado de progreso durante las solicitudes de IA.
+
+CORRECCIONES
+
+- Describir vídeos (y otros archivos más grandes) a veces daba error de "archivo no está en estado activo". Gemini necesita tiempo para procesar los archivos enviados antes de poder analizarlos, y WinZapp ahora espera a que ese procesamiento termine antes de continuar.
+
+MEJORAS
+
+- Aviso hablado cada 8 segundos ("Todavía procesando con Gemini...") mientras una transcripción, descripción o conversión de PDF está en curso, incluidas las preguntas de seguimiento en imagen y vídeo. Antes, la espera podía quedar en silencio total.

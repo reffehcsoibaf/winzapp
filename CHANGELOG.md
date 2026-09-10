@@ -9,6 +9,22 @@ mexer no projeto.
 Ponto de partida: o WinZapp original, clonado direto do repositório
 público de gabrielhhaber, antes de qualquer modificação nossa.
 
+## v1.1.0.2 — correções de IA e feedback de progresso
+
+### Correções
+- Corrigido: descrever vídeos (e outros arquivos maiores) às vezes dava
+  erro `FAILED_PRECONDITION` / "File ... is not in an ACTIVE state". O
+  Gemini precisa de um tempo pra processar arquivos enviados por upload
+  antes de poder analisá-los — o código agora espera esse processamento
+  terminar (até 90s) antes de usar o arquivo.
+
+### Melhorias
+- Aviso falado a cada ~8 segundos ("Ainda processando com o Gemini...")
+  enquanto qualquer pedido de transcrição/descrição/conversão está em
+  andamento — cobre o envio do arquivo, o processamento do Gemini e a
+  geração da resposta, incluindo as perguntas de acompanhamento em
+  imagem/vídeo.
+
 ## v1.1.0.1 — primeira leva de modificações
 
 ### Novidades de acessibilidade (IA via Gemini)

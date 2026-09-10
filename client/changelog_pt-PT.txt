@@ -139,3 +139,15 @@ CORREÇÕES
 - Transcrever mensagens de voz dava erro de "não foi possível transferir a multimédia": ficam guardadas numa pasta e formato diferentes do resto das multimédias, e o código de transcrição usava o caminho errado.
 
 - Ficheiros de áudio em formato .m4a (e outros menos comuns, como .amr e .aac) eram rejeitados pelo Gemini por não serem reconhecidos como áudio pelo Python.
+
+V1.1.0.2
+
+Esta versão corrige um erro ao descrever vídeos e adiciona um aviso falado de progresso durante os pedidos de IA.
+
+CORREÇÕES
+
+- Descrever vídeos (e outros ficheiros maiores) por vezes dava erro "ficheiro não está em estado ativo". O Gemini precisa de tempo para processar ficheiros enviados antes de os poder analisar, e o WinZapp agora espera esse processamento terminar antes de continuar.
+
+MELHORIAS
+
+- Aviso falado a cada 8 segundos ("Ainda a processar com o Gemini...") enquanto uma transcrição, descrição ou conversão de PDF está em curso, incluindo as perguntas de acompanhamento em imagem e vídeo. Antes, a espera podia ficar em silêncio total.
