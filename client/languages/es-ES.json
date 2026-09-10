@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Pregunta algo específico sobre este contenido:",
     "ai_result_ask_btn": "&Preguntar",
     "ai_result_asking_msg": "Preguntando a Gemini...",
-    "ai_result_ask_error_title": "No se pudo responder"
+    "ai_result_ask_error_title": "No se pudo responder",
+    "sync_chats_progress_msg": "Sincronizando conversaciones: {done} de {total}",
+    "sync_media_progress_msg": "Descargando multimedia: {done} de {total} procesadas ({downloaded} descargadas)"
 }

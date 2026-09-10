@@ -16443,6 +16443,10 @@ class MainWindow(wx.Frame):
                     for chat in valid_chats
                 }
 
+            completed_count = 0
+            total_chats = len(valid_chats)
+            last_spoken_ts = time.time()
+
             for future in as_completed(futures):
                 chat = futures[future]
                 raw_jid = chat.get("remoteJid", "")
@@ -16456,6 +16460,21 @@ class MainWindow(wx.Frame):
                 except Exception as exc:
                     failed_jids.add(jid)
                     logging.warning("[sync_remote_chats] failed for %s: %s", jid, exc)
+
+                # Spoken progress every ~5s — see the media-sync sweep below
+                # for the same pattern. Never on every single chat: with
+                # hundreds or thousands of chats that would flood the screen
+                # reader with announcements far faster than anyone could
+                # follow.
+                completed_count += 1
+                now = time.time()
+                if now - last_spoken_ts >= 5:
+                    progress_text = self.i18n.t("sync_chats_progress_msg").format(
+                        done=completed_count, total=total_chats
+                    )
+                    wx.CallAfter(self._set_status, progress_text)
+                    wx.CallAfter(self.output, progress_text)
+                    last_spoken_ts = now
 
         # Keep a durable retry latch for message I/O failures. list-chats may
         # already have advanced `t`/lastReceivedKey before this query failed;
@@ -17742,6 +17761,9 @@ class MainWindow(wx.Frame):
             return 0
 
         downloaded = 0
+        processed = 0
+        total_tasks = len(tasks)
+        last_spoken_ts = time.time()
         timeout = self._MEDIA_SYNC_TIMEOUT
         with ThreadPoolExecutor(max_workers=self._MEDIA_SYNC_WORKERS) as pool:
             futs = {pool.submit(self.sync_if_media, msg, timeout): msg for msg in tasks}
@@ -17751,6 +17773,23 @@ class MainWindow(wx.Frame):
                         downloaded += 1
                 except Exception:
                     pass
+
+                # Spoken progress every ~5s, same pattern as
+                # sync_remote_chats() above. "processed" (not "downloaded")
+                # drives the X/Y count: most candidates get skipped (offline,
+                # past the day/size caps, already on disk — see
+                # sync_if_media()'s docstring), so downloaded alone would
+                # often look stuck at a low number even while the sweep is
+                # moving right along through every candidate.
+                processed += 1
+                now = time.time()
+                if now - last_spoken_ts >= 5:
+                    progress_text = self.i18n.t("sync_media_progress_msg").format(
+                        done=processed, total=total_tasks, downloaded=downloaded
+                    )
+                    wx.CallAfter(self._set_status, progress_text)
+                    wx.CallAfter(self.output, progress_text)
+                    last_spoken_ts = now
 
         # Persist the set of expired IDs accumulated during this sync run.
         self._save_media_failed_ids()

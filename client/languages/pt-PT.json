@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Pergunte algo específico sobre esta multimédia:",
     "ai_result_ask_btn": "&Perguntar",
     "ai_result_asking_msg": "A perguntar ao Gemini...",
-    "ai_result_ask_error_title": "Não foi possível responder"
+    "ai_result_ask_error_title": "Não foi possível responder",
+    "sync_chats_progress_msg": "A sincronizar conversas: {done} de {total}",
+    "sync_media_progress_msg": "A transferir multimédia: {done} de {total} processadas ({downloaded} transferidas)"
 }

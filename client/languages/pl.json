@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Zapytaj o coś konkretnego dotyczącego tych multimediów:",
     "ai_result_ask_btn": "&Zapytaj",
     "ai_result_asking_msg": "Pytanie do Gemini...",
-    "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi"
+    "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi",
+    "sync_chats_progress_msg": "Synchronizowanie czatów: {done} z {total}",
+    "sync_media_progress_msg": "Pobieranie multimediów: {done} z {total} przetworzonych ({downloaded} pobranych)"
 }

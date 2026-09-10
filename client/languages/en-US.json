@@ -1063,5 +1063,7 @@
     "ai_result_ask_label": "Ask something specific about this media:",
     "ai_result_ask_btn": "&Ask",
     "ai_result_asking_msg": "Asking Gemini...",
-    "ai_result_ask_error_title": "Couldn't get an answer"
+    "ai_result_ask_error_title": "Couldn't get an answer",
+    "sync_chats_progress_msg": "Syncing chats: {done} of {total}",
+    "sync_media_progress_msg": "Downloading media: {done} of {total} processed ({downloaded} downloaded)"
 }
