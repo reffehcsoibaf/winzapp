@@ -1065,5 +1065,6 @@
     "ai_result_asking_msg": "Preguntando a Gemini...",
     "ai_result_ask_error_title": "No se pudo responder",
     "sync_chats_progress_msg": "Sincronizando conversaciones: {done} de {total}",
-    "sync_media_progress_msg": "Descargando multimedia: {done} de {total} procesadas ({downloaded} descargadas)"
+    "sync_media_progress_msg": "Descargando multimedia: {done} de {total} procesadas ({downloaded} descargadas)",
+    "ai_still_processing_msg": "Todavía procesando con Gemini..."
 }

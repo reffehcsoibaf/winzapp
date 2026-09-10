@@ -10547,6 +10547,24 @@ class ConversationsPanel(wx.Panel):
                     self.main_window.i18n.t("ai_media_download_error_msg"),
                 )
                 return
+
+            # Speaks a periodic "still working" reminder every 8s for as
+            # long as the Gemini call is in flight — covers every silent
+            # wait uniformly (uploading a large file, Gemini processing a
+            # video before it's usable, or just a slow response), without
+            # needing to know which stage is actually running.
+            stop_watchdog = threading.Event()
+
+            def _watchdog():
+                while not stop_watchdog.wait(8):
+                    wx.CallAfter(
+                        self.main_window.output,
+                        self.main_window.i18n.t("ai_still_processing_msg"),
+                    )
+
+            watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
+            watchdog_thread.start()
+
             try:
                 with open(media_path, "rb") as fh:
                     content = decrypt_bytes(fh.read(), self.main_window.key)
@@ -10597,6 +10615,8 @@ class ConversationsPanel(wx.Panel):
                     self.main_window.output,
                     self.main_window.i18n.t("ai_unexpected_error_msg"),
                 )
+            finally:
+                stop_watchdog.set()
 
         threading.Thread(target=_run, daemon=True).start()
 

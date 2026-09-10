@@ -183,12 +183,30 @@ class AIResultDialog(wx.Dialog):
         self._listbox.SetSelection(waiting_index)
 
         def _run():
+            stop_watchdog = threading.Event()
+
+            def _watchdog():
+                while not stop_watchdog.wait(8):
+                    parent = self.GetParent()
+                    if parent is not None and hasattr(parent, "output"):
+                        wx.CallAfter(
+                            parent.output,
+                            self._t(
+                                "ai_still_processing_msg",
+                                "Ainda processando com o Gemini...",
+                            ),
+                        )
+
+            watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
+            watchdog_thread.start()
             try:
                 answer = self._ask_fn(question)
                 error_text = None
             except Exception as exc:  # noqa: BLE001 — surfaced to the user as-is
                 answer = None
                 error_text = str(exc)
+            finally:
+                stop_watchdog.set()
 
             def _finish():
                 self._listbox.Delete(waiting_index)

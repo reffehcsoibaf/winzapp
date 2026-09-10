@@ -1065,5 +1065,6 @@
     "ai_result_asking_msg": "Pytanie do Gemini...",
     "ai_result_ask_error_title": "Nie udało się uzyskać odpowiedzi",
     "sync_chats_progress_msg": "Synchronizowanie czatów: {done} z {total}",
-    "sync_media_progress_msg": "Pobieranie multimediów: {done} z {total} przetworzonych ({downloaded} pobranych)"
+    "sync_media_progress_msg": "Pobieranie multimediów: {done} z {total} przetworzonych ({downloaded} pobranych)",
+    "ai_still_processing_msg": "Nadal przetwarzanie przez Gemini..."
 }
