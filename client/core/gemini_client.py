@@ -19,6 +19,7 @@ Requer a biblioteca oficial:
 from __future__ import annotations
 
 import mimetypes
+import time
 from pathlib import Path
 from typing import Optional
 
@@ -96,7 +97,35 @@ def _upload_or_inline(client: genai.Client, file_path: str):
         return types.Part.from_bytes(data=data, mime_type=mime_type)
 
     uploaded = client.files.upload(file=str(path))
-    return uploaded
+    return _wait_until_active(client, uploaded)
+
+
+def _wait_until_active(client: genai.Client, uploaded_file, timeout_seconds: int = 90):
+    """
+    Files enviados pela File API do Gemini começam no estado PROCESSING —
+    especialmente vídeos, que o Gemini precisa processar antes de ficarem
+    utilizáveis — e só podem ser referenciados numa chamada depois de
+    chegarem a ACTIVE. Sem essa espera, uma chamada feita cedo demais falha
+    com "File ... is not in an ACTIVE state" mesmo com upload bem-sucedido.
+    """
+    deadline = time.monotonic() + timeout_seconds
+    current = uploaded_file
+    while getattr(current.state, "name", current.state) == "PROCESSING":
+        if time.monotonic() >= deadline:
+            raise GeminiClientError(
+                "O Gemini demorou demais para processar este arquivo "
+                "(comum com vídeos maiores). Tente novamente em instantes."
+            )
+        time.sleep(2)
+        current = client.files.get(name=uploaded_file.name)
+
+    state_name = getattr(current.state, "name", current.state)
+    if state_name != "ACTIVE":
+        raise GeminiClientError(
+            "O Gemini não conseguiu processar este arquivo "
+            f"(estado: {state_name}). Tente novamente ou com outro arquivo."
+        )
+    return current
 
 
 def _generate_text(client: genai.Client, model: str, prompt: str, media_part) -> str:
