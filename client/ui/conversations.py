@@ -10430,12 +10430,12 @@ class ConversationsPanel(wx.Panel):
                         else:
                             self.main_window.output(self.main_window.i18n.t("msg_copy_error"))
                     except Exception as e:
-                        print(f"[_to_clipboard] Clipboard error: {e}")
+                        logging.exception("[_to_clipboard] Clipboard error: %s", e)
                         self.main_window.output(self.main_window.i18n.t("msg_copy_error"))
 
                 wx.CallAfter(_to_clipboard)
             except Exception as exc:
-                print(f"[_on_menu_copy_file] Error copying file: {exc}")
+                logging.exception("[_on_menu_copy_file] Error copying file: %s", exc)
                 wx.CallAfter(self.main_window.output, self.main_window.i18n.t("msg_copy_error"))
 
         threading.Thread(target=_run, daemon=True).start()
