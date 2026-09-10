@@ -4,7 +4,12 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
-## v1.1.0.0 — versão base das nossas modificações
+## v1.1.0.0 — base original (upstream, sem modificações)
+
+Ponto de partida: o WinZapp original, clonado direto do repositório
+público de gabrielhhaber, antes de qualquer modificação nossa.
+
+## v1.1.0.1 — primeira leva de modificações
 
 ### Novidades de acessibilidade (IA via Gemini)
 - Nova aba **"Transcrições e Descrições"** em Configurações: liga/desliga
