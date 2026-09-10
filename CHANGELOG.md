@@ -25,6 +25,10 @@ público de gabrielhhaber, antes de qualquer modificação nossa.
 - Corrigido: arquivos `.m4a` (e outros formatos de áudio menos comuns,
   como `.amr`/`.aac`) eram rejeitados pelo Gemini por tipo de arquivo não
   reconhecido pelo Python — agora tratados corretamente.
+- Corrigido: transcrever mensagens de voz dava erro de "não foi possível
+  baixar a mídia", porque elas ficam guardadas numa pasta/formato
+  diferente (`voice_messages/*.msv`) do resto das mídias
+  (`media/*.wzmedia`) — o código de transcrição usava o caminho errado.
 
 ### Instalação e primeira execução
 - Instalações novas vêm com **atualizações automáticas desligadas** por
