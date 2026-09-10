@@ -113,3 +113,29 @@ CORRECCIONES
 - Desconectar desde Archivo > Desconectar ya no reproduce otra vez los sonidos de conectado e inicio de sincronización, ni intenta reconectar por su cuenta: la cuenta queda realmente desconectada.
 
 - El registro de instalación de actualizaciones ahora se guarda dentro de la carpeta de registros de la cuenta (junto con log.log y shutdown_audit.log), en vez de suelto en la carpeta del programa.
+
+V1.1.0.1
+
+Esta versión trae funciones de IA para accesibilidad (transcripción de audio, descripción de imagen/vídeo y conversión de PDF en texto accesible, mediante Gemini), además de ajustes para simplificar la primera ejecución y hacer la sincronización menos pesada.
+
+NOVEDADES
+
+- Nueva pestaña "Transcripciones y Descripciones" en configuración: activa las funciones de IA, guarda tu clave de API de Gemini, y activa o desactiva por separado la transcripción de audio, la descripción de imágenes, la descripción de vídeos y la conversión de PDF en texto accesible.
+
+- Menú contextual de los mensajes: "Transcribir" en mensajes de voz, "Describir" en imágenes y vídeos, y "Convertir en texto accesible" en documentos PDF. El resultado se abre en una ventana navegable con las flechas, con botón para copiar todo.
+
+- En imágenes y vídeos, se puede hacer una pregunta de seguimiento sobre un detalle específico que la descripción general no haya cubierto, como el precio de un producto en un folleto o un importe en una factura.
+
+MEJORAS
+
+- Descarga automática de multimedia: plazo predeterminado reducido de 30 a 1 día.
+
+- Progreso hablado cada 5 segundos durante la sincronización de conversaciones y la descarga de multimedia, indicando cuántas se han procesado del total.
+
+- Las instalaciones nuevas vienen con las actualizaciones automáticas desactivadas de forma predeterminada, y sin las tres preguntas de la primera ejecución (API personalizada, inicio automático con Windows, atajo de teclado global) — todo sigue disponible manualmente en configuración.
+
+CORRECCIONES
+
+- Transcribir mensajes de voz daba error de "no se pudo descargar el archivo multimedia": se guardan en una carpeta y formato distintos al resto de multimedia, y el código de transcripción usaba la ruta equivocada.
+
+- Los archivos de audio en formato .m4a (y otros menos comunes, como .amr y .aac) eran rechazados por Gemini por no ser reconocidos como audio por Python.

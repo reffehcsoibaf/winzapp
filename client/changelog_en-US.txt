@@ -113,3 +113,29 @@ FIXES
 - Disconnecting from File > Disconnect no longer plays the "connected"/"sync started" sounds again or tries to reconnect on its own — the account stays properly disconnected.
 
 - The update installer's log now lives inside the account's own logs folder (alongside log.log and shutdown_audit.log), instead of loose in the program folder.
+
+V1.1.0.1
+
+This version brings AI accessibility features (audio transcription, image/video description, and PDF-to-accessible-text conversion, via Gemini), plus changes to make first launch simpler and syncing less taxing.
+
+WHAT'S NEW
+
+- New "Transcriptions & Descriptions" settings tab: turns AI features on, stores your Gemini API key, and separately toggles audio transcription, image description, video description, and PDF-to-accessible-text conversion.
+
+- Message context menu: "Transcribe" on voice messages, "Describe" on images and videos, and "Convert to accessible text" on PDF documents. The result opens in an arrow-key navigable window, with a copy-all button.
+
+- For images and videos, you can ask a follow-up question about a specific detail the general description missed, like a product's price in a flyer or a figure on an invoice.
+
+IMPROVEMENTS
+
+- Automatic media download: default window reduced from 30 to 1 day.
+
+- Spoken progress every 5 seconds during chat sync and media download, announcing how many have been processed out of the total.
+
+- Fresh installs now ship with automatic updates off by default, and skip the three first-run prompts (custom API, Windows autostart, global hotkey) — all still available manually in Settings.
+
+FIXES
+
+- Transcribing voice messages failed with "couldn't download the media": voice notes are stored in a different folder/format from other media, and the transcription code was using the wrong path.
+
+- .m4a audio files (and a few less common formats, like .amr and .aac) were rejected by Gemini for not being recognised as audio by Python.

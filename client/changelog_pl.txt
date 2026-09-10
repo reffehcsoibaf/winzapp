@@ -113,3 +113,29 @@ POPRAWKI
 - Rozłączenie przez Plik > Rozłącz nie odtwarza już ponownie dźwięków „połączono” i „rozpoczęto synchronizację” ani nie próbuje samodzielnie połączyć się ponownie — konto pozostaje faktycznie rozłączone.
 
 - Dziennik instalacji aktualizacji jest teraz zapisywany w folderze dzienników konta (razem z log.log i shutdown_audit.log), zamiast osobno w folderze programu.
+
+V1.1.0.1
+
+Ta wersja wprowadza funkcje AI dla dostępności (transkrypcja audio, opis obrazu/wideo i konwersja PDF na dostępny tekst, za pomocą Gemini), a także zmiany upraszczające pierwsze uruchomienie i synchronizację.
+
+NOWOŚCI
+
+- Nowa karta "Transkrypcje i opisy" w ustawieniach: włącza funkcje AI, przechowuje klucz API Gemini, oraz osobno przełącza transkrypcję audio, opis obrazów, opis wideo i konwersję PDF na dostępny tekst.
+
+- Menu kontekstowe wiadomości: "Transkrybuj" dla wiadomości głosowych, "Opisz" dla obrazów i wideo, oraz "Konwertuj na dostępny tekst" dla dokumentów PDF. Wynik otwiera się w oknie nawigowalnym strzałkami, z przyciskiem kopiowania wszystkiego.
+
+- Dla obrazów i wideo można zadać dodatkowe pytanie o konkretny szczegół, którego ogólny opis nie uwzględnił, np. cenę produktu na ulotce lub kwotę na fakturze.
+
+ULEPSZENIA
+
+- Automatyczne pobieranie multimediów: domyślny okres skrócony z 30 do 1 dnia.
+
+- Mówiony postęp co 5 sekund podczas synchronizacji czatów i pobierania multimediów, informujący ile już przetworzono z całości.
+
+- Nowe instalacje domyślnie mają wyłączone automatyczne aktualizacje i pomijają trzy pytania z pierwszego uruchomienia (niestandardowe API, automatyczne uruchamianie z Windows, globalny skrót klawiszowy) — wszystko nadal dostępne ręcznie w ustawieniach.
+
+POPRAWKI
+
+- Transkrypcja wiadomości głosowych kończyła się błędem "nie udało się pobrać multimediów": są one przechowywane w innym folderze/formacie niż pozostałe multimedia, a kod transkrypcji używał złej ścieżki.
+
+- Pliki audio w formacie .m4a (oraz inne mniej popularne, jak .amr i .aac) były odrzucane przez Gemini jako nierozpoznane jako audio przez Pythona.
