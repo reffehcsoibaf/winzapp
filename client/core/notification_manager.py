@@ -163,6 +163,13 @@ def format_notification_body(msg: dict, main_window, i18n) -> str:
     Mirrors the display logic in ConversationsPanel._get_message_content
     but uses compact duration (M:SS) and avoids i18n verbose duration strings.
     """
+    # "Mensagens trancadas": never let the sender's actual text reach a
+    # Windows toast for a locked chat — the whole point of locking is that a
+    # glance at a notification banner shouldn't reveal what it says.
+    _remote_jid = (msg.get("key", {}) or {}).get("remoteJid", "")
+    if _remote_jid and main_window.is_chat_locked(_remote_jid):
+        return i18n.t("locked_chat_notif_body") or "Nova mensagem"
+
     msg_type = msg.get("messageType", "conversation")
     msg_obj  = msg.get("message") or {}
     sep      = i18n.t("decimal_separator")
@@ -481,6 +488,12 @@ def format_notification_title(msg: dict, main_window, i18n) -> str:
     key        = msg.get("key", {})
     remote_jid = key.get("remoteJid", "")
     push_name  = msg.get("pushName", "")
+
+    # Same rationale as format_notification_body(): a locked chat's sender
+    # name must not leak into the toast title either, or hiding the message
+    # text alone would still announce exactly who wrote to you.
+    if remote_jid and main_window.is_chat_locked(remote_jid):
+        return i18n.t("locked_chat_notif_title") or "WinZapp"
 
     if remote_jid.endswith("@g.us"):
         chat = main_window.chats.get(remote_jid) or {"remoteJid": remote_jid}
