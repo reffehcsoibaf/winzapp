@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS chats (
     push_name       TEXT DEFAULT '',
     name            TEXT DEFAULT '',
     archived        INTEGER DEFAULT 0,
+    locked          INTEGER DEFAULT 0,
     chat_type       TEXT DEFAULT 'chat',
     last_message_json TEXT DEFAULT '',
     t               INTEGER DEFAULT 0,
@@ -274,6 +275,12 @@ class DatabaseManager:
             # cause was this ALTER TABLE never having succeeded.
             if "duplicate column" not in str(exc).lower():
                 log.error("[connect] ALTER TABLE chats ADD COLUMN t failed: %s", exc)
+                raise
+        try:
+            await self._conn.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")
+        except Exception as exc:
+            if "duplicate column" not in str(exc).lower():
+                log.error("[connect] ALTER TABLE chats ADD COLUMN locked failed: %s", exc)
                 raise
         await self._upgrade_unresolvable_lids()
         await self._conn.commit()
