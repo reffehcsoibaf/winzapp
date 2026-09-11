@@ -604,6 +604,12 @@ routes.post(
   DeviceController.deleteMessage
 );
 routes.post(
+  '/api/:session/message-ack',
+  verifyToken,
+  statusConnection,
+  DeviceController.getMessageAck
+);
+routes.post(
   '/api/:session/react-message',
   verifyToken,
   statusConnection,
