@@ -23285,28 +23285,20 @@ class MainWindow(wx.Frame):
     # Purely local/WinZapp concept — WhatsApp's protocol has nothing like it,
     # so unlike archive there is no _api_* counterpart and nothing to sync.
 
-    # TEMPORARY (locked-chats investigation): dumps whatever the WPPConnect
-    # server's /chat-by-id endpoint returns for *jid*, so we can find the
-    # real field WhatsApp uses to mark a chat as locked on the phone (see
-    # ChatLockSettings in the protocol). Remove this + its menu entry once
-    # that field is identified and wired into is_chat_locked().
-    def debug_fetch_chat_raw(self, jid: str) -> str:
-        import json as _json
-        is_group = jid.endswith("@g.us")
-        phone = jid.split("@")[0]
-        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/chat-by-id/{phone}"
-        headers = {"Authorization": f"Bearer {self.token}"}
-        try:
-            resp = api_get(url, params={"isGroup": is_group}, headers=headers, timeout=15)
-            if not resp.ok:
-                return f"Erro HTTP {resp.status_code}: {resp.text[:1000]}"
-            return _json.dumps(resp.json(), indent=2, ensure_ascii=False, default=str)
-        except Exception as exc:
-            return f"Falha na requisicao: {exc}"
-
     def is_chat_locked(self, jid: str) -> bool:
+        """True if this chat is hidden by EITHER lock: our own local flag
+        (chat['locked']) or the real WhatsApp Chat Lock synced from the
+        phone (chat['isLocked'] — confirmed present on the chat object
+        WPPConnect already returns, same place as chat['archive'])."""
         chat = self.chats.get(self._normalize_jid(jid))
-        return bool(chat and chat.get("locked"))
+        return bool(chat and (chat.get("locked") or chat.get("isLocked")))
+
+    def is_chat_phone_locked(self, jid: str) -> bool:
+        """True only for the real, phone-synced WhatsApp Chat Lock. WinZapp
+        cannot unlock this on its own — only the phone's own secret code
+        can — so the context menu must not offer Unlock for these."""
+        chat = self.chats.get(self._normalize_jid(jid))
+        return bool(chat and chat.get("isLocked"))
 
     def has_locked_chats_code_configured(self) -> bool:
         return bool(self.settings.get("privacy", {}).get("locked_chats_code_hash", ""))
@@ -25741,12 +25733,13 @@ class MainWindow(wx.Frame):
         for i, chat in enumerate(full_chats):
             name     = full_names[i]
             chat_jid = chat.get("remoteJid", "")
+            _is_locked = bool(chat.get("locked") or chat.get("isLocked"))
             if _reveal_locked:
                 # Reveal mode: only locked chats, nothing else matters.
-                if not chat.get("locked"):
+                if not _is_locked:
                     continue
             else:
-                if chat.get("locked"):
+                if _is_locked:
                     continue
                 if conv_filter == 'unread' and effective_unread_count(chat) == 0:
                     continue
