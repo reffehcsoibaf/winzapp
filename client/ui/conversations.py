@@ -1610,7 +1610,39 @@ class ConversationsPanel(wx.Panel):
         )
         self.conversation_panel.Layout()
 
+    def _prompt_locked_chat_code(self, for_unlock: bool = False) -> bool:
+        """Ask for the locked-chats code. On success stashes it in
+        self._last_locked_chat_code (only _on_menu_unlock reads that — the
+        open-conversation gate only needs the True/False result)."""
+        i18n = self.main_window.i18n
+        dlg = wx.PasswordEntryDialog(
+            self,
+            i18n.t('locked_chat_enter_code_prompt'),
+            i18n.t('locked_chat_enter_code_title'),
+        )
+        try:
+            if dlg.ShowModal() != wx.ID_OK:
+                return False
+            code = dlg.GetValue()
+        finally:
+            dlg.Destroy()
+        self._last_locked_chat_code = code
+        if for_unlock:
+            return bool(code)  # let unlock_chat() itself do the real check
+        if not self.main_window.verify_locked_chats_code(code):
+            wx.MessageBox(i18n.t('locked_chat_wrong_code'), i18n.t('error'), wx.OK | wx.ICON_ERROR)
+            return False
+        return True
+
     def navigate_to_conversation(self, conversation):
+        _jid = conversation.get("remoteJid", "")
+        _already_open = (self.conversation is not None
+                          and self.conversation.get("remoteJid") == _jid)
+        if (_jid and not _already_open and self.main_window.is_chat_locked(_jid)
+                and self.main_window.settings.get("privacy", {}).get(
+                    "locked_chats_require_code_to_open", True)):
+            if not self._prompt_locked_chat_code():
+                return
         if self.conversation is not None and self.conversation.get("remoteJid") == conversation.get("remoteJid"):
             self.conversation = conversation
             # Conversation already open — just focus the message input field.
@@ -3966,6 +3998,18 @@ class ConversationsPanel(wx.Panel):
         else:
             arch_item = menu.Append(wx.ID_ANY, f"{i18n.t('archive_chat')}\tCtrl+Shift+Q")
             self.Bind(wx.EVT_MENU, lambda e, j=jid: self._on_menu_archive(j), arch_item)
+
+        # ── Lock / Unlock ("mensagens trancadas") ──────────────────────────
+        # Only offered once a code is configured (Settings > Privacidade) —
+        # otherwise locking would hide a chat with no way to ever reveal it
+        # again, since verify_code() always rejects an unconfigured code.
+        if mw.has_locked_chats_code_configured():
+            if mw.is_chat_locked(jid):
+                unlock_item = menu.Append(wx.ID_ANY, i18n.t('unlock_chat'))
+                self.Bind(wx.EVT_MENU, lambda e, j=jid: self._on_menu_unlock(j), unlock_item)
+            else:
+                lock_item = menu.Append(wx.ID_ANY, i18n.t('lock_chat'))
+                self.Bind(wx.EVT_MENU, lambda e, j=jid: self._on_menu_lock(j), lock_item)
 
         # ── Pin / Unpin ───────────────────────────────────────────────────
         if mw.is_chat_pinned(jid):
@@ -10211,6 +10255,23 @@ class ConversationsPanel(wx.Panel):
 
     def _on_menu_unarchive(self, jid: str):
         self.main_window.unarchive_chat(jid)
+
+    def _on_menu_lock(self, jid: str):
+        # No code needed to lock — same as WhatsApp; close it first so it
+        # doesn't stay open on screen while also being hidden from the list.
+        if self.conversation and self.conversation.get("remoteJid") == jid:
+            self.close_conversation()
+        self.main_window.lock_chat(jid)
+
+    def _on_menu_unlock(self, jid: str):
+        # Unlocking (permanently, from the menu) requires the code — otherwise
+        # it is just another right-click away from undoing the whole feature.
+        if not self._prompt_locked_chat_code(for_unlock=True):
+            return
+        code = self._last_locked_chat_code
+        if not self.main_window.unlock_chat(jid, code):
+            i18n = self.main_window.i18n
+            wx.MessageBox(i18n.t('locked_chat_wrong_code'), i18n.t('error'), wx.OK | wx.ICON_ERROR)
 
     def _on_menu_pin(self, jid: str):
         self.main_window.pin_chat(jid)
