@@ -1152,6 +1152,112 @@ export async function getMessageAck(req: Request, res: Response) {
   }
 }
 
+export async function getPrivacySettings(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Privacy"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+   *
+   * WPP.privacy.get() returns every account-wide privacy field in one call
+   * (lastSeen, online, about, profilePicture, readReceipts, groupAdd,
+   * status) — none of this is wrapped by @wppconnect-team/wppconnect, so
+   * this goes through page.evaluate directly, same as getMessageAck above.
+   */
+  try {
+    const settings = await req.client.page.evaluate(() =>
+      (window as any).WPP.privacy.get()
+    );
+    return res.status(200).json({ status: 'success', response: settings });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error on get privacy settings',
+      error: String((e as any)?.message || e),
+    });
+  }
+}
+
+const PRIVACY_SETTERS: Record<string, string> = {
+  lastSeen: 'setLastSeen',
+  online: 'setOnline',
+  about: 'setAbout',
+  profilePicture: 'setProfilePic',
+  readReceipts: 'setReadReceipts',
+  groupAdd: 'setAddGroup',
+};
+
+export async function setPrivacySetting(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Privacy"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+     #swagger.requestBody = {
+      required: true,
+      "@content": {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              setting: { type: "string", description: "lastSeen | online | about | profilePicture | readReceipts | groupAdd" },
+              value: { type: "string" },
+            }
+          },
+          examples: {
+            "Set read receipts off": {
+              value: { setting: "readReceipts", value: "none" }
+            },
+          }
+        }
+      }
+     }
+   *
+   * One dispatcher for every simple-enum WPP.privacy.set* function (each
+   * takes just a value string) instead of six near-identical route
+   * handlers. WPP.privacy.setStatus (who sees Stories) is deliberately NOT
+   * here — it takes a contact list, not a plain value, and needs its own
+   * UI/endpoint later.
+   */
+  const { setting, value } = req.body;
+  const fnName = PRIVACY_SETTERS[setting];
+  if (!fnName) {
+    return res.status(400).json({
+      status: 'error',
+      message: `Unknown or unsupported privacy setting: ${setting}`,
+    });
+  }
+  if (!value) {
+    return res
+      .status(400)
+      .json({ status: 'error', message: 'value is required' });
+  }
+  try {
+    await req.client.page.evaluate(
+      ({ fn, val }: { fn: string; val: string }) =>
+        (window as any).WPP.privacy[fn](val),
+      { fn: fnName, val: value }
+    );
+    return res.status(200).json({ status: 'success' });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: `Error setting privacy.${setting}`,
+      error: String((e as any)?.message || e),
+    });
+  }
+}
+
 export async function reactMessage(req: Request, res: Response) {
   /**
    * #swagger.tags = ["Messages"]
