@@ -1951,13 +1951,16 @@ class SettingsDialog(wx.Dialog):
         self._update_ai_fields_state()
         event.Skip()
 
-    def _on_apply_whatsapp_privacy(self, event):
+    def _apply_whatsapp_privacy_settings(self) -> list:
         """Sends every dropdown's current selection to WhatsApp via
         set_privacy_setting(). Always sends all six (not just changed ones)
         — re-sending an unchanged value is a harmless no-op on WhatsApp's
         side, and skipping that complexity means one clear action instead
-        of tracking a dirty/clean state per dropdown."""
-        i18n = self.main_window.i18n
+        of tracking a dirty/clean state per dropdown. Returns the list of
+        per-setting error strings (empty on full success). Shared by the
+        in-tab "Apply" button AND the dialog's main OK/Apply — every other
+        field in this dialog saves on OK, so these dropdowns doing nothing
+        until a separate button is pressed is a trap, not a feature."""
         errors = []
         for attr_prefix, _label_key, options in self._WA_PRIVACY_FIELDS:
             choice = getattr(self, f"_wa_privacy_{attr_prefix}_choice")
@@ -1969,6 +1972,11 @@ class SettingsDialog(wx.Dialog):
             error = self.main_window.set_privacy_setting(server_field, raw_value)
             if error:
                 errors.append(error)
+        return errors
+
+    def _on_apply_whatsapp_privacy(self, event):
+        i18n = self.main_window.i18n
+        errors = self._apply_whatsapp_privacy_settings()
         if errors:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_partial_error"))
             wx.MessageBox(
@@ -2678,6 +2686,20 @@ class SettingsDialog(wx.Dialog):
             _priv["locked_chats_code_salt"] = _salt
             _priv["locked_chats_code_hash"] = chat_lock.hash_code(_new_code, _salt)
         _priv["locked_chats_require_code_to_open"] = self._privacy_require_code_check.GetValue()
+
+        # WhatsApp account privacy dropdowns apply here too, same as every
+        # other field on this dialog saving on OK — the dedicated in-tab
+        # button is a convenience for applying without closing, not the
+        # only way to do it.
+        _wa_privacy_errors = self._apply_whatsapp_privacy_settings()
+        if _wa_privacy_errors:
+            _i18n = self.main_window.i18n
+            wx.MessageBox(
+                "\n".join(_wa_privacy_errors),
+                _i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
 
         # Persist and propagate
         self.main_window.save_settings()
