@@ -8453,6 +8453,23 @@ class ConversationsPanel(wx.Panel):
         except Exception:
             return ""
 
+    def _format_full_datetime(self, ts):
+        """Like _format_date(), but always the full date+time — never
+        "hoje às HH:MM"/"ontem às HH:MM". Used in the message-data dialog,
+        where every stage needs to be unambiguous on its own, without
+        relying on "today" still meaning the same day it's read later."""
+        if not ts:
+            return ""
+        try:
+            ts_val = int(ts)
+            if ts_val > 1_000_000_000_000:
+                ts_val //= 1000
+            dt = datetime.fromtimestamp(ts_val)
+            i18n = self.main_window.i18n
+            return dt.strftime(get_datetime_format(i18n.t("datetime_fmt")))
+        except Exception:
+            return ""
+
     def _probe_audio_duration(self, path: str):
         """Method form of probe_media_duration() — see that function."""
         return probe_media_duration(path)
@@ -9138,9 +9155,39 @@ class ConversationsPanel(wx.Panel):
         for stage in stage_order:
             ts = first_ts.get(stage)
             if ts is not None:
-                lines.append(f"{i18n.t(label_keys[stage])}: {self._format_date(ts)}")
+                lines.append(f"{i18n.t(label_keys[stage])}: {self._format_full_datetime(ts)}")
         if failed_ts is not None:
-            lines.append(f"{i18n.t('status_failed')}: {self._format_date(failed_ts)}")
+            lines.append(f"{i18n.t('status_failed')}: {self._format_full_datetime(failed_ts)}")
+        return lines
+
+    def _live_status_history_lines(self, msg, chat_jid: "str | None" = None) -> list:
+        """Fresh delivered/read/played times for one of OUR OWN messages,
+        fetched live from WhatsApp (see MainWindow.fetch_message_ack) instead
+        of only whatever MessageUpdate events WinZapp happened to capture
+        while running. Only for 1:1 chats — WhatsApp's ack info is
+        per-participant for groups, which needs its own display, not a
+        single timeline; group chats fall back to _status_history_lines()."""
+        if not msg.get("key", {}).get("fromMe"):
+            return []
+        if not chat_jid or chat_jid.endswith("@g.us"):
+            return []
+        if self._receipts_are_meaningless(chat_jid):
+            return []
+        ack_info = self.main_window.fetch_message_ack(chat_jid, msg.get("key", {}))
+        if not ack_info:
+            return []
+        participants = ack_info.get("participants") or []
+        if not participants:
+            return []
+        p = participants[0]
+        i18n = self.main_window.i18n
+        lines = []
+        for field, label_key in (("deliveredAt", "status_delivered"),
+                                  ("readAt", "status_read"),
+                                  ("playedAt", "status_played")):
+            ts = p.get(field)
+            if ts:
+                lines.append(f"{i18n.t(label_key)}: {self._format_full_datetime(ts)}")
         return lines
 
     def _sender_label(self, msg) -> str:
@@ -10359,19 +10406,26 @@ class ConversationsPanel(wx.Panel):
     def _on_menu_message_data(self, msg: dict):
         i18n     = self.main_window.i18n
         ts       = self._extract_timestamp(msg)
-        time_str = self._format_date(ts) if ts else ""
+        time_str = self._format_full_datetime(ts) if ts else ""
         sender   = self._sender_label(msg)
         content  = self._get_message_content(msg)
+        chat_jid = self.conversation.get("remoteJid", "") if self.conversation else ""
 
         lines = [f"{sender}: {content}"]
         if time_str:
-            lines.append(time_str)
+            lines.append(f"{i18n.t('status_sent')}: {time_str}")
 
-        history = self._status_history_lines(msg)
+        # Prefer the live, phone-synced delivered/read/played times over
+        # whatever WinZapp happened to capture locally while running — see
+        # _live_status_history_lines()'s docstring. Local history is the
+        # fallback for groups (not covered by the live call) or if the live
+        # request itself fails (offline, server hiccup, etc.).
+        history = (self._live_status_history_lines(msg, chat_jid)
+                   or self._status_history_lines(msg, chat_jid))
         if history:
             lines.extend(history)
         else:
-            status = self._map_status(msg)
+            status = self._map_status(msg, chat_jid)
             if status:
                 lines.append(f"{i18n.t('message_data_status_label')}: {status}")
 
