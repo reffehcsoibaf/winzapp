@@ -24312,6 +24312,31 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             logging.error("[edit_message] exception for %s: %s", full_id, exc)
 
+    # TEMPORARY (message-ack investigation): same call as fetch_message_ack()
+    # but returns the raw JSON text (or the error) instead of parsing it, so
+    # we can see exactly what WPP.chat.getMessageACK actually returns for a
+    # given message — the "Lida" line with no time, and group messages,
+    # both need this to diagnose properly before wiring code around a
+    # guessed shape. Remove once both are sorted out.
+    def debug_fetch_message_ack_raw(self, remote_jid: str, msg_key: dict) -> str:
+        import json as _json
+        lid_jid = getattr(self, "_phone_to_lid", {}).get(remote_jid, "")
+        if lid_jid:
+            remote_jid = lid_jid
+        chat_jid = remote_jid.replace("@s.whatsapp.net", "@c.us")
+        full_id = self._serialize_msg_id(chat_jid, msg_key)
+        if not full_id:
+            return "Nao foi possivel montar o ID da mensagem."
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/message-ack"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"messageId": full_id}, headers=headers, timeout=15)
+            if not r.ok:
+                return f"Erro HTTP {r.status_code}: {r.text[:1000]}\n\nID usado: {full_id}"
+            return _json.dumps(r.json(), indent=2, ensure_ascii=False, default=str) + f"\n\nID usado: {full_id}"
+        except Exception as exc:
+            return f"Falha na requisicao: {exc}\n\nID usado: {full_id}"
+
     def fetch_message_ack(self, remote_jid: str, msg_key: dict) -> "dict | None":
         """Live delivered/read/played timestamps for one of OUR OWN sent
         messages, straight from WhatsApp's own synced state (WPP.chat.
