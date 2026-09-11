@@ -610,6 +610,18 @@ routes.post(
   DeviceController.getMessageAck
 );
 routes.post(
+  '/api/:session/privacy',
+  verifyToken,
+  statusConnection,
+  DeviceController.getPrivacySettings
+);
+routes.post(
+  '/api/:session/privacy/set',
+  verifyToken,
+  statusConnection,
+  DeviceController.setPrivacySetting
+);
+routes.post(
   '/api/:session/react-message',
   verifyToken,
   statusConnection,
