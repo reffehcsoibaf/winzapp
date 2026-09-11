@@ -1131,6 +1131,57 @@ class SettingsDialog(wx.Dialog):
         )
         privacy_sizer.Add(self._privacy_require_code_check, 0, wx.ALL, 8)
 
+        # ── WhatsApp account privacy (WPP.privacy bridge) ───────────────────
+        # Six simple-enum settings; "who sees my Status/Stories" needs a
+        # contact-list picker instead of a dropdown, so it isn't here yet.
+        privacy_sizer.Add(
+            wx.StaticLine(self._privacy_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
+        )
+        self._wa_privacy_section_label = wx.StaticText(
+            self._privacy_page, label=i18n.t("wa_privacy_section_label")
+        )
+        privacy_sizer.Add(self._wa_privacy_section_label, 0, wx.ALL, 8)
+
+        # (attribute prefix, i18n label key, [(raw_value, i18n option key), ...])
+        self._WA_PRIVACY_FIELDS = [
+            ("last_seen", "wa_privacy_last_seen_label",
+             [("all", "wa_privacy_opt_all"), ("contacts", "wa_privacy_opt_contacts"), ("none", "wa_privacy_opt_none")]),
+            ("online", "wa_privacy_online_label",
+             [("all", "wa_privacy_opt_all"), ("match_last_seen", "wa_privacy_opt_match_last_seen")]),
+            ("about", "wa_privacy_about_label",
+             [("all", "wa_privacy_opt_all"), ("contacts", "wa_privacy_opt_contacts"), ("none", "wa_privacy_opt_none")]),
+            ("profile_pic", "wa_privacy_profile_pic_label",
+             [("all", "wa_privacy_opt_all"), ("contacts", "wa_privacy_opt_contacts"), ("none", "wa_privacy_opt_none")]),
+            ("read_receipts", "wa_privacy_read_receipts_label",
+             [("all", "wa_privacy_opt_on"), ("none", "wa_privacy_opt_off")]),
+            ("group_add", "wa_privacy_group_add_label",
+             [("all", "wa_privacy_opt_all"), ("contacts", "wa_privacy_opt_contacts")]),
+        ]
+        # server-field name each row maps to, for fetch/apply
+        self._WA_PRIVACY_SERVER_FIELD = {
+            "last_seen": "lastSeen",
+            "online": "online",
+            "about": "about",
+            "profile_pic": "profilePicture",
+            "read_receipts": "readReceipts",
+            "group_add": "groupAdd",
+        }
+        self._wa_privacy_labels = {}
+        for attr_prefix, label_key, options in self._WA_PRIVACY_FIELDS:
+            label = wx.StaticText(self._privacy_page, label=i18n.t(label_key))
+            privacy_sizer.Add(label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+            self._wa_privacy_labels[attr_prefix] = (label, label_key)
+            choice = wx.Choice(self._privacy_page, choices=[i18n.t(opt_key) for _, opt_key in options])
+            setattr(self, f"_wa_privacy_{attr_prefix}_choice", choice)
+            privacy_sizer.Add(choice, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+
+        self._wa_privacy_status_label = wx.StaticText(self._privacy_page, label="")
+        privacy_sizer.Add(self._wa_privacy_status_label, 0, wx.ALL, 8)
+
+        self._wa_privacy_apply_btn = wx.Button(self._privacy_page, label=i18n.t("wa_privacy_apply_button"))
+        privacy_sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
+        self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
+
         self._privacy_page.SetSizer(privacy_sizer)
         self._notebook.AddPage(self._privacy_page, i18n.t("tab_privacy"))
 
@@ -1440,6 +1491,26 @@ class SettingsDialog(wx.Dialog):
         self._privacy_require_code_check.SetValue(
             priv_settings.get("locked_chats_require_code_to_open", True)
         )
+
+        # WhatsApp account privacy — fetched live (see fetch_privacy_settings
+        # docstring); a failed fetch leaves every dropdown unselected rather
+        # than guessing, and disables Apply so a blank guess can't get sent.
+        wa_privacy = self.main_window.fetch_privacy_settings()
+        self._wa_privacy_apply_btn.Enable(bool(wa_privacy))
+        if wa_privacy:
+            self._wa_privacy_status_label.SetLabel("")
+            for attr_prefix, _label_key, options in self._WA_PRIVACY_FIELDS:
+                server_field = self._WA_PRIVACY_SERVER_FIELD[attr_prefix]
+                current_value = wa_privacy.get(server_field, "")
+                choice = getattr(self, f"_wa_privacy_{attr_prefix}_choice")
+                raw_values = [raw for raw, _opt_key in options]
+                if current_value in raw_values:
+                    choice.SetSelection(raw_values.index(current_value))
+                else:
+                    choice.SetSelection(wx.NOT_FOUND)
+        else:
+            self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_load_failed"))
+
         self._ai_transcribe_audio_check.SetValue(
             ai_settings.get("transcribe_audio", True)
         )
@@ -1879,6 +1950,35 @@ class SettingsDialog(wx.Dialog):
     def _on_ai_enabled_toggle(self, event):
         self._update_ai_fields_state()
         event.Skip()
+
+    def _on_apply_whatsapp_privacy(self, event):
+        """Sends every dropdown's current selection to WhatsApp via
+        set_privacy_setting(). Always sends all six (not just changed ones)
+        — re-sending an unchanged value is a harmless no-op on WhatsApp's
+        side, and skipping that complexity means one clear action instead
+        of tracking a dirty/clean state per dropdown."""
+        i18n = self.main_window.i18n
+        errors = []
+        for attr_prefix, _label_key, options in self._WA_PRIVACY_FIELDS:
+            choice = getattr(self, f"_wa_privacy_{attr_prefix}_choice")
+            sel = choice.GetSelection()
+            if sel == wx.NOT_FOUND:
+                continue
+            raw_value = options[sel][0]
+            server_field = self._WA_PRIVACY_SERVER_FIELD[attr_prefix]
+            error = self.main_window.set_privacy_setting(server_field, raw_value)
+            if error:
+                errors.append(error)
+        if errors:
+            self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_partial_error"))
+            wx.MessageBox(
+                "\n".join(errors),
+                i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+        else:
+            self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
 
     def _update_ai_fields_state(self):
         """The API key and per-type toggles only matter while AI features are on."""
@@ -2800,6 +2900,17 @@ class SettingsDialog(wx.Dialog):
         self._privacy_new_code_label.SetLabel(i18n.t("locked_chats_new_code_label"))
         self._privacy_confirm_code_label.SetLabel(i18n.t("locked_chats_confirm_code_label"))
         self._privacy_require_code_check.SetLabel(i18n.t("locked_chats_require_code_checkbox"))
+
+        # WhatsApp account privacy section
+        self._wa_privacy_section_label.SetLabel(i18n.t("wa_privacy_section_label"))
+        for attr_prefix, label_key, options in self._WA_PRIVACY_FIELDS:
+            label, _ = self._wa_privacy_labels[attr_prefix]
+            label.SetLabel(i18n.t(label_key))
+            choice = getattr(self, f"_wa_privacy_{attr_prefix}_choice")
+            sel = choice.GetSelection()
+            choice.Set([i18n.t(opt_key) for _, opt_key in options])
+            choice.SetSelection(sel)
+        self._wa_privacy_apply_btn.SetLabel(i18n.t("wa_privacy_apply_button"))
 
         # Regenerate speed labels — decimal separator may have changed with language
         cur_sel = self._audio_speed_combo.GetSelection()
