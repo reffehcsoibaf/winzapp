@@ -1096,6 +1096,62 @@ export async function deleteMessage(req: Request, res: Response) {
       .json({ status: 'error', message: 'Error on delete message', error: e });
   }
 }
+export async function getMessageAck(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Messages"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+     #swagger.requestBody = {
+      required: true,
+      "@content": {
+        "application/json": {
+          schema: {
+            type: "object",
+            properties: {
+              messageId: { type: "string" },
+            }
+          },
+          examples: {
+            "Get message ack": {
+              value: { messageId: "<messageId>" }
+            },
+          }
+        }
+      }
+     }
+   *
+   * WPP.chat.getMessageACK gives the real, phone-synced delivered/read/
+   * played timestamps per recipient (see WA-JS docs) — not wrapped by
+   * @wppconnect-team/wppconnect, so this goes through page.evaluate
+   * directly, same as statusController.ts does for Store-only calls.
+   */
+  const { messageId } = req.body;
+  if (!messageId) {
+    return res
+      .status(400)
+      .json({ status: 'error', message: 'messageId is required' });
+  }
+  try {
+    const ackInfo = await req.client.page.evaluate(
+      (msgId: string) => (window as any).WPP.chat.getMessageACK(msgId),
+      messageId
+    );
+    return res.status(200).json({ status: 'success', response: ackInfo });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error on get message ack',
+      error: String((e as any)?.message || e),
+    });
+  }
+}
+
 export async function reactMessage(req: Request, res: Response) {
   /**
    * #swagger.tags = ["Messages"]
