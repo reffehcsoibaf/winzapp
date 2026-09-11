@@ -24312,6 +24312,37 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             logging.error("[edit_message] exception for %s: %s", full_id, exc)
 
+    def fetch_message_ack(self, remote_jid: str, msg_key: dict) -> "dict | None":
+        """Live delivered/read/played timestamps for one of OUR OWN sent
+        messages, straight from WhatsApp's own synced state (WPP.chat.
+        getMessageACK) rather than whatever MessageUpdate events WinZapp
+        happened to capture live. That local capture only ever holds what
+        arrived while WinZapp was running and listening; a receipt that
+        came in while the app was closed, or before this event-recording
+        existed, simply isn't in it. Returns the parsed ackInfo dict
+        (participants[i].deliveredAt/readAt/playedAt, epoch seconds or ms)
+        or None on any failure — callers should then fall back to local
+        history."""
+        lid_jid = getattr(self, "_phone_to_lid", {}).get(remote_jid, "")
+        if lid_jid:
+            remote_jid = lid_jid
+        chat_jid = remote_jid.replace("@s.whatsapp.net", "@c.us")
+        full_id = self._serialize_msg_id(chat_jid, msg_key)
+        if not full_id:
+            return None
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/message-ack"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"messageId": full_id}, headers=headers, timeout=15)
+            if r.status_code not in (200, 201):
+                logging.warning("[fetch_message_ack] HTTP %s for %s", r.status_code, full_id)
+                return None
+            body = r.json()
+            return body.get("response") if isinstance(body, dict) else None
+        except Exception as exc:
+            logging.warning("[fetch_message_ack] exception for %s: %s", full_id, exc)
+            return None
+
     def delete_message_for_everyone(self, remote_jid: str, msg_key: dict) -> bool:
         """Revoke a message for everyone via POST /api/session/delete-message.
 
