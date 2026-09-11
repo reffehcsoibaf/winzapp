@@ -4011,6 +4011,11 @@ class ConversationsPanel(wx.Panel):
                 lock_item = menu.Append(wx.ID_ANY, i18n.t('lock_chat'))
                 self.Bind(wx.EVT_MENU, lambda e, j=jid: self._on_menu_lock(j), lock_item)
 
+        # TEMPORARY (locked-chats investigation) — remove once the real
+        # phone-lock field is found and wired in.
+        debug_item = menu.Append(wx.ID_ANY, "Depurar: ver dados brutos do chat (temporario)")
+        self.Bind(wx.EVT_MENU, lambda e, j=jid: self._on_menu_debug_chat_raw(j), debug_item)
+
         # ── Pin / Unpin ───────────────────────────────────────────────────
         if mw.is_chat_pinned(jid):
             unpin_item = menu.Append(wx.ID_ANY, f"{i18n.t('unpin_chat')}\tCtrl+P")
@@ -10255,6 +10260,24 @@ class ConversationsPanel(wx.Panel):
 
     def _on_menu_unarchive(self, jid: str):
         self.main_window.unarchive_chat(jid)
+
+    def _on_menu_debug_chat_raw(self, jid: str):
+        # TEMPORARY diagnostic dialog — plain read-only wx.TextCtrl so NVDA
+        # reads it normally and the text can be selected/copied with Ctrl+A,
+        # Ctrl+C like any other text field.
+        raw = self.main_window.debug_fetch_chat_raw(jid)
+        dlg = wx.Dialog(self, title="Dados brutos do chat", size=(700, 500),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(dlg, value=raw, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP)
+        sizer.Add(text, 1, wx.EXPAND | wx.ALL, 8)
+        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Fechar")
+        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
+        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, 8)
+        dlg.SetSizer(sizer)
+        text.SetFocus()
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _on_menu_lock(self, jid: str):
         # No code needed to lock — same as WhatsApp; close it first so it
