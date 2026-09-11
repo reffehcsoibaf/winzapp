@@ -4384,6 +4384,16 @@ class ConversationsPanel(wx.Panel):
             data_item,
         )
 
+        # TEMPORARY (message-ack investigation) — remove once both the
+        # missing "Lida" time and the group per-member breakdown are sorted.
+        if msg.get("key", {}).get("fromMe"):
+            debug_ack_item = menu.Append(wx.ID_ANY, "Depurar: ver ack bruto da mensagem (temporario)")
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, m=msg: self._on_menu_debug_message_ack(m),
+                debug_ack_item,
+            )
+
         menu.AppendSeparator()
 
         # Copy text (only for text messages)
@@ -10402,6 +10412,25 @@ class ConversationsPanel(wx.Panel):
         dlg.Destroy()
 
     # ── Message context menu handlers ────────────────────────────────────────
+
+    def _on_menu_debug_message_ack(self, msg: dict):
+        # TEMPORARY diagnostic dialog — same shape as the earlier locked-
+        # chats one: plain read-only wx.TextCtrl, NVDA reads it normally,
+        # Ctrl+A/Ctrl+C to copy.
+        chat_jid = self.conversation.get("remoteJid", "") if self.conversation else ""
+        raw = self.main_window.debug_fetch_message_ack_raw(chat_jid, msg.get("key", {}))
+        dlg = wx.Dialog(self, title="Ack bruto da mensagem", size=(700, 500),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(dlg, value=raw, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP)
+        sizer.Add(text, 1, wx.EXPAND | wx.ALL, 8)
+        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Fechar")
+        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
+        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, 8)
+        dlg.SetSizer(sizer)
+        text.SetFocus()
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _on_menu_message_data(self, msg: dict):
         i18n     = self.main_window.i18n
