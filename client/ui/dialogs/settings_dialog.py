@@ -116,6 +116,7 @@ class _HotkeyCapture(wx.TextCtrl):
 
 from core.utils import DEFAULT_SETTINGS, SEARCH_NORMALIZATION_MODES, search_normalization_mode, GROUP_MEDIA_TYPES, AUTO_DOWNLOAD_MEDIA_TYPES
 from core import save_location
+from core import chat_lock
 
 
 def ensure_default_settings_file():
@@ -1098,6 +1099,41 @@ class SettingsDialog(wx.Dialog):
         self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
         self._ai_enabled_check.Bind(wx.EVT_CHECKBOX, self._on_ai_enabled_toggle)
 
+        # ── Privacy tab ("mensagens trancadas") ─────────────────────────────
+        # Only the salted hash+salt (core/chat_lock.py) ever get written to
+        # settings — the two fields below are write-only: they never show an
+        # existing code back, and leaving both blank on Apply keeps whatever
+        # code is already configured untouched (see _apply_settings()).
+        self._privacy_page = wx.Panel(self._notebook)
+        privacy_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._privacy_hint_label = wx.StaticText(
+            self._privacy_page, label=i18n.t("locked_chats_hint_label")
+        )
+        privacy_sizer.Add(self._privacy_hint_label, 0, wx.ALL, 8)
+
+        self._privacy_new_code_label = wx.StaticText(
+            self._privacy_page, label=i18n.t("locked_chats_new_code_label")
+        )
+        privacy_sizer.Add(self._privacy_new_code_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._privacy_new_code_field = wx.TextCtrl(self._privacy_page, style=wx.TE_PASSWORD)
+        privacy_sizer.Add(self._privacy_new_code_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        self._privacy_confirm_code_label = wx.StaticText(
+            self._privacy_page, label=i18n.t("locked_chats_confirm_code_label")
+        )
+        privacy_sizer.Add(self._privacy_confirm_code_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._privacy_confirm_code_field = wx.TextCtrl(self._privacy_page, style=wx.TE_PASSWORD)
+        privacy_sizer.Add(self._privacy_confirm_code_field, 0, wx.EXPAND | wx.ALL, 8)
+
+        self._privacy_require_code_check = wx.CheckBox(
+            self._privacy_page, label=i18n.t("locked_chats_require_code_checkbox")
+        )
+        privacy_sizer.Add(self._privacy_require_code_check, 0, wx.ALL, 8)
+
+        self._privacy_page.SetSizer(privacy_sizer)
+        self._notebook.AddPage(self._privacy_page, i18n.t("tab_privacy"))
+
         # ── Button row ───────────────────────────────────────────────────────
         btn_sizer = wx.StdDialogButtonSizer()
         self._ok_btn = wx.Button(self, wx.ID_OK, label=i18n.t("ok"))
@@ -1394,6 +1430,16 @@ class SettingsDialog(wx.Dialog):
         ai_settings = self.main_window.settings.get("ai_accessibility", {})
         self._ai_enabled_check.SetValue(ai_settings.get("enabled", False))
         self._ai_api_key_field.SetValue(ai_settings.get("gemini_api_key", ""))
+
+        # Privacy — deliberately do NOT prefill the code fields (write-only,
+        # see the tab's build-time comment); only the checkbox reflects a
+        # stored value.
+        priv_settings = self.main_window.settings.get("privacy", {})
+        self._privacy_new_code_field.SetValue("")
+        self._privacy_confirm_code_field.SetValue("")
+        self._privacy_require_code_check.SetValue(
+            priv_settings.get("locked_chats_require_code_to_open", True)
+        )
         self._ai_transcribe_audio_check.SetValue(
             ai_settings.get("transcribe_audio", True)
         )
@@ -2095,6 +2141,19 @@ class SettingsDialog(wx.Dialog):
             self._ai_api_key_field.SetFocus()
             return False
 
+        _new_code = self._privacy_new_code_field.GetValue()
+        _confirm_code = self._privacy_confirm_code_field.GetValue()
+        if (_new_code or _confirm_code) and _new_code != _confirm_code:
+            self._notebook.SetSelection(self._notebook.FindPage(self._privacy_page))
+            wx.MessageBox(
+                self.main_window.i18n.t("locked_chats_code_mismatch_error"),
+                self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
+            self._privacy_confirm_code_field.SetFocus()
+            return False
+
         return True
 
     def _on_group_media_type_activated(self, event):
@@ -2508,6 +2567,18 @@ class SettingsDialog(wx.Dialog):
             "pdf_to_accessible_text": self._ai_pdf_accessible_check.GetValue(),
         }
 
+        # Privacy — merged, not replaced: a blank code field must leave any
+        # already-configured hash/salt exactly as they were (that's how
+        # "leave blank to keep the current code" works), unlike the
+        # ai_accessibility block above where every field is always present.
+        _priv = self.main_window.settings.setdefault("privacy", {})
+        _new_code = self._privacy_new_code_field.GetValue()
+        if _new_code:  # already validated == confirm field in _validate_settings()
+            _salt = chat_lock.generate_salt()
+            _priv["locked_chats_code_salt"] = _salt
+            _priv["locked_chats_code_hash"] = chat_lock.hash_code(_new_code, _salt)
+        _priv["locked_chats_require_code_to_open"] = self._privacy_require_code_check.GetValue()
+
         # Persist and propagate
         self.main_window.save_settings()
         # Reload sound objects so per-event enabled/path changes (and the new
@@ -2573,6 +2644,7 @@ class SettingsDialog(wx.Dialog):
         self._notebook.SetPageText(10, i18n.t("tab_audio_playback"))
         self._notebook.SetPageText(11, i18n.t("tab_calls"))
         self._notebook.SetPageText(12, i18n.t("tab_ai_accessibility"))
+        self._notebook.SetPageText(13, i18n.t("tab_privacy"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
@@ -2722,6 +2794,12 @@ class SettingsDialog(wx.Dialog):
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))
         self._ai_pdf_accessible_check.SetLabel(i18n.t("ai_pdf_accessible_label"))
+
+        # Privacy tab
+        self._privacy_hint_label.SetLabel(i18n.t("locked_chats_hint_label"))
+        self._privacy_new_code_label.SetLabel(i18n.t("locked_chats_new_code_label"))
+        self._privacy_confirm_code_label.SetLabel(i18n.t("locked_chats_confirm_code_label"))
+        self._privacy_require_code_check.SetLabel(i18n.t("locked_chats_require_code_checkbox"))
 
         # Regenerate speed labels — decimal separator may have changed with language
         cur_sel = self._audio_speed_combo.GetSelection()
