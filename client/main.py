@@ -62,6 +62,7 @@ from core.locale_format import get_date_format, get_time_format, get_datetime_fo
 from core.quiet_hours import is_quiet_hours_active
 from core.database_bridge import DatabaseBridge
 from core import token_vault
+from core import chat_lock
 from app_paths import resource_path, data_path, accounts_root
 from core.message_queue import MessageQueue, PendingMessage, MessageCancelled
 import wx
@@ -23280,6 +23281,71 @@ class MainWindow(wx.Frame):
         return False
 
 
+    # ── Locked chats ("mensagens trancadas") ───────────────────────────────
+    # Purely local/WinZapp concept — WhatsApp's protocol has nothing like it,
+    # so unlike archive there is no _api_* counterpart and nothing to sync.
+
+    def is_chat_locked(self, jid: str) -> bool:
+        chat = self.chats.get(self._normalize_jid(jid))
+        return bool(chat and chat.get("locked"))
+
+    def has_locked_chats_code_configured(self) -> bool:
+        return bool(self.settings.get("privacy", {}).get("locked_chats_code_hash", ""))
+
+    def _set_locked_state(self, jid: str, locked: bool):
+        """Apply a lock/unlock decision to the chat record (mirrors
+        _set_archived_state, minus the server round-trip archive needs)."""
+        if not jid:
+            return
+        jid_norm = self._normalize_jid(jid)
+        alt_jid = ""
+        if jid_norm.endswith("@lid"):
+            alt_jid = getattr(self, "_lid_to_phone", {}).get(jid_norm, "")
+        else:
+            alt_jid = getattr(self, "_phone_to_lid", {}).get(jid_norm, "")
+
+        targets = [jid_norm]
+        if alt_jid:
+            targets.append(self._normalize_jid(alt_jid))
+
+        for target in targets:
+            chat = self.chats.get(target)
+            if chat is not None:
+                chat["locked"] = locked
+
+        if hasattr(self, "db") and self.db is not None:
+            try:
+                for target in targets:
+                    chat = self.chats.get(target)
+                    if chat is not None:
+                        self.db.upsert_chat(target, chat)
+            except Exception as exc:
+                logging.warning("[_set_locked_state] DB update failed for %s: %s", jid, exc)
+        self._schedule_set_chats()
+
+    def lock_chat(self, jid: str):
+        """Locking never requires the code — same as WhatsApp: hiding a chat
+        is a one-click action, only *revealing/opening* one is gated."""
+        self._set_locked_state(jid, True)
+
+    def unlock_chat(self, jid: str, code: str) -> bool:
+        """Permanently clears the locked flag. Requires the correct code —
+        without this check, unlocking would just be another menu item
+        anyone with the mouse could click, defeating the whole feature."""
+        _priv = self.settings.get("privacy", {})
+        if not chat_lock.verify_code(
+            code, _priv.get("locked_chats_code_salt", ""), _priv.get("locked_chats_code_hash", "")
+        ):
+            return False
+        self._set_locked_state(jid, False)
+        return True
+
+    def verify_locked_chats_code(self, code: str) -> bool:
+        _priv = self.settings.get("privacy", {})
+        return chat_lock.verify_code(
+            code, _priv.get("locked_chats_code_salt", ""), _priv.get("locked_chats_code_hash", "")
+        )
+
     def _set_archived_state(self, jid: str, archived: bool):
         """Apply an archive decision to both the chat record and the metadata set.
 
@@ -25594,10 +25660,22 @@ class MainWindow(wx.Frame):
         conversation when a search was active.
         """
         _fold        = self._search_normalization_mode()
-        search       = normalize_for_search(
-            self.conversations_panel.search_field.GetValue().strip(), _fold
-        )
+        _raw_search  = self.conversations_panel.search_field.GetValue().strip()
+        search       = normalize_for_search(_raw_search, _fold)
         conv_filter  = getattr(self.conversations_panel, '_conv_filter', 'all')
+
+        # "Mensagens trancadas": typing the configured unlock code into the
+        # search field switches the list to show ONLY locked chats (mirrors
+        # official WhatsApp's "type the code in Search" behaviour), ignoring
+        # conv_filter and name matching entirely for that pass. The raw
+        # (non-folded) text is checked against the code so accent/case
+        # folding never accidentally satisfies it.
+        _priv = self.settings.get("privacy", {})
+        _reveal_locked = bool(_raw_search) and chat_lock.verify_code(
+            _raw_search,
+            _priv.get("locked_chats_code_salt", ""),
+            _priv.get("locked_chats_code_hash", ""),
+        )
 
         # Used below to tell "the same filtered view just lost an item" (where
         # reusing the old row position to keep focus nearby makes sense) apart
@@ -25644,14 +25722,21 @@ class MainWindow(wx.Frame):
         for i, chat in enumerate(full_chats):
             name     = full_names[i]
             chat_jid = chat.get("remoteJid", "")
-            if conv_filter == 'unread' and effective_unread_count(chat) == 0:
-                continue
-            if conv_filter == 'groups' and not chat_jid.endswith("@g.us"):
-                continue
-            if conv_filter == 'individual' and chat_jid.endswith("@g.us"):
-                continue
-            if search and search not in normalize_for_search(name, _fold):
-                continue
+            if _reveal_locked:
+                # Reveal mode: only locked chats, nothing else matters.
+                if not chat.get("locked"):
+                    continue
+            else:
+                if chat.get("locked"):
+                    continue
+                if conv_filter == 'unread' and effective_unread_count(chat) == 0:
+                    continue
+                if conv_filter == 'groups' and not chat_jid.endswith("@g.us"):
+                    continue
+                if conv_filter == 'individual' and chat_jid.endswith("@g.us"):
+                    continue
+                if search and search not in normalize_for_search(name, _fold):
+                    continue
             displayed_chats.append(chat)
             displayed_names.append(name)
             new_item_texts.append(_build_item_text(chat, name))
