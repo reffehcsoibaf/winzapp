@@ -815,6 +815,15 @@ DEFAULT_SETTINGS = {
         "extended_sr_compat_enabled": True,
         "sapi_fallback_enabled": True
     },
+    # "Mensagens trancadas": chats flagged locked (chat_lock.py) are hidden
+    # from the normal conversation list; typing the configured code into the
+    # conversation search field reveals them. Only a salted hash is ever
+    # stored — see chat_lock.py docstring for why SHA-256 and not a slow KDF.
+    "privacy": {
+        "locked_chats_code_hash": "",
+        "locked_chats_code_salt": "",
+        "locked_chats_require_code_to_open": True
+    },
     # See core/save_location.py — which folder a Save As dialog opens on.
     # "last" is the default and is a deliberate change from the old
     # unconditional Downloads: it degrades to Downloads on the first save of a
