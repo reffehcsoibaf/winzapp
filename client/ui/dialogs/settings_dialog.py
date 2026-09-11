@@ -1509,7 +1509,7 @@ class SettingsDialog(wx.Dialog):
                 else:
                     choice.SetSelection(wx.NOT_FOUND)
         else:
-            self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_load_failed"))
+            self._wa_privacy_status_label.SetLabel(self.main_window.i18n.t("wa_privacy_load_failed"))
 
         self._ai_transcribe_audio_check.SetValue(
             ai_settings.get("transcribe_audio", True)
