@@ -151,3 +151,17 @@ POPRAWKI
 ULEPSZENIA
 
 - Mówione przypomnienie co 8 sekund ("Nadal przetwarzanie przez Gemini...") podczas trwania transkrypcji, opisu lub konwersji PDF, w tym pytań uzupełniających dla obrazów i wideo. Wcześniej oczekiwanie mogło przebiegać w całkowitej ciszy.
+
+V1.1.0.3
+
+Ta wersja wprowadza zablokowane czaty i potwierdzenia odczytu w czasie rzeczywistym.
+
+NOWOŚCI
+
+- Zablokuj czat: ukrywa czat z głównej listy. Wpisz skonfigurowany kod w polu wyszukiwania, aby go ponownie odsłonić — takie samo zachowanie jak w oficjalnym WhatsApp. Nowa karta "Prywatność" w ustawieniach do ustawienia lub zmiany tego kodu.
+
+- Czaty zablokowane bezpośrednio z telefonu są również rozpoznawane i ukrywane przez WinZapp, chociaż tylko telefon może je odblokować.
+
+- Powiadomienia i licznik nieprzeczytanych nie ujawniają już nadawcy ani treści zablokowanych czatów.
+
+- Otwarcie szczegółów wysłanej wiadomości teraz odpytuje WhatsApp bezpośrednio, aby pokazać, kiedy została dostarczona, przeczytana lub odtworzona.

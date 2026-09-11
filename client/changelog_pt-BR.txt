@@ -151,3 +151,17 @@ CORREÇÕES
 MELHORIAS
 
 - Aviso falado a cada 8 segundos ("Ainda processando com o Gemini...") enquanto uma transcrição, descrição ou conversão de PDF está em andamento, incluindo as perguntas de acompanhamento em imagem e vídeo. Antes, a espera podia ficar em silêncio total.
+
+V1.1.0.3
+
+Esta versão traz mensagens trancadas e confirmação de leitura em tempo real.
+
+NOVIDADES
+
+- Trancar conversa: esconde uma conversa da lista principal. Digite o código configurado no campo de busca para revelá-la de novo — mesmo comportamento do WhatsApp oficial. Nova aba "Privacidade" nas configurações para definir ou trocar esse código.
+
+- Conversas trancadas pelo próprio celular também são reconhecidas e escondidas pelo WinZapp, embora só o celular possa destrancá-las.
+
+- Notificações e o contador de não lidas não revelam remetente ou texto de conversas trancadas.
+
+- Ao abrir os detalhes de uma mensagem enviada, o WinZapp agora consulta o WhatsApp diretamente para mostrar quando ela foi entregue, lida ou ouvida.

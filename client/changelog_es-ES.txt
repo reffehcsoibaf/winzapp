@@ -151,3 +151,17 @@ CORRECCIONES
 MEJORAS
 
 - Aviso hablado cada 8 segundos ("Todavía procesando con Gemini...") mientras una transcripción, descripción o conversión de PDF está en curso, incluidas las preguntas de seguimiento en imagen y vídeo. Antes, la espera podía quedar en silencio total.
+
+V1.1.0.3
+
+Esta versión trae conversaciones bloqueadas y confirmación de lectura en tiempo real.
+
+NOVEDADES
+
+- Bloquear conversación: oculta una conversación de la lista principal. Escribe el código configurado en el campo de búsqueda para volver a mostrarla, igual que en el WhatsApp oficial. Nueva pestaña "Privacidad" en configuración para definir o cambiar ese código.
+
+- Las conversaciones bloqueadas desde el propio teléfono también son reconocidas y ocultadas por WinZapp, aunque solo el teléfono puede desbloquearlas.
+
+- Las notificaciones y el contador de no leídos ya no revelan el remitente ni el texto de las conversaciones bloqueadas.
+
+- Al abrir los detalles de un mensaje enviado, WinZapp ahora consulta a WhatsApp directamente para mostrar cuándo fue entregado, leído o reproducido.

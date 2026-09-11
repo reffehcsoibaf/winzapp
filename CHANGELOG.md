@@ -9,6 +9,30 @@ mexer no projeto.
 Ponto de partida: o WinZapp original, clonado direto do repositório
 público de gabrielhhaber, antes de qualquer modificação nossa.
 
+## v1.1.0.3 — mensagens trancadas e confirmação de leitura em tempo real
+
+### Novidades
+- **Mensagens trancadas**: retomada a ideia abandonada na v1.1.0.1.
+  Investigação mais profunda (com acesso ao app rodando ao vivo) revelou
+  que o WhatsApp já sincroniza o estado de conversa trancada do celular
+  num campo (`isLocked`) que o WPPConnect já retornava — algo que não
+  tinha ficado claro só lendo o código-fonte das bibliotecas. Com isso:
+  - Trancamento próprio do WinZapp: esconde uma conversa da lista
+    principal, revelada digitando um código no campo de busca (mesmo
+    comportamento do WhatsApp oficial).
+  - Reconhece também as conversas trancadas de verdade pelo celular,
+    escondendo-as igualmente — mas sem oferecer "destrancar" nessas, já
+    que só o celular pode fazer isso.
+  - Nova aba "Privacidade" em Configurações para definir/trocar o código.
+  - Notificações e contador de não lidas não revelam remetente/texto de
+    conversas trancadas.
+  - O código é guardado como hash salgado (SHA-256), nunca em texto
+    puro — o app só precisa confirmar o código digitado, nunca recuperá-lo.
+- **Confirmação de leitura em tempo real**: ao abrir os detalhes de uma
+  mensagem enviada, o WinZapp agora consulta o WhatsApp diretamente para
+  saber quando foi entregue/lida/ouvida, em vez de depender só do que foi
+  capturado localmente enquanto o app estava aberto.
+
 ## v1.1.0.2 — correções de IA e feedback de progresso
 
 ### Correções
@@ -68,9 +92,11 @@ público de gabrielhhaber, antes de qualquer modificação nossa.
   uma etapa de instalação de dependências na primeira abertura.
 
 ### Investigado, mas não implementado / abandonado
-- "Mensagens trancadas" (senha revelada na busca, como o WhatsApp
-  oficial): abandonado — o WPPConnect não expõe esse estado, e uma
-  implementação própria não teria a mesma segurança do recurso original.
+- "Mensagens trancadas": inicialmente marcado como abandonado aqui, por
+  concluirmos (via leitura estática do código) que o WPPConnect não
+  expunha o estado de conversa trancada do celular. Essa conclusão estava
+  incompleta — ver v1.1.0.3, onde a funcionalidade foi retomada e
+  implementada.
 - Integração com a API do Be My Eyes: não existe API pública pra
   terceiros: a empresa absorve o custo do provedor de IA por trás; sem
   isso, cada pessoa precisa da própria chave (como já fazemos com o

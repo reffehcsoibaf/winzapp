@@ -151,3 +151,17 @@ FIXES
 IMPROVEMENTS
 
 - Spoken reminder every 8 seconds ("Still processing with Gemini...") while a transcription, description or PDF conversion is in progress, including follow-up questions on images and videos. Previously the wait could be completely silent.
+
+V1.1.0.3
+
+This version brings locked chats and real-time read receipts.
+
+WHAT'S NEW
+
+- Lock chat: hides a chat from the main list. Type the configured code into the search field to reveal it again — same behaviour as official WhatsApp. New "Privacy" settings tab to set or change this code.
+
+- Chats locked from the phone itself are also recognised and hidden by WinZapp, though only the phone can unlock them.
+
+- Notifications and the unread counter no longer reveal the sender or text of locked chats.
+
+- Opening a sent message's details now queries WhatsApp directly to show when it was delivered, read, or played.
