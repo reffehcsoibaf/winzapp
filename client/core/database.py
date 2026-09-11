@@ -45,7 +45,6 @@ CREATE TABLE IF NOT EXISTS chats (
     push_name       TEXT DEFAULT '',
     name            TEXT DEFAULT '',
     archived        INTEGER DEFAULT 0,
-    locked          INTEGER DEFAULT 0,
     chat_type       TEXT DEFAULT 'chat',
     last_message_json TEXT DEFAULT '',
     t               INTEGER DEFAULT 0,
@@ -277,12 +276,6 @@ class DatabaseManager:
                 log.error("[connect] ALTER TABLE chats ADD COLUMN t failed: %s", exc)
                 raise
         await self._upgrade_unresolvable_lids()
-        try:
-            await self._conn.execute("ALTER TABLE chats ADD COLUMN locked INTEGER DEFAULT 0")
-        except Exception as exc:
-            if "duplicate column" not in str(exc).lower():
-                log.error("[connect] ALTER TABLE chats ADD COLUMN locked failed: %s", exc)
-                raise
         await self._conn.commit()
 
     async def _upgrade_unresolvable_lids(self) -> None:
@@ -422,6 +415,13 @@ class DatabaseManager:
                         t //= 1000
                 except (TypeError, ValueError):
                     t = 0
+            _locked = False
+            try:
+                _locked = bool(row["locked"])
+            except (IndexError, KeyError):
+                # Row predates the ALTER TABLE migration having run yet in
+                # this connection — treat as unlocked rather than raise.
+                pass
             result[jid] = {
                 "remoteJid": row["remote_jid"],
                 "unreadCount": row["unread_count"],
@@ -432,6 +432,7 @@ class DatabaseManager:
                 "t": t,
                 "archived": bool(row["archived"]),
                 "archive": bool(row["archived"]),
+                "locked": _locked,
                 "type": row["chat_type"] or "chat",
             }
         return result
@@ -457,6 +458,7 @@ class DatabaseManager:
         push_name = data.get("pushName", "") or ""
         name = data.get("name", "") or ""
         archived = 1 if (data.get("archived") or data.get("archive")) else 0
+        locked = 1 if data.get("locked") else 0
         chat_type = data.get("type", "chat") or "chat"
         last_msg = data.get("lastMessage")
         last_msg_enc = self._encrypt_json(last_msg) if last_msg else ""
@@ -476,7 +478,7 @@ class DatabaseManager:
             t //= 1000
 
         return (jid, remote_jid, unread, push_name, name,
-                archived, chat_type, last_msg_enc, t, updated_at)
+                archived, locked, chat_type, last_msg_enc, t, updated_at)
 
     async def upsert_chat(self, jid: str, data: dict) -> None:
         """Insert or replace a chat record from a chat dict."""
@@ -485,8 +487,8 @@ class DatabaseManager:
             await conn.execute(
                 """INSERT OR REPLACE INTO chats
                    (jid, remote_jid, unread_count, push_name, name,
-                    archived, chat_type, last_message_json, t, updated_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    archived, locked, chat_type, last_message_json, t, updated_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 self._build_chat_values(jid, data, _now_ts()),
             )
             await conn.commit()
@@ -501,8 +503,8 @@ class DatabaseManager:
                     await conn.execute(
                         """INSERT OR REPLACE INTO chats
                            (jid, remote_jid, unread_count, push_name, name,
-                            archived, chat_type, last_message_json, t, updated_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            archived, locked, chat_type, last_message_json, t, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         self._build_chat_values(jid, data, _now_ts()),
                     )
                 await conn.commit()
@@ -1205,8 +1207,8 @@ class DatabaseManager:
                     await conn.execute(
                         """INSERT OR REPLACE INTO chats
                            (jid, remote_jid, unread_count, push_name, name,
-                            archived, chat_type, last_message_json, t, updated_at)
-                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                            archived, locked, chat_type, last_message_json, t, updated_at)
+                           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         self._build_chat_values(jid, chat, now),
                     )
                     total += 1
