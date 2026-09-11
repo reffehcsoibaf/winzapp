@@ -24337,6 +24337,47 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             return f"Falha na requisicao: {exc}\n\nID usado: {full_id}"
 
+    def fetch_privacy_settings(self) -> "dict | None":
+        """All account-wide WhatsApp privacy fields in one call (see
+        server-side WPP.privacy.get() bridge): lastSeen, online, about,
+        profilePicture, readReceipts, groupAdd, status. Returns None on
+        any failure — callers should treat that as "couldn't load, don't
+        overwrite whatever the Settings dialog already shows"."""
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/privacy"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={}, headers=headers, timeout=15)
+            if r.status_code not in (200, 201):
+                logging.warning("[fetch_privacy_settings] HTTP %s", r.status_code)
+                return None
+            body = r.json()
+            return body.get("response") if isinstance(body, dict) else None
+        except Exception as exc:
+            logging.warning("[fetch_privacy_settings] exception: %s", exc)
+            return None
+
+    def set_privacy_setting(self, setting: str, value: str) -> "str | None":
+        """Applies one WhatsApp privacy setting live via WPP.privacy.set*.
+        *setting* is one of: lastSeen, online, about, profilePicture,
+        readReceipts, groupAdd (see PRIVACY_SETTERS server-side — setStatus/
+        Stories audience isn't handled here, it needs a contact-list UI).
+        Returns None on success, or an error message string on failure —
+        callers show the messages so partial failures across several
+        settings are each visible, not just a single pass/fail."""
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/privacy/set"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"setting": setting, "value": value}, headers=headers, timeout=15)
+            if r.status_code in (200, 201):
+                return None
+            try:
+                msg = r.json().get("message", r.text[:200])
+            except Exception:
+                msg = r.text[:200]
+            return f"{setting}: {msg}"
+        except Exception as exc:
+            return f"{setting}: {exc}"
+
     def fetch_message_ack(self, remote_jid: str, msg_key: dict) -> "dict | None":
         """Live delivered/read/played timestamps for one of OUR OWN sent
         messages, straight from WhatsApp's own synced state (WPP.chat.
