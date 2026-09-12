@@ -45,6 +45,7 @@
     "status_delivered": "Delivered",
     "status_read": "Read",
     "status_played": "Played",
+    "and_n_more_suffix": "and {n} more",
     "status_edited": "Edited",
     "status_forwarded": "Forwarded",
     "msg_status_none": "No status available.",
