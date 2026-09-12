@@ -24371,7 +24371,13 @@ class MainWindow(wx.Frame):
             if r.status_code in (200, 201):
                 return None
             try:
-                msg = r.json().get("message", r.text[:200])
+                body = r.json()
+                msg = body.get("message", "") or ""
+                detail = body.get("error", "") or ""
+                if detail and detail not in msg:
+                    msg = f"{msg} ({detail})" if msg else detail
+                if not msg:
+                    msg = r.text[:200]
             except Exception:
                 msg = r.text[:200]
             return f"{setting}: {msg}"
