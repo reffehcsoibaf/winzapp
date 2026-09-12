@@ -197,7 +197,20 @@ async function listChatsWithStoreRecovery(
           if (typeof serializer !== 'function') {
             return { chats: [], error: 'WAPI._serializeChatObj is unavailable' };
           }
-          return { chats: models.map((chat: any) => serializer(chat)) };
+          // WAPI._serializeChatObj predates WhatsApp's Chat Lock feature and
+          // has no idea `isLocked` exists, so it silently drops it — the
+          // very first list-chats a session ever gets back never carried
+          // this field, which is why a phone-locked chat looked unlocked
+          // until something else (e.g. a later per-chat detail fetch)
+          // happened to refresh it. `chat` here is still the raw wa-js
+          // model (pre-serialization), so `chat.isLocked` is exactly what
+          // the earlier getChatById-based investigation confirmed exists.
+          return {
+            chats: models.map((chat: any) => ({
+              ...serializer(chat),
+              isLocked: !!chat.isLocked,
+            })),
+          };
         } catch (error: any) {
           return { chats: [], error: error?.message || String(error) };
         }
