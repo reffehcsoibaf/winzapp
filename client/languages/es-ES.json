@@ -45,6 +45,7 @@
     "status_delivered": "Entregado",
     "status_read": "Leído",
     "status_played": "Reproducida",
+    "and_n_more_suffix": "y {n} más",
     "status_edited": "Editada",
     "status_forwarded": "Reenviada",
     "msg_status_none": "Sin estado disponible.",
