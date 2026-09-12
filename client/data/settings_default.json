@@ -13,6 +13,7 @@
         "updates_enabled": false,
         "alpha_updates_enabled": false,
         "noise_reduction_enabled": false,
+        "spell_check_mode": "windows",
         "first_run": false,
         "api_type_first_run_asked": true,
         "hotkey_first_run_asked": true,

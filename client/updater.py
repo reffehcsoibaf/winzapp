@@ -25,6 +25,7 @@ import requests
 import wx
 
 from app_paths import _outer_exe_dir, _is_frozen, resource_path, log_path
+from core.wpp_runtime import homologated_wpp_tag
 from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
 from version import __version__
 
@@ -110,6 +111,20 @@ def _safe_extract_zip(zf: zipfile.ZipFile, dest_dir: str) -> None:
 _PRE_ORDER = {"dev": 0, "alpha": 1, "beta": 2, "": 3}
 
 _VER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)\.(\d+)(dev|alpha|beta)?$", re.IGNORECASE)
+
+
+def _version_is_older(candidate: str, reference: str) -> bool:
+    """Is `candidate` strictly older than `reference`, as release tags?
+
+    Used only to stop force-reinstall going backwards. Unparseable input
+    answers False — "I cannot tell" must not become "downgrade", and the
+    caller's fallback is the homologated tag either way.
+    """
+    try:
+        from packaging.version import Version
+        return Version(candidate.lstrip("vV")) < Version(reference.lstrip("vV"))
+    except Exception:
+        return False
 
 
 def parse_version(v: str):
@@ -436,6 +451,26 @@ def _build_installer_script(source_dir: str, install_dir: str, exe_path: str,
         # leave a marker file WinZapp checks on next startup so the user is
         # told instead of silently running a stale/partial install.
         f'xcopy /E /Y /I /H "{source_dir}\\*" "{install_dir}\\" >> "{log_path}" 2>&1\n'
+        # One retry, because the failure this converts is transient and
+        # common. Reported live: an update that copied hundreds of files
+        # into the install directory and then died on "Violacao de
+        # compartilhamento" — a sharing violation on a freshly-written
+        # .pyd, i.e. an on-access antivirus scan holding a file xcopy had
+        # just put there. WinZapp itself had already exited (the WAIT loop
+        # above) and its Node was killed, so nothing of ours held it; five
+        # seconds later it would have been free. Without a retry the user
+        # got update_failed.marker, an install that had ALREADY been
+        # partially overwritten, and the old exe relaunched over it.
+        #
+        # Safe to repeat: xcopy /E /Y /I /H is idempotent — every file it
+        # already wrote is overwritten with the same bytes — so the second
+        # pass either finishes the copy or fails the same way, and only
+        # then is the update declared failed.
+        "if errorlevel 4 (\n"
+        f'    >> "{log_path}" echo xcopy hit a locked file - retrying once in 5s\n'
+        "    timeout /t 5 /nobreak >NUL\n"
+        f'    xcopy /E /Y /I /H "{source_dir}\\*" "{install_dir}\\" >> "{log_path}" 2>&1\n'
+        ")\n"
         "if errorlevel 4 (\n"
         f'    >> "{log_path}" echo xcopy FAILED\n'
         f'    echo update failed > "{marker_path}"\n'
@@ -885,6 +920,60 @@ class UpdateChecker:
         self._mw           = main_window
         self._retry_timer  = None
         self._force        = False
+        # Owner-token from update_coord.try_claim_update_prompt() while this
+        # process is the one asking the user about an update; None otherwise.
+        self._prompt_token = None
+
+    def _global_dir(self):
+        """The multi-account global dir, or None in a single-account/dev run.
+
+        None disables the cross-account prompt claim entirely, which is the
+        right degradation: with no shared directory there is no second account
+        to duplicate the dialog for.
+        """
+        return getattr(self._mw, "global_dir", None) or None
+
+    def _claim_prompt(self, remote_version: str) -> bool:
+        """Become the one process that asks about this update.
+
+        Every account runs its own UpdateChecker in its own process, so without
+        this each of them found the same release and opened its own dialog —
+        two accounts, two "a new version is available" windows for one update.
+        Only one of them could ever have installed it anyway: the install is
+        already gated by try_begin_update(), which refuses while any other
+        account's runtime lease is live. The duplicate dialogs were never a
+        second chance at anything, just a second thing to dismiss.
+
+        Fails OPEN on any error. A prompt that cannot be coordinated is worth
+        far more than a prompt suppressed by a bug in the coordination.
+        """
+        gd = self._global_dir()
+        if not gd:
+            return True
+        try:
+            import update_coord
+            token = update_coord.try_claim_update_prompt(gd, remote_version)
+        except Exception:
+            logging.exception("Auto-updater: prompt claim failed — asking anyway")
+            return True
+        if token is None:
+            return False
+        self._prompt_token = token
+        return True
+
+    def _release_prompt(self) -> None:
+        """Hand the prompt back, so the next account may ask when its own timer
+        comes round. Never raises: it runs on the way out of a dialog, and an
+        exception here would swallow the user's answer."""
+        token, self._prompt_token = self._prompt_token, None
+        gd = self._global_dir()
+        if not (gd and token):
+            return
+        try:
+            import update_coord
+            update_coord.release_update_prompt(gd, token)
+        except Exception:
+            logging.exception("Auto-updater: releasing the prompt claim failed")
 
     def _alpha_enabled(self) -> bool:
         """Whether the user opted into alpha builds (Settings > General).
@@ -1059,12 +1148,28 @@ class UpdateChecker:
             return
 
         logging.info("Auto-updater: Newer version %s is available!", remote_version)
+        was_forced = self._force
         self._force = False
 
         # Prefer a local, per-version changelog file (see resolve_changelog())
         # over the GitHub release body — only used as a last resort.
         lang_code = self._mw.i18n.get_language() if hasattr(self._mw, "i18n") else "pt-BR"
         changelog = resolve_changelog(local_version, remote_version, lang_code, data.get("body", ""))
+
+        if not self._claim_prompt(remote_version):
+            # Another account is already asking. Do NOT install behind its back
+            # and do not stack a second dialog — just come back later, by which
+            # time either the update happened or that dialog was dismissed and
+            # the claim released.
+            logging.info(
+                "Auto-updater: another account is already showing the update "
+                "prompt for this machine — skipping this one's dialog."
+            )
+            if was_forced:
+                wx.CallAfter(self._show_prompt_open_elsewhere)
+            else:
+                self._schedule_retry()
+            return
 
         wx.CallAfter(self._show_update_dialog, remote_version, changelog, zip_url, sha256sums_url)
 
@@ -1128,15 +1233,34 @@ class UpdateChecker:
             self._mw,
         )
 
+    def _show_prompt_open_elsewhere(self):
+        """Only for a check the user asked for by hand (Help > Check for
+        updates). An automatic check that loses the claim stays silent and
+        retries; a manual one that stayed silent would just look broken."""
+        i18n = self._mw.i18n
+        wx.MessageBox(
+            i18n.t("update_prompt_open_elsewhere"),
+            i18n.t("update_available_title"),
+            wx.OK | wx.ICON_INFORMATION,
+            self._mw,
+        )
+
     def _show_update_dialog(self, remote_version: str, changelog: str, zip_url: str, sha256sums_url: str = ""):
         dlg    = UpdateDialog(self._mw, remote_version, changelog)
         result = dlg.ShowModal()
         dlg.Destroy()
 
         if result == wx.ID_YES:
+            # Deliberately still held across the install: releasing here would
+            # let another account open its own dialog while this one is already
+            # downloading and about to relaunch the whole install directory.
+            # _do_install() releases it on every path that does not end in
+            # real_exit() (which takes the claim's owner process with it, so a
+            # crashed-owner recovery clears it for free).
             self._do_install(remote_version, zip_url, sha256sums_url)
         else:
             # User said No — retry in 3 hours
+            self._release_prompt()
             self._schedule_retry()
 
     def _do_install(self, new_version: str, zip_url: str, sha256sums_url: str = ""):
@@ -1160,6 +1284,7 @@ class UpdateChecker:
                         "Auto-updater: nothing was installed and no installer is "
                         "waiting — staying open instead of exiting."
                     )
+                    self._release_prompt()
                     return
                 # Install launched — quit the app so the batch script can run
                 self._mw.real_exit()
@@ -1167,6 +1292,7 @@ class UpdateChecker:
 
             if result == wx.ID_CANCEL:
                 # User cancelled
+                self._release_prompt()
                 self._schedule_retry()
                 return
 
@@ -1180,6 +1306,7 @@ class UpdateChecker:
                 self._mw,
             )
             if retry != wx.YES:
+                self._release_prompt()
                 self._schedule_retry()
                 return
             # else: loop and retry the download
@@ -1257,9 +1384,57 @@ class WppUpdateChecker:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     @staticmethod
-    def _fetch_latest_tag() -> str:
+    def _homologated_or_latest_tag() -> str:
+        """The tag the PERIODIC check compares against: the homologated server
+        release, falling back to GitHub's latest when none is bundled.
+
+        Deliberately not "whatever is newest". WinZapp ships a homologated pair
+        (see tests/test_wpp_homologated_runtime_pin.py), and prompting every
+        user onto every wppconnect-server release the day it appears is how a
+        patch set that no longer matches reaches people — which is the failure
+        wppconnect 2.3.2 produced. Raising client/wpp_minimum_version.txt is the
+        deliberate act that offers an update.
+
+        Renamed from _fetch_latest_tag(): it never fetched the latest anything
+        when a homologated tag was bundled, which is always in a release build,
+        and the force-reinstall path below trusted the name.
+        """
+        homologated = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
+        if homologated:
+            return homologated
         from ui.dialogs.api_setup import fetch_latest_wpp_tag
         return fetch_latest_wpp_tag()
+
+    @staticmethod
+    def _newest_available_tag() -> str:
+        """The tag FORCE-REINSTALL uses: genuinely the newest release.
+
+        Both this method's caller and the menu item that reaches it have always
+        documented "always fetches whatever is currently the latest release,
+        regardless of version". They called _fetch_latest_tag(), which returned
+        the homologated tag whenever one was bundled — so a user forcing a
+        reinstall to move off a stale server reinstalled the exact same version,
+        repeatedly, with the dialog cheerfully naming it. Reported live: three
+        forced reinstalls, each "successful", package.json unchanged at 2.10.16.
+
+        Floored at the homologated tag rather than taken raw: this must be able
+        to move a user forward, never backward, and a GitHub hiccup answering
+        with something older must not silently downgrade an install below the
+        version WinZapp was built against.
+        """
+        from ui.dialogs.api_setup import fetch_latest_wpp_tag
+        latest = fetch_latest_wpp_tag()
+        homologated = homologated_wpp_tag(resource_path("wpp_minimum_version.txt"))
+        if not latest:
+            return homologated
+        if homologated and _version_is_older(latest, homologated):
+            logging.warning(
+                "[WppUpdateChecker] The latest published release (%s) is older "
+                "than the homologated one (%s) — reinstalling the homologated "
+                "tag instead of going backwards.", latest, homologated,
+            )
+            return homologated
+        return latest
 
     def _check_once(self):
         logging.info("[WppUpdateChecker] Checking for wppconnect-server updates...")
@@ -1271,7 +1446,7 @@ class WppUpdateChecker:
             self._schedule_retry()
             return
 
-        tag = self._fetch_latest_tag()
+        tag = self._homologated_or_latest_tag()
         if not tag:
             self._schedule_retry()
             return
@@ -1325,7 +1500,7 @@ class WppUpdateChecker:
 
     def _force_reinstall_worker(self):
         logging.info("[WppUpdateChecker] Force-reinstall requested — fetching latest release tag...")
-        tag = self._fetch_latest_tag()
+        tag = self._newest_available_tag()
         if not tag:
             wx.CallAfter(
                 wx.MessageBox,

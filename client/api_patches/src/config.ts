@@ -1,5 +1,38 @@
 import { ServerOptions } from './types/ServerOptions';
 
+// DO NOT MERGE UPSTREAM'S dotenv LOADING INTO THIS FILE.
+//
+// wppconnect-server 2.10.19 added `dotenv.config({ override: false })` here
+// (commit b66881b, "load and document optional environment configuration"),
+// and removed the dead `//require('dotenv').config();` from index.ts at the
+// same time. Both are inert for WinZapp and one of them is actively unsafe, so
+// this patch keeps overriding them — deliberately, not by accident.
+//
+// Inert, because this file is not a variant of upstream's: upstream resolves
+// every setting from process.env (`env.SECRET_KEY || ...`, `env.PORT ||
+// '21465'`, `envNumber('MAX_LISTENERS', 15)`), while WinZapp hardcodes them
+// below and reads exactly ONE environment variable. There is no `env` object
+// here for a .env file to feed.
+//
+// Unsafe, because that one variable is WINZAPP_USER_DATA_DIR, and it is the
+// path to the Chrome profile that carries the WhatsApp login — computed per
+// install and per account by main.py, and the single thing that must never
+// come from a file lying next to the exe. dotenv's `override: false` protects
+// a variable we DO inject; it does nothing about a stale value inherited by a
+// process that was launched without one. Pointing Chrome at the wrong
+// userDataDir is the session-loss failure mode, not a configuration nicety.
+// WinZapp also deliberately stopped shipping a .env (see
+// wpp_minimum_version.txt's own history), so installs upgraded from older
+// builds can still have one on disk.
+//
+// Consequence to know about: upstream's src/config.test.ts (added in the same
+// commit) asserts secretKey 'THISISMYSECURETOKEN' from a .env and port '21465'
+// by default. Against this file all three of its cases fail, by design.
+// Nothing in WinZapp runs jest — setup_api.py and build.py only ever run
+// `npm run build` — and tsconfig.json's `src*` include does compile it, which
+// type-checks fine. So it costs nothing today; it is written down here so a
+// future rebase does not "fix" the failure by merging the dotenv call in.
+
 // customUserDataDir is used as `customUserDataDir + session` (string
 // concatenation, not path.join) to build each session's Puppeteer/Chrome
 // profile directory — see createSessionUtil.ts. Left as the literal default
@@ -129,6 +162,17 @@ export default {
       '--use-mock-keychain',
       '--no-pings',
       '--disable-client-side-phishing-detection',
+      // Belt to clearRestorableSession()'s braces (createSessionUtil.ts).
+      // That function removes the saved-tab files and records a clean exit
+      // before every launch; these two stop Chrome from acting on a restore
+      // record that appears anyway — a crash mid-session, or a profile
+      // restored from a snapshot taken elsewhere. WPPConnect drives exactly
+      // one page, and every extra tab a restore reopens loads outside
+      // start.js's document interception and outside wppconnect's user-agent
+      // override, then competes for the same IndexedDB and backend worker
+      // until injectApi() times out.
+      '--hide-crash-restore-bubble',
+      '--disable-session-crashed-bubble',
     ],
     /**
      * Example of configuring the linkPreview generator

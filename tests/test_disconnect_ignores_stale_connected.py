@@ -42,6 +42,12 @@ class _I18n:
 
 
 class _Stub:
+    # The first confirmed connection of a session also kicks off the
+    # send-capabilities probe on a background thread — real HTTP, and not
+    # what any test here is about. Record it instead.
+    def _check_send_capabilities(self):
+        self.capability_probes = getattr(self, "capability_probes", 0) + 1
+
     def __init__(self, token="tok"):
         from main import MainWindow
         self._set_wa_connected = MainWindow._set_wa_connected.__get__(self)
@@ -52,6 +58,12 @@ class _Stub:
         self._self_inflicted_teardown_expected = (
             MainWindow._self_inflicted_teardown_expected.__get__(self))
         self._WA_STARTUP_GRACE_SECONDS = MainWindow._WA_STARTUP_GRACE_SECONDS
+        # Not what this file is testing — a real connect just needs these two
+        # to exist so _set_wa_connected()'s own profile-recovery re-arm
+        # (issue #202, see tests/test_qr_flood_rearm_counter.py) doesn't
+        # AttributeError here.
+        self._profile_recovery_generation = lambda: 0
+        self._set_profile_recovery_generation = lambda value: None
 
         self.settings = {}
         self.token = token
@@ -61,6 +73,7 @@ class _Stub:
         self._wa_connected = False
         self._auto_offline = False
         self._wa_connect_announced = False
+        self._send_capabilities_checked = False
         self._wa_offline_strikes = 0
         self._dead_browser_strikes = 0
         self._auto_repair_dialog_shown = False
@@ -111,7 +124,7 @@ def _no_threads(monkeypatch):
     must not actually spawn a thread in a unit test — run inline so the
     assertion can see whether it ran at all."""
     class _InlineThread:
-        def __init__(self, target=None, args=(), kwargs=None, daemon=None):
+        def __init__(self, target=None, args=(), kwargs=None, daemon=None, name=None):
             self._target = target
             self._args = args
             self._kwargs = kwargs or {}
