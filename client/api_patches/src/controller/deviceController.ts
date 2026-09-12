@@ -1183,13 +1183,16 @@ export async function getPrivacySettings(req: Request, res: Response) {
   }
 }
 
-const PRIVACY_SETTERS: Record<string, string> = {
-  lastSeen: 'setLastSeen',
-  online: 'setOnline',
-  about: 'setAbout',
-  profilePicture: 'setProfilePic',
-  readReceipts: 'setReadReceipts',
-  groupAdd: 'setAddGroup',
+// name value each setting maps to for the low-level setPrivacyForOneCategory
+// primitive (see setPrivacySetting's docstring for why we call this instead
+// of the individual WPP.privacy.set* wrappers).
+const PRIVACY_CATEGORY_NAMES: Record<string, string> = {
+  lastSeen: 'last',
+  online: 'online',
+  about: 'status', // WhatsApp's own internal name for the "about" text field
+  profilePicture: 'profile',
+  readReceipts: 'readreceipts',
+  groupAdd: 'groupadd',
 };
 
 export async function setPrivacySetting(req: Request, res: Response) {
@@ -1222,15 +1225,20 @@ export async function setPrivacySetting(req: Request, res: Response) {
       }
      }
    *
-   * One dispatcher for every simple-enum WPP.privacy.set* function (each
-   * takes just a value string) instead of six near-identical route
-   * handlers. WPP.privacy.setStatus (who sees Stories) is deliberately NOT
+   * Calls the shared low-level WPP.privacy.setPrivacyForOneCategory
+   * primitive directly, dispatched by "name" — NOT the individual
+   * WPP.privacy.set* wrappers (setLastSeen/setOnline/etc). Those wrappers
+   * throw "setPrivacyForOneCategory is not a function" at runtime in this
+   * wa-js build (a bundling issue internal to wa-js — the wrapper's own
+   * reference to the shared helper resolves to undefined, while the
+   * primitive itself is fine when called via the public WPP.privacy
+   * object). WPP.privacy.setStatus (who sees Stories) is deliberately NOT
    * here — it takes a contact list, not a plain value, and needs its own
    * UI/endpoint later.
    */
   const { setting, value } = req.body;
-  const fnName = PRIVACY_SETTERS[setting];
-  if (!fnName) {
+  const categoryName = PRIVACY_CATEGORY_NAMES[setting];
+  if (!categoryName) {
     return res.status(400).json({
       status: 'error',
       message: `Unknown or unsupported privacy setting: ${setting}`,
@@ -1243,9 +1251,12 @@ export async function setPrivacySetting(req: Request, res: Response) {
   }
   try {
     await req.client.page.evaluate(
-      ({ fn, val }: { fn: string; val: string }) =>
-        (window as any).WPP.privacy[fn](val),
-      { fn: fnName, val: value }
+      ({ name, val }: { name: string; val: string }) =>
+        (window as any).WPP.privacy.setPrivacyForOneCategory({
+          name,
+          value: val,
+        }),
+      { name: categoryName, val: value }
     );
     return res.status(200).json({ status: 'success' });
   } catch (e) {
