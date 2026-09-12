@@ -9430,18 +9430,21 @@ class ConversationsPanel(wx.Panel):
         """Fresh delivered/read/played times for one of OUR OWN messages,
         fetched live from WhatsApp (see MainWindow.fetch_message_ack) instead
         of only whatever MessageUpdate events WinZapp happened to capture
-        while running. Only for 1:1 chats — WhatsApp's ack info is
-        per-participant for groups, which needs its own display, not a
-        single timeline; group chats fall back to _status_history_lines()."""
+        while running. Groups get a per-member breakdown (WhatsApp's ack
+        info is per-participant there) via _group_ack_breakdown_lines();
+        1:1 chats get a single delivered/read/played timeline from
+        participants[0]."""
         if not msg.get("key", {}).get("fromMe"):
             return []
-        if not chat_jid or chat_jid.endswith("@g.us"):
+        if not chat_jid:
             return []
         if self._receipts_are_meaningless(chat_jid):
             return []
         ack_info = self.main_window.fetch_message_ack(chat_jid, msg.get("key", {}))
         if not ack_info:
             return []
+        if chat_jid.endswith("@g.us"):
+            return self._group_ack_breakdown_lines(ack_info)
         participants = ack_info.get("participants") or []
         if not participants:
             return []
@@ -9454,6 +9457,101 @@ class ConversationsPanel(wx.Panel):
             ts = p.get(field)
             if ts:
                 lines.append(f"{i18n.t(label_key)}: {self._format_full_datetime(ts)}")
+        return lines
+
+    def _resolve_contact_name(self, lj: str) -> str:
+        """Saved contact name for lj, trying all three JID formats
+        (@s.whatsapp.net, @c.us, @lid), stripping Baileys device suffixes.
+        Hand-written twin of the contact-resolution logic inside
+        _sender_label() (kept separate rather than refactored out of it,
+        to avoid any risk of disturbing that already-working code) — used
+        by the group message-ack breakdown to turn a participant's @lid
+        into a display name."""
+        mw = self.main_window
+        lid_to_phone = getattr(mw, "_lid_to_phone", {})
+        ppm = getattr(mw, "_presence_pushname_map", {})
+
+        def _strip_device(j: str) -> str:
+            if ":" in j and "@" in j:
+                local, domain = j.rsplit("@", 1)
+                return f"{local.split(':')[0]}@{domain}"
+            return j
+
+        lj_clean = _strip_device(lj)
+        if lj_clean.endswith("@c.us"):
+            lj_clean = lj_clean[:-5] + "@s.whatsapp.net"
+        candidates = [lj_clean]
+        if lj_clean != lj:
+            candidates.append(lj)
+        if lj_clean.endswith("@lid"):
+            phone = lid_to_phone.get(lj_clean, "")
+            if phone:
+                candidates.append(phone)
+                candidates.append(phone.rsplit("@", 1)[0] + "@c.us")
+        elif lj_clean.endswith("@s.whatsapp.net"):
+            candidates.append(lj_clean.rsplit("@", 1)[0] + "@c.us")
+            lid = getattr(mw, "_phone_to_lid", {}).get(lj_clean, "")
+            if lid:
+                candidates.append(lid)
+
+        for cjid in candidates:
+            c = mw.contacts.get(cjid)
+            if c:
+                n = (c.get("name") or c.get("pushName") or "").strip()
+                if n and not mw._is_bad_contact_name(n):
+                    return n
+            chat_obj = mw.get_chat(cjid)
+            if chat_obj:
+                cn = (chat_obj.get("name") or "").strip()
+                if cn and not mw._is_bad_contact_name(cn):
+                    return cn
+        for cjid in candidates:
+            pname = (ppm.get(cjid) or "").strip()
+            if pname and not mw._is_bad_contact_name(pname):
+                return pname
+        return ""
+
+    def _group_ack_breakdown_lines(self, ack_info: dict, max_names: int = 40) -> list:
+        """Turns a group message's getMessageACK() participants[] into
+        'Entregue (N/M): nome1, nome2, ...' style lines, one per stage —
+        each participant counted only at their MOST ADVANCED stage
+        (played implies read+delivered, read implies delivered) so nobody
+        appears in more than one line. Capped at max_names per line so a
+        huge group doesn't produce one unreadable wall of names; the
+        remainder is summarised as "e mais N"."""
+        participants = ack_info.get("participants") or []
+        if not participants:
+            return []
+        i18n = self.main_window.i18n
+        total = len(participants)
+        delivered, read, played = [], [], []
+        for p in participants:
+            raw_id = p.get("id", "") or (p.get("wid", {}) or {}).get("_serialized", "")
+            name = self._resolve_contact_name(raw_id) or format_number(raw_id) or raw_id
+            if p.get("playedAt"):
+                played.append(name)
+            elif p.get("readAt"):
+                read.append(name)
+            elif p.get("deliveredAt"):
+                delivered.append(name)
+
+        def _fmt(names, label_key):
+            if not names:
+                return None
+            shown = names[:max_names]
+            extra = len(names) - len(shown)
+            text = ", ".join(shown)
+            if extra > 0:
+                text += " " + i18n.t("and_n_more_suffix").format(n=extra)
+            return f"{i18n.t(label_key)} ({len(names)}/{total}): {text}"
+
+        lines = []
+        for names, label_key in ((played, "status_played"),
+                                  (read, "status_read"),
+                                  (delivered, "status_delivered")):
+            line = _fmt(names, label_key)
+            if line:
+                lines.append(line)
         return lines
 
     def _sender_label(self, msg) -> str:
