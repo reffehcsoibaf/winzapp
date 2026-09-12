@@ -1536,12 +1536,26 @@ class SettingsDialog(wx.Dialog):
             priv_settings.get("locked_chats_require_code_to_open", True)
         )
 
-        # TEMPORARILY DISABLED: see the matching note in _validate_settings()
-        # / the OK-save flow. No live fetch, dropdowns stay blank, Apply
-        # stays off — the status label says why instead of hanging on a
-        # network call for a feature that can't work right now anyway.
-        self._wa_privacy_apply_btn.Enable(False)
-        self._wa_privacy_status_label.SetLabel(self.main_window.i18n.t("wa_privacy_load_failed"))
+        # Re-enabled: WPP.privacy was broken only under wppconnect-server
+        # 2.10.23's bundled wa-js (module-finder mismatch); pinning to the
+        # homologated 2.10.21 (client/wpp_minimum_version.txt) fixed the
+        # same class of bug for message-ack, and this uses the identical
+        # low-level primitive (setPrivacyForOneCategory) — see winzapp.md.
+        wa_privacy = self.main_window.fetch_privacy_settings()
+        self._wa_privacy_apply_btn.Enable(bool(wa_privacy))
+        if wa_privacy:
+            self._wa_privacy_status_label.SetLabel("")
+            for attr_prefix, _label_key, options in self._WA_PRIVACY_FIELDS:
+                server_field = self._WA_PRIVACY_SERVER_FIELD[attr_prefix]
+                current_value = wa_privacy.get(server_field, "")
+                choice = getattr(self, f"_wa_privacy_{attr_prefix}_choice")
+                raw_values = [raw for raw, _opt_key in options]
+                if current_value in raw_values:
+                    choice.SetSelection(raw_values.index(current_value))
+                else:
+                    choice.SetSelection(wx.NOT_FOUND)
+        else:
+            self._wa_privacy_status_label.SetLabel(self.main_window.i18n.t("wa_privacy_load_failed"))
 
         self._ai_transcribe_audio_check.SetValue(
             ai_settings.get("transcribe_audio", True)
@@ -2726,21 +2740,17 @@ class SettingsDialog(wx.Dialog):
             _priv["locked_chats_code_hash"] = chat_lock.hash_code(_new_code, _salt)
         _priv["locked_chats_require_code_to_open"] = self._privacy_require_code_check.GetValue()
 
-        # TEMPORARILY DISABLED: WPP.privacy.setPrivacyForOneCategory is
-        # currently broken upstream in wa-js (module-finder mismatch against
-        # the live WhatsApp Web build — confirmed via raw ackInfo dumps, not
-        # anything in our own code). Auto-applying here would show an error
-        # box on every OK click, blocking normal use of Settings. Re-enable
-        # once wa-js ships a fix — see /areas/winzapp.md.
-        # _wa_privacy_errors = self._apply_whatsapp_privacy_settings()
-        # if _wa_privacy_errors:
-        #     _i18n = self.main_window.i18n
-        #     wx.MessageBox(
-        #         "\n".join(_wa_privacy_errors),
-        #         _i18n.t("error").format(app_name=self.main_window.app_name),
-        #         wx.OK | wx.ICON_ERROR,
-        #         self,
-        #     )
+        # Re-enabled — see the matching note in _load_values(). Applies
+        # here on OK, same as every other field on this dialog.
+        _wa_privacy_errors = self._apply_whatsapp_privacy_settings()
+        if _wa_privacy_errors:
+            _i18n = self.main_window.i18n
+            wx.MessageBox(
+                "\n".join(_wa_privacy_errors),
+                _i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR,
+                self,
+            )
 
         # Persist and propagate
         self.main_window.save_settings()
