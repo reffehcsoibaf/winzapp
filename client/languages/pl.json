@@ -45,6 +45,7 @@
     "status_delivered": "Dostarczono",
     "status_read": "Przeczytano",
     "status_played": "Odtworzono",
+    "and_n_more_suffix": "i jeszcze {n}",
     "status_edited": "Edytowano",
     "status_forwarded": "Przekazano dalej",
     "msg_status_none": "Brak dostępnego statusu.",
