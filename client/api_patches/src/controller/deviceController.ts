@@ -1196,16 +1196,15 @@ export async function getPrivacySettings(req: Request, res: Response) {
   }
 }
 
-// name value each setting maps to for the low-level setPrivacyForOneCategory
-// primitive (see setPrivacySetting's docstring for why we call this instead
-// of the individual WPP.privacy.set* wrappers).
-const PRIVACY_CATEGORY_NAMES: Record<string, string> = {
-  lastSeen: 'last',
-  online: 'online',
-  about: 'status', // WhatsApp's own internal name for the "about" text field
-  profilePicture: 'profile',
-  readReceipts: 'readreceipts',
-  groupAdd: 'groupadd',
+// setter function name each setting maps to under WPP.privacy.* — every one
+// of these takes a plain value string (see setPrivacySetting's docstring).
+const PRIVACY_SETTERS: Record<string, string> = {
+  lastSeen: 'setLastSeen',
+  online: 'setOnline',
+  about: 'setAbout',
+  profilePicture: 'setProfilePic',
+  readReceipts: 'setReadReceipts',
+  groupAdd: 'setAddGroup',
 };
 
 export async function setPrivacySetting(req: Request, res: Response) {
@@ -1238,20 +1237,26 @@ export async function setPrivacySetting(req: Request, res: Response) {
       }
      }
    *
-   * Calls the shared low-level WPP.privacy.setPrivacyForOneCategory
-   * primitive directly, dispatched by "name" — NOT the individual
-   * WPP.privacy.set* wrappers (setLastSeen/setOnline/etc). Those wrappers
-   * throw "setPrivacyForOneCategory is not a function" at runtime in this
-   * wa-js build (a bundling issue internal to wa-js — the wrapper's own
-   * reference to the shared helper resolves to undefined, while the
-   * primitive itself is fine when called via the public WPP.privacy
-   * object). WPP.privacy.setStatus (who sees Stories) is deliberately NOT
-   * here — it takes a contact list, not a plain value, and needs its own
-   * UI/endpoint later.
+   * Calls the per-category WPP.privacy.set* function (setLastSeen,
+   * setOnline, setProfilePic, setReadReceipts, setAbout, setAddGroup) named
+   * by PRIVACY_SETTERS. An earlier revision of this route called the
+   * shared low-level WPP.privacy.setPrivacyForOneCategory primitive
+   * instead, on the theory that these wrappers were broken in this wa-js
+   * build — that was wrong: setPrivacyForOneCategory is documented only
+   * under the internal whatsapp.functions module, not re-exported on the
+   * public WPP.privacy object at all, in any current wa-js version, which
+   * is exactly the "is not a function" error that call produced. The
+   * per-category setters above ARE the public, documented WPP.privacy API
+   * (https://wppconnect.io/wa-js/modules/privacy.html) and take a plain
+   * value string, e.g. WPP.privacy.setReadReceipts("none").
+   *
+   * WPP.privacy.setStatus (who sees Stories) is deliberately NOT here — it
+   * takes a contact list, not a plain value, and needs its own UI/endpoint
+   * later.
    */
   const { setting, value } = req.body;
-  const categoryName = PRIVACY_CATEGORY_NAMES[setting];
-  if (!categoryName) {
+  const fnName = PRIVACY_SETTERS[setting];
+  if (!fnName) {
     return res.status(400).json({
       status: 'error',
       message: `Unknown or unsupported privacy setting: ${setting}`,
@@ -1264,12 +1269,9 @@ export async function setPrivacySetting(req: Request, res: Response) {
   }
   try {
     await req.client.page.evaluate(
-      ({ name, val }: { name: string; val: string }) =>
-        (window as any).WPP.privacy.setPrivacyForOneCategory({
-          name,
-          value: val,
-        }),
-      { name: categoryName, val: value }
+      ({ fn, val }: { fn: string; val: string }) =>
+        (window as any).WPP.privacy[fn](val),
+      { fn: fnName, val: value }
     );
     return res.status(200).json({ status: 'success' });
   } catch (e) {

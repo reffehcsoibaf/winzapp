@@ -16138,6 +16138,44 @@ class MainWindow(wx.Frame):
                                 self._archived_chats.discard(alt_jid)
                                 archive_changed = True
 
+                    # ── WhatsApp Chat Lock (isLocked): same two-way sync ──────
+                    # This poll (start_periodic_contacts_sync, every 60s) is
+                    # the only path that ever sees a phone-side lock/unlock
+                    # for most of a session — normalize_chats() only runs
+                    # during (re)connect — so without this block here too, a
+                    # chat locked mid-session stayed visible in the main list
+                    # until the next full sync, and an unlock made here never
+                    # took effect at all until then.
+                    server_locked = _parse_bool_flag(chat.get("isLocked"))
+                    if server_locked is not None:
+                        chat["isLocked"] = server_locked
+                        if jid in chats:
+                            chats[jid]["isLocked"] = server_locked
+                        alt_jid_locked = ""
+                        if jid.endswith("@lid"):
+                            alt_jid_locked = getattr(self, "_lid_to_phone", {}).get(jid, "")
+                        else:
+                            alt_jid_locked = getattr(self, "_phone_to_lid", {}).get(jid, "")
+                        if alt_jid_locked:
+                            alt_jid_locked = self._normalize_jid(alt_jid_locked)
+                            if alt_jid_locked in chats:
+                                chats[alt_jid_locked]["isLocked"] = server_locked
+
+                        if server_locked:
+                            if jid not in self._phone_locked_chats:
+                                self._phone_locked_chats.add(jid)
+                                archive_changed = True
+                            if alt_jid_locked and alt_jid_locked not in self._phone_locked_chats:
+                                self._phone_locked_chats.add(alt_jid_locked)
+                                archive_changed = True
+                        else:
+                            if jid in self._phone_locked_chats:
+                                self._phone_locked_chats.discard(jid)
+                                archive_changed = True
+                            if alt_jid_locked and alt_jid_locked in self._phone_locked_chats:
+                                self._phone_locked_chats.discard(alt_jid_locked)
+                                archive_changed = True
+
                     # Check if the JID starts with "0@" (official WhatsApp/system account)
                     is_system = jid.startswith("0@")
                     
@@ -16204,6 +16242,7 @@ class MainWindow(wx.Frame):
                     self.db.set_metadata_json("pinned_chats", list(self._pinned_chats))
                 if archive_changed and hasattr(self, "db") and self.db is not None:
                     self.db.set_metadata_json("archived_chats", list(self._archived_chats))
+                    self.db.set_metadata_json("phone_locked_chats", list(self._phone_locked_chats))
 
                 perms_changed = False
                 groups_total = groups_with_metadata = 0
