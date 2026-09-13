@@ -17773,7 +17773,14 @@ class MainWindow(wx.Frame):
                 continue
             _seen_render_jids.add(render_jid)
 
-    
+            # A chat with a blocked contact is hidden entirely (neither the
+            # main list nor Arquivadas) until a dedicated "Contatos
+            # Bloqueados" screen exists to manage them from somewhere other
+            # than this row's own context menu. Block state is per-contact,
+            # not per-chat, so it never applies to a group.
+            if not render_jid.endswith("@g.us") and self.is_contact_blocked(render_jid):
+                continue
+
             records_wrapper = chat.get("messages") or {}
             records = []
             if isinstance(records_wrapper, dict):
