@@ -2781,7 +2781,6 @@ class MainWindow(wx.Frame):
         """Create the menu bar with Arquivo, Sincronização and Ajuda menus."""
         self._ID_MARK_ALL_READ = wx.NewIdRef()
         self._ID_SETTINGS      = wx.NewIdRef()
-        self._ID_ACCOUNTS      = wx.NewIdRef()
         self._ID_DISCONNECT    = wx.NewIdRef()
         self._ID_EXIT          = wx.NewIdRef()
         self._ID_RESYNC_ALL    = wx.NewIdRef()
@@ -2806,10 +2805,6 @@ class MainWindow(wx.Frame):
         file_menu.Append(
             self._ID_SETTINGS,
             f"{self.i18n.t('menu_settings')}\tCtrl+,",
-        )
-        file_menu.Append(
-            self._ID_ACCOUNTS,
-            self.i18n.t('menu_accounts'),
         )
         file_menu.AppendSeparator()
         file_menu.Append(
@@ -2841,11 +2836,14 @@ class MainWindow(wx.Frame):
         menubar.Append(sync_menu, self.i18n.t("menu_sync"))
 
         # ── Konta (multi-account) ─────────────────────────────────────────────
-        # Only shown when this process runs under the account system (account_id
-        # set). Populated dynamically from the registry (plan Zad 4.2).
+        # Always built (unlike before) — "Privacidade" (the WhatsApp account
+        # settings dialog) belongs here regardless of whether multi-account
+        # switching is active, so this menu must exist even with
+        # account_id/registry unset (single-account installs).
         self._accounts_menu_id_map = {}
+        accounts_menu = wx.Menu()
+        _accounts_menu_had_switcher_items = False
         if getattr(self, "account_id", None) and getattr(self, "registry", None):
-            accounts_menu = wx.Menu()
             try:
                 import account_ui
                 # Keep the WindowIDRef objects ALIVE: wx.NewIdRef() reserves an id
@@ -2866,7 +2864,7 @@ class MainWindow(wx.Frame):
                 for wid, action in self._accounts_menu_id_map.items():
                     self.Bind(wx.EVT_MENU,
                               lambda e, a=action: self._on_accounts_menu(a), id=int(wid))
-                menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
+                _accounts_menu_had_switcher_items = True
                 # Ctrl+Alt+1..9 → switch to the n-th paired account. Menu-label
                 # accelerators alone don't fire reliably here: focused child
                 # panels (conversation list, message field, …) install their own
@@ -2887,6 +2885,13 @@ class MainWindow(wx.Frame):
                     self._account_hotkey_hook_bound = True
             except Exception:
                 logging.exception("[menu] building Accounts menu failed (non-fatal)")
+
+        if _accounts_menu_had_switcher_items:
+            accounts_menu.AppendSeparator()
+        self._ID_ACC_PRIVACY = wx.NewIdRef()
+        accounts_menu.Append(self._ID_ACC_PRIVACY, self.i18n.t("menu_acc_privacy"))
+        self.Bind(wx.EVT_MENU, self.on_open_accounts, id=self._ID_ACC_PRIVACY)
+        menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
 
         # Frame-level Ctrl+0..9 → jump to an existing message bookmark,
         # regardless of which control currently has focus — bound
@@ -3428,9 +3433,6 @@ class MainWindow(wx.Frame):
         file_menu.FindItemById(self._ID_SETTINGS).SetItemLabel(
             f"{self.i18n.t('menu_settings')}\tCtrl+,"
         )
-        file_menu.FindItemById(self._ID_ACCOUNTS).SetItemLabel(
-            self.i18n.t('menu_accounts')
-        )
         file_menu.FindItemById(self._ID_DISCONNECT).SetItemLabel(
             f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D"
         )
@@ -3447,6 +3449,13 @@ class MainWindow(wx.Frame):
         mb.GetMenu(1).FindItemById(self._ID_OFFLINE_MENU).SetItemLabel(
             f"{self.i18n.t('tray_offline_mode')}\tCtrl+Alt+Shift+O"
         )
+        # Konta/Contas is now always menu index 2 (it used to only exist with
+        # multi-account active) — see on_open_accounts()'s docstring for why
+        # "Privacidade" lives here rather than under Arquivo.
+        mb.SetMenuLabel(2, self.i18n.t("acc_menu_title"))
+        acc_privacy_item = mb.GetMenu(2).FindItemById(self._ID_ACC_PRIVACY)
+        if acc_privacy_item is not None:
+            acc_privacy_item.SetItemLabel(self.i18n.t("menu_acc_privacy"))
         # The Help menu is NOT at a fixed index: with multi-account a "Konta"
         # menu sits between Sync and Help (File=0, Sync=1, Konta=2, Help=3),
         # without it Help is at index 2. Locate it by the item it owns rather
@@ -10314,6 +10323,11 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def on_open_accounts(self, event):
+        """Opens the WhatsApp account settings (privacy, and later profile
+        editing/backup). Lives under the Contas/Konta menu (acc_menu_title)
+        rather than Arquivo — putting an "Accounts" item under File as well
+        just duplicated this same menu's name right next to Sync, which is
+        confusing, not two different things."""
         from ui.dialogs.accounts_dialog import AccountsDialog
         dlg = AccountsDialog(self, self)
         dlg.ShowModal()
@@ -10467,10 +10481,10 @@ class MainWindow(wx.Frame):
             self.wpp_custom_api = True
             self.save_settings()
 
-            # Open settings dialog on the Connection tab (index 4)
+            # Open settings dialog on the Connection tab
             from ui.dialogs.settings_dialog import SettingsDialog
             dlg = SettingsDialog(self)
-            dlg._notebook.SetSelection(4)
+            dlg._notebook.SetSelection(dlg._notebook.FindPage(dlg._conn_page))
             settings_res = dlg.ShowModal()
             dlg.Destroy()
 

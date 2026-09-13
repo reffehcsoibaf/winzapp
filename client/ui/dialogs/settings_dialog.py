@@ -19,6 +19,50 @@ _MOD_SHIFT   = 0x0004
 _MOD_WIN     = 0x0008
 
 
+def _wrap_pages_in_dialog(owner, i18n, title, panels):
+    """Wrap one or more already-built settings 'page' panels in a single
+    persistent dialog, opened from a button instead of a notebook tab.
+
+    Each panel is reparented (not rebuilt) into the new dialog, stacked
+    vertically with a separator between panels when there's more than
+    one (used for the combined Sons de eventos dialog). Reparenting means
+    every widget object the panel's construction code already created is
+    unchanged — _load_values()/_validate_settings()/_apply_settings()/
+    refresh_labels() keep reading the exact same self._xxx_widget
+    attributes as before; only the container around the panel differs.
+
+    The dialog is created once and reused: ShowModal()/EndModal() just
+    shows and hides it, so its widgets — and whatever the user typed
+    into them — survive being closed and reopened within the same
+    Settings session, same as a notebook tab would.
+    """
+    dlg = wx.Dialog(
+        owner, title=title,
+        style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
+    )
+    outer = wx.BoxSizer(wx.VERTICAL)
+    for i, panel in enumerate(panels):
+        panel.Reparent(dlg)
+        if i > 0:
+            outer.Add(wx.StaticLine(dlg), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        outer.Add(panel, 0, wx.EXPAND)
+    close_btn = wx.Button(dlg, wx.ID_CLOSE, i18n.t("close"))
+    outer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
+    close_btn.Bind(wx.EVT_BUTTON, lambda evt: dlg.EndModal(wx.ID_CLOSE))
+    dlg.Bind(wx.EVT_CLOSE, lambda evt: dlg.EndModal(wx.ID_CLOSE))
+    dlg.SetSizerAndFit(outer)
+    return dlg
+
+
+def _add_subsection_button(page, sizer, i18n, label_key, dialog):
+    """A button on a 'hub' tab (Conversas, Sons, …) that opens one of the
+    dialogs _wrap_pages_in_dialog() built."""
+    btn = wx.Button(page, label=i18n.t(label_key))
+    sizer.Add(btn, 0, wx.EXPAND | wx.ALL, 8)
+    btn.Bind(wx.EVT_BUTTON, lambda evt: dialog.ShowModal())
+    return btn
+
+
 class _HotkeyCaptureAccessible(wx.Accessible):
     """Expose the hotkey capture field as a real hotkey field to screen readers."""
 
@@ -622,7 +666,8 @@ class SettingsDialog(wx.Dialog):
         )
 
         self._ui_page.SetSizer(ui_sizer)
-        self._notebook.AddPage(self._ui_page, i18n.t("tab_ui"))
+        # tab_ui moved: opened as a button ("Interface") inside tab_general — see the
+        # end-of-__init__ reorganization block.
 
         # ── Accessibility tab ────────────────────────────────────────────────
         self._accessibility_page = wx.Panel(self._notebook)
@@ -681,7 +726,8 @@ class SettingsDialog(wx.Dialog):
         speech_sizer.Add(self._silence_while_recording_check, 0, wx.ALL, 8)
 
         self._speech_page.SetSizer(speech_sizer)
-        self._notebook.AddPage(self._speech_page, i18n.t("tab_speech_content"))
+        # tab_speech_content moved: opened as a button ("Conteudo falado") inside
+        # tab_accessibility — see the end-of-__init__ reorganization block.
 
         # ── Connection tab ───────────────────────────────────────────────────
         self._conn_page = wx.Panel(self._notebook)
@@ -748,7 +794,8 @@ class SettingsDialog(wx.Dialog):
         adev_sizer.Add(self._noise_reduction_check, 0, wx.ALL, 8)
 
         self._audio_devices_page.SetSizer(adev_sizer)
-        self._notebook.AddPage(self._audio_devices_page, i18n.t("tab_audio_devices"))
+        # tab_audio_devices moved: opened as a button ("Ajustes de audio") inside the
+        # new tab_sounds — see the end-of-__init__ reorganization block.
 
         # ── Sound Events tab ─────────────────────────────────────────────────
         self._sound_events_page = wx.Panel(self._notebook)
@@ -804,7 +851,9 @@ class SettingsDialog(wx.Dialog):
         se_sizer.Add(se_btn_row, 0, wx.ALL, 8)
 
         self._sound_events_page.SetSizer(se_sizer)
-        self._notebook.AddPage(self._sound_events_page, i18n.t("tab_sound_events"))
+        # tab_sound_events moved: combined with tab_alert_tones into one button
+        # ("Sons de eventos") inside the new tab_sounds — see the end-of-__init__
+        # reorganization block.
 
         self._sound_pack_combo.Bind(wx.EVT_COMBOBOX, self._on_sound_pack_selected)
         self._import_folder_btn.Bind(wx.EVT_BUTTON, self._on_import_sound_pack_folder)
@@ -865,7 +914,7 @@ class SettingsDialog(wx.Dialog):
         alert_sizer.Add(self._alert_group_custom_field, 0, wx.EXPAND | wx.ALL, 8)
 
         self._alert_page.SetSizer(alert_sizer)
-        self._notebook.AddPage(self._alert_page, i18n.t("tab_alert_tones"))
+        # tab_alert_tones moved: combined with tab_sound_events (see above).
 
         # ── Storage tab ──────────────────────────────────────────────────────
         self._storage_page = wx.Panel(self._notebook)
@@ -967,14 +1016,10 @@ class SettingsDialog(wx.Dialog):
             group=_alert_preview_group,
         )
 
-        # ── Files and saving tab ────────────────────────────────────────────
-        # Placed right after Armazenamento, which is the neighbouring subject.
-        # Inserting here shifts the two tabs below it, so the SetPageText
-        # indices in _retranslate() move with it — but every hardcoded
-        # SetSelection() in this file and in main.py targets a tab at index 8
-        # or lower, so none of them needed touching. Adding a tab ABOVE index 8
-        # would be a different job.
-        self._files_page = wx.Panel(self._notebook)
+        # ── Files and saving — merged into Armazenamento ────────────────────
+        # No longer a separate tab (see the merge note below); built directly
+        # as a sub-section of tab_storage.
+        self._files_page = wx.Panel(self._storage_page)
         files_sizer = wx.BoxSizer(wx.VERTICAL)
 
         # Radio group rather than a checkbox pair: the three answers are
@@ -1022,7 +1067,17 @@ class SettingsDialog(wx.Dialog):
         )
 
         self._files_page.SetSizer(files_sizer)
-        self._notebook.AddPage(self._files_page, i18n.t("tab_files_saving"))
+        # tab_files_saving merged directly into tab_storage (not a button — this
+        # content is small and closely related, unlike the button-ized sections
+        # below). Built with self._storage_page as its parent from the start
+        # (see the panel's construction above), so every existing widget
+        # object is unchanged — _load_values()/_validate_settings()/
+        # _apply_settings() need no changes.
+        storage_sizer.Add(
+            wx.StaticLine(self._storage_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
+        )
+        storage_sizer.Add(self._files_page, 0, wx.EXPAND)
+        self._storage_page.Layout()
 
         # ── Audio playback tab ───────────────────────────────────────────────
         self._audio_page = wx.Panel(self._notebook)
@@ -1051,7 +1106,9 @@ class SettingsDialog(wx.Dialog):
         audio_sizer.Add(self._mark_audio_played_check, 0, wx.ALL, 8)
 
         self._audio_page.SetSizer(audio_sizer)
-        self._notebook.AddPage(self._audio_page, i18n.t("tab_audio_playback"))
+        # tab_audio_playback moved: opened as a button ("Reproducao de audio")
+        # inside the new tab_conversations — see the end-of-__init__
+        # reorganization block.
 
         # ── Calls tab ───────────────────────────────────────────────────────
         # Native checkboxes keep the complete feature reachable and clearly
@@ -1070,7 +1127,8 @@ class SettingsDialog(wx.Dialog):
         calls_sizer.Add(self._call_popup_check, 0, wx.ALL, 8)
 
         self._calls_page.SetSizer(calls_sizer)
-        self._notebook.AddPage(self._calls_page, i18n.t("tab_calls"))
+        # tab_calls moved: opened as a button ("Chamadas") inside the new
+        # tab_conversations — see the end-of-__init__ reorganization block.
         self._call_alerts_check.Bind(wx.EVT_CHECKBOX, self._on_call_alerts_toggle)
 
         # ── AI / Accessibility tab ──────────────────────────────────────────
@@ -1121,7 +1179,9 @@ class SettingsDialog(wx.Dialog):
         ai_sizer.Add(self._ai_pdf_accessible_check, 0, wx.ALL, 8)
 
         self._ai_page.SetSizer(ai_sizer)
-        self._notebook.AddPage(self._ai_page, i18n.t("tab_ai_accessibility"))
+        # tab_ai_accessibility moved: opened as a button ("Transcricoes e
+        # Descricoes") inside the new tab_conversations — see the
+        # end-of-__init__ reorganization block.
         self._ai_enabled_check.Bind(wx.EVT_CHECKBOX, self._on_ai_enabled_toggle)
 
         # ── Privacy tab ("mensagens trancadas") ─────────────────────────────
@@ -1157,7 +1217,97 @@ class SettingsDialog(wx.Dialog):
         privacy_sizer.Add(self._privacy_require_code_check, 0, wx.ALL, 8)
 
         self._privacy_page.SetSizer(privacy_sizer)
-        self._notebook.AddPage(self._privacy_page, i18n.t("tab_privacy"))
+        # tab_privacy moved: opened as a button ("Conversas trancadas") inside
+        # the new tab_conversations — see the end-of-__init__ reorganization
+        # block. Only the chat-lock code fields live here now; the WhatsApp
+        # account privacy section that used to share this tab moved to its
+        # own Accounts dialog (Contas > Privacidade — see accounts_dialog.py).
+
+        # ── Reorganization: sub-dialogs opened from buttons ─────────────────
+        # See _wrap_pages_in_dialog()'s docstring for why reparenting instead
+        # of rebuilding is safe here.
+        self._locked_chats_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_locked_chats"), [self._privacy_page]
+        )
+        self._transcriptions_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_transcriptions"), [self._ai_page]
+        )
+        self._audio_playback_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_audio_playback"), [self._audio_page]
+        )
+        self._calls_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_calls"), [self._calls_page]
+        )
+        self._audio_settings_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_audio_settings"), [self._audio_devices_page]
+        )
+        # Sound events + Alert tones share one dialog/button — both tabs were
+        # about "what sound plays when", just split across two tabs before.
+        self._sound_events_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_sound_events"),
+            [self._sound_events_page, self._alert_page],
+        )
+        self._speech_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("tab_speech_content"), [self._speech_page]
+        )
+        self._ui_dialog = _wrap_pages_in_dialog(
+            self, i18n, i18n.t("btn_interface"), [self._ui_page]
+        )
+
+        # "Conteudo falado" button lives inside Acessibilidade now (was its
+        # own tab).
+        accessibility_sizer.Add(wx.StaticLine(self._accessibility_page), 0,
+                                 wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self._speech_btn = _add_subsection_button(
+            self._accessibility_page, accessibility_sizer, i18n,
+            "tab_speech_content", self._speech_dialog,
+        )
+        self._accessibility_page.Layout()
+
+        # "Interface" button lives inside Geral now (was its own tab, tab_ui).
+        gen_sizer.Add(wx.StaticLine(self._general_page), 0,
+                      wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        self._ui_btn = _add_subsection_button(
+            self._general_page, gen_sizer, i18n,
+            "btn_interface", self._ui_dialog,
+        )
+        self._general_page.Layout()
+
+        # ── New tab: Conversas ───────────────────────────────────────────────
+        self._conversations_page = wx.Panel(self._notebook)
+        conversations_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._locked_chats_btn = _add_subsection_button(
+            self._conversations_page, conversations_sizer, i18n,
+            "btn_locked_chats", self._locked_chats_dialog,
+        )
+        self._transcriptions_btn = _add_subsection_button(
+            self._conversations_page, conversations_sizer, i18n,
+            "btn_transcriptions", self._transcriptions_dialog,
+        )
+        self._audio_playback_btn = _add_subsection_button(
+            self._conversations_page, conversations_sizer, i18n,
+            "btn_audio_playback", self._audio_playback_dialog,
+        )
+        self._calls_btn = _add_subsection_button(
+            self._conversations_page, conversations_sizer, i18n,
+            "btn_calls", self._calls_dialog,
+        )
+        self._conversations_page.SetSizer(conversations_sizer)
+        self._notebook.AddPage(self._conversations_page, i18n.t("tab_conversations"))
+
+        # ── New tab: Sons ────────────────────────────────────────────────────
+        self._sounds_page = wx.Panel(self._notebook)
+        sounds_sizer = wx.BoxSizer(wx.VERTICAL)
+        self._audio_settings_btn = _add_subsection_button(
+            self._sounds_page, sounds_sizer, i18n,
+            "btn_audio_settings", self._audio_settings_dialog,
+        )
+        self._sound_events_btn = _add_subsection_button(
+            self._sounds_page, sounds_sizer, i18n,
+            "btn_sound_events", self._sound_events_dialog,
+        )
+        self._sounds_page.SetSizer(sounds_sizer)
+        self._notebook.AddPage(self._sounds_page, i18n.t("tab_sounds"))
 
         # ── Button row ───────────────────────────────────────────────────────
         btn_sizer = wx.StdDialogButtonSizer()
@@ -1957,7 +2107,7 @@ class SettingsDialog(wx.Dialog):
                     self,
                 )
                 self._notebook.SetSelection(
-                    self._notebook.FindPage(self._files_page))
+                    self._notebook.FindPage(self._storage_page))
                 self._save_folder_custom_field.SetFocus()
                 return False
 
@@ -2037,7 +2187,7 @@ class SettingsDialog(wx.Dialog):
             if max_days < 0:
                 raise ValueError
         except ValueError:
-            self._notebook.SetSelection(8)
+            self._notebook.SetSelection(self._notebook.FindPage(self._storage_page))
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_media_max_days"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
@@ -2053,7 +2203,7 @@ class SettingsDialog(wx.Dialog):
             if max_mb < 0:
                 raise ValueError
         except ValueError:
-            self._notebook.SetSelection(8)
+            self._notebook.SetSelection(self._notebook.FindPage(self._storage_page))
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_media_max_mb"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
@@ -2077,16 +2227,16 @@ class SettingsDialog(wx.Dialog):
                 continue
             override = (cfg.get("path") or "").strip()
             if override and not os.path.isfile(override):
-                self._notebook.SetSelection(6)
                 self._sound_events_list.SetSelection(idx)
                 self._update_sound_event_path_display()
-                self._sound_event_path_field.SetFocus()
                 wx.MessageBox(
                     self.main_window.i18n.t("invalid_sound_path"),
                     self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                     wx.OK | wx.ICON_ERROR,
                     self,
                 )
+                self._sound_event_path_field.SetFocus()
+                self._sound_events_dialog.ShowModal()
                 return False
 
         # Alert tones: a "Custom" choice must point to a real file.
@@ -2094,26 +2244,26 @@ class SettingsDialog(wx.Dialog):
         if self._alert_private_combo.GetSelection() == last_idx:
             path = self._alert_private_custom_field.GetValue().strip()
             if not path or not os.path.isfile(path):
-                self._notebook.SetSelection(7)
-                self._alert_private_custom_field.SetFocus()
                 wx.MessageBox(
                     self.main_window.i18n.t("invalid_sound_path"),
                     self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                     wx.OK | wx.ICON_ERROR,
                     self,
                 )
+                self._alert_private_custom_field.SetFocus()
+                self._sound_events_dialog.ShowModal()
                 return False
         if self._alert_group_combo.GetSelection() == last_idx:
             path = self._alert_group_custom_field.GetValue().strip()
             if not path or not os.path.isfile(path):
-                self._notebook.SetSelection(7)
-                self._alert_group_custom_field.SetFocus()
                 wx.MessageBox(
                     self.main_window.i18n.t("invalid_sound_path"),
                     self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                     wx.OK | wx.ICON_ERROR,
                     self,
                 )
+                self._alert_group_custom_field.SetFocus()
+                self._sound_events_dialog.ShowModal()
                 return False
 
         # Audio devices: a non-default selection must actually open. Checked
@@ -2133,27 +2283,27 @@ class SettingsDialog(wx.Dialog):
         output_sel = self._audio_output_combo.GetSelection()
         output_name = self._audio_output_device_names[output_sel - 1] if output_sel > 0 else ""
         if not self.main_window.sound_system.apply_output_device(output_name):
-            self._notebook.SetSelection(5)
-            self._audio_output_combo.SetFocus()
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_audio_output_device"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
+            self._audio_output_combo.SetFocus()
+            self._audio_settings_dialog.ShowModal()
             return False
 
         effects_sel = self._audio_effects_combo.GetSelection()
         effects_name = self._audio_effects_device_names[effects_sel - 1] if effects_sel > 0 else ""
         if not self.main_window.sound_system.apply_effects_device(effects_name):
-            self._notebook.SetSelection(5)
-            self._audio_effects_combo.SetFocus()
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_audio_output_device"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
+            self._audio_effects_combo.SetFocus()
+            self._audio_settings_dialog.ShowModal()
             return False
 
         input_sel = self._audio_input_combo.GetSelection()
@@ -2165,18 +2315,17 @@ class SettingsDialog(wx.Dialog):
                     input_index = idx
                     break
             if input_index is None or not test_input_device(input_index):
-                self._notebook.SetSelection(5)
-                self._audio_input_combo.SetFocus()
                 wx.MessageBox(
                     self.main_window.i18n.t("invalid_audio_input_device"),
                     self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                     wx.OK | wx.ICON_ERROR,
                     self,
                 )
+                self._audio_input_combo.SetFocus()
+                self._audio_settings_dialog.ShowModal()
                 return False
 
         if self._ai_enabled_check.GetValue() and not self._ai_api_key_field.GetValue().strip():
-            self._notebook.SetSelection(self._notebook.FindPage(self._ai_page))
             wx.MessageBox(
                 self.main_window.i18n.t("invalid_gemini_api_key"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
@@ -2184,12 +2333,12 @@ class SettingsDialog(wx.Dialog):
                 self,
             )
             self._ai_api_key_field.SetFocus()
+            self._transcriptions_dialog.ShowModal()
             return False
 
         _new_code = self._privacy_new_code_field.GetValue()
         _confirm_code = self._privacy_confirm_code_field.GetValue()
         if (_new_code or _confirm_code) and _new_code != _confirm_code:
-            self._notebook.SetSelection(self._notebook.FindPage(self._privacy_page))
             wx.MessageBox(
                 self.main_window.i18n.t("locked_chats_code_mismatch_error"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
@@ -2197,6 +2346,7 @@ class SettingsDialog(wx.Dialog):
                 self,
             )
             self._privacy_confirm_code_field.SetFocus()
+            self._locked_chats_dialog.ShowModal()
             return False
 
         return True
@@ -2683,20 +2833,37 @@ class SettingsDialog(wx.Dialog):
         """Update this dialog's own title and notebook tab captions after a language change."""
         i18n = self.main_window.i18n
         self.SetTitle(i18n.t("settings_title"))
-        self._notebook.SetPageText(0, i18n.t("tab_general"))
-        self._notebook.SetPageText(1, i18n.t("tab_ui"))
-        self._notebook.SetPageText(2, i18n.t("tab_accessibility"))
-        self._notebook.SetPageText(3, i18n.t("tab_speech_content"))
-        self._notebook.SetPageText(4, i18n.t("tab_connection"))
-        self._notebook.SetPageText(5, i18n.t("tab_audio_devices"))
-        self._notebook.SetPageText(6, i18n.t("tab_sound_events"))
-        self._notebook.SetPageText(7, i18n.t("tab_alert_tones"))
-        self._notebook.SetPageText(8, i18n.t("tab_storage"))
-        self._notebook.SetPageText(9, i18n.t("tab_files_saving"))
-        self._notebook.SetPageText(10, i18n.t("tab_audio_playback"))
-        self._notebook.SetPageText(11, i18n.t("tab_calls"))
-        self._notebook.SetPageText(12, i18n.t("tab_ai_accessibility"))
-        self._notebook.SetPageText(13, i18n.t("tab_privacy"))
+        # Real notebook tabs left after the reorganization — looked up by
+        # panel rather than a hardcoded index, since removing so many tabs
+        # as buttons makes the remaining indices easy to get wrong.
+        for panel, key in (
+            (self._general_page, "tab_general"),
+            (self._accessibility_page, "tab_accessibility"),
+            (self._conn_page, "tab_connection"),
+            (self._storage_page, "tab_storage"),
+            (self._conversations_page, "tab_conversations"),
+            (self._sounds_page, "tab_sounds"),
+        ):
+            idx = self._notebook.FindPage(panel)
+            if idx != wx.NOT_FOUND:
+                self._notebook.SetPageText(idx, i18n.t(key))
+        # Sub-dialog titles and the buttons that open them.
+        self._locked_chats_dialog.SetTitle(i18n.t("btn_locked_chats"))
+        self._locked_chats_btn.SetLabel(i18n.t("btn_locked_chats"))
+        self._transcriptions_dialog.SetTitle(i18n.t("btn_transcriptions"))
+        self._transcriptions_btn.SetLabel(i18n.t("btn_transcriptions"))
+        self._audio_playback_dialog.SetTitle(i18n.t("btn_audio_playback"))
+        self._audio_playback_btn.SetLabel(i18n.t("btn_audio_playback"))
+        self._calls_dialog.SetTitle(i18n.t("btn_calls"))
+        self._calls_btn.SetLabel(i18n.t("btn_calls"))
+        self._audio_settings_dialog.SetTitle(i18n.t("btn_audio_settings"))
+        self._audio_settings_btn.SetLabel(i18n.t("btn_audio_settings"))
+        self._sound_events_dialog.SetTitle(i18n.t("btn_sound_events"))
+        self._sound_events_btn.SetLabel(i18n.t("btn_sound_events"))
+        self._speech_dialog.SetTitle(i18n.t("tab_speech_content"))
+        self._speech_btn.SetLabel(i18n.t("tab_speech_content"))
+        self._ui_dialog.SetTitle(i18n.t("btn_interface"))
+        self._ui_btn.SetLabel(i18n.t("btn_interface"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
