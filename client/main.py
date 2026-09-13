@@ -2781,6 +2781,7 @@ class MainWindow(wx.Frame):
         """Create the menu bar with Arquivo, Sincronização and Ajuda menus."""
         self._ID_MARK_ALL_READ = wx.NewIdRef()
         self._ID_SETTINGS      = wx.NewIdRef()
+        self._ID_ACCOUNTS      = wx.NewIdRef()
         self._ID_DISCONNECT    = wx.NewIdRef()
         self._ID_EXIT          = wx.NewIdRef()
         self._ID_RESYNC_ALL    = wx.NewIdRef()
@@ -2805,6 +2806,10 @@ class MainWindow(wx.Frame):
         file_menu.Append(
             self._ID_SETTINGS,
             f"{self.i18n.t('menu_settings')}\tCtrl+,",
+        )
+        file_menu.Append(
+            self._ID_ACCOUNTS,
+            self.i18n.t('menu_accounts'),
         )
         file_menu.AppendSeparator()
         file_menu.Append(
@@ -2932,6 +2937,7 @@ class MainWindow(wx.Frame):
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self._on_mark_all_read, id=self._ID_MARK_ALL_READ)
         self.Bind(wx.EVT_MENU, self.on_ctrl_comma,     id=self._ID_SETTINGS)
+        self.Bind(wx.EVT_MENU, self.on_open_accounts,  id=self._ID_ACCOUNTS)
         self.Bind(wx.EVT_MENU, self._on_menu_disconnect, id=self._ID_DISCONNECT)
         self.Bind(wx.EVT_MENU, lambda e: self.quit_all_accounts(), id=self._ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_menu_resync_all, id=self._ID_RESYNC_ALL)
@@ -3421,6 +3427,9 @@ class MainWindow(wx.Frame):
         )
         file_menu.FindItemById(self._ID_SETTINGS).SetItemLabel(
             f"{self.i18n.t('menu_settings')}\tCtrl+,"
+        )
+        file_menu.FindItemById(self._ID_ACCOUNTS).SetItemLabel(
+            self.i18n.t('menu_accounts')
         )
         file_menu.FindItemById(self._ID_DISCONNECT).SetItemLabel(
             f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D"
@@ -10301,6 +10310,12 @@ class MainWindow(wx.Frame):
     def open_settings(self):
         from ui.dialogs.settings_dialog import SettingsDialog
         dlg = SettingsDialog(self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def on_open_accounts(self, event):
+        from ui.dialogs.accounts_dialog import AccountsDialog
+        dlg = AccountsDialog(self, self)
         dlg.ShowModal()
         dlg.Destroy()
 
