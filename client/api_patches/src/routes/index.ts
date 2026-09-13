@@ -622,6 +622,12 @@ routes.post(
   DeviceController.setPrivacySetting
 );
 routes.post(
+  '/api/:session/privacy/debug',
+  verifyToken,
+  statusConnection,
+  DeviceController.debugPrivacyFunctions
+);
+routes.post(
   '/api/:session/react-message',
   verifyToken,
   statusConnection,

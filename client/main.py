@@ -28008,6 +28008,22 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             return f"Falha na requisicao: {exc}\n\nID usado: {full_id}"
 
+    def debug_privacy_functions(self) -> str:
+        """TEMP — see debugPrivacyFunctions()'s docstring server-side.
+        Reports what's really available on window.WPP in this live page,
+        instead of guessing from published wa-js docs that may not match
+        this exact injected build."""
+        import json as _json
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/privacy/debug"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={}, headers=headers, timeout=15)
+            if not r.ok:
+                return f"Erro HTTP {r.status_code}: {r.text[:1000]}"
+            return _json.dumps(r.json(), indent=2, ensure_ascii=False, default=str)
+        except Exception as exc:
+            return f"Falha na requisicao: {exc}"
+
     def fetch_privacy_settings(self) -> "dict | None":
         """All account-wide WhatsApp privacy fields in one call (see
         server-side WPP.privacy.get() bridge): lastSeen, online, about,

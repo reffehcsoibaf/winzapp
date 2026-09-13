@@ -1207,6 +1207,13 @@ class SettingsDialog(wx.Dialog):
         privacy_sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
+        # TEMP — investigating the setPrivacyForOneCategory "is not a
+        # function" bug. Remove once that's actually sorted (see
+        # debug_privacy_functions()'s docstring).
+        self._wa_privacy_debug_btn = wx.Button(self._privacy_page, label="Depurar: ver funcoes WPP.privacy (temporario)")
+        privacy_sizer.Add(self._wa_privacy_debug_btn, 0, wx.ALL, 8)
+        self._wa_privacy_debug_btn.Bind(wx.EVT_BUTTON, self._on_debug_privacy_functions)
+
         self._privacy_page.SetSizer(privacy_sizer)
         self._notebook.AddPage(self._privacy_page, i18n.t("tab_privacy"))
 
@@ -2019,6 +2026,11 @@ class SettingsDialog(wx.Dialog):
             if error:
                 errors.append(error)
         return errors
+
+    def _on_debug_privacy_functions(self, event):
+        """TEMP — see the button's own comment above."""
+        report = self.main_window.debug_privacy_functions()
+        wx.MessageBox(report, "Depurar WPP.privacy (temporario)", wx.OK, self)
 
     def _on_apply_whatsapp_privacy(self, event):
         i18n = self.main_window.i18n

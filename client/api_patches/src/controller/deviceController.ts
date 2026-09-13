@@ -1207,6 +1207,69 @@ const PRIVACY_SETTERS: Record<string, string> = {
   groupAdd: 'setAddGroup',
 };
 
+export async function debugPrivacyFunctions(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Privacy"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+   *
+   * TEMP diagnostic — remove once the setPrivacyForOneCategory "is not a
+   * function" bug is actually sorted. Reports, straight from THIS live
+   * page, what's really available: the six WPP.privacy.set* wrapper names
+   * and their typeof, the same for WPP.privacy.setPrivacyForOneCategory
+   * and WPP.whatsapp.functions.setPrivacyForOneCategory (the two other
+   * places this function could plausibly live), and window.WPP.version /
+   * a WhatsApp Web build marker if one is easily reachable — all as data,
+   * not guessed from published docs, which may not match this exact
+   * injected bundle.
+   */
+  try {
+    const report = await req.client.page.evaluate(() => {
+      const w = window as any;
+      const wpp = w.WPP || {};
+      const names = [
+        'setLastSeen',
+        'setOnline',
+        'setProfilePic',
+        'setReadReceipts',
+        'setAbout',
+        'setAddGroup',
+      ];
+      const privacyWrappers: Record<string, string> = {};
+      for (const n of names) {
+        privacyWrappers[n] = typeof wpp.privacy?.[n];
+      }
+      return {
+        wppVersion: wpp.version || null,
+        privacyKeys: wpp.privacy ? Object.keys(wpp.privacy).sort() : null,
+        privacyWrapperTypes: privacyWrappers,
+        privacyDotSetPrivacyForOneCategory:
+          typeof wpp.privacy?.setPrivacyForOneCategory,
+        whatsappFunctionsDotSetPrivacyForOneCategory:
+          typeof wpp.whatsapp?.functions?.setPrivacyForOneCategory,
+        whatsappFunctionsKeysSample: wpp.whatsapp?.functions
+          ? Object.keys(wpp.whatsapp.functions)
+              .filter((k) => /privacy/i.test(k))
+              .sort()
+          : null,
+      };
+    });
+    return res.status(200).json({ status: 'success', response: report });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error on privacy debug',
+      error: String((e as any)?.message || e),
+    });
+  }
+}
+
 export async function setPrivacySetting(req: Request, res: Response) {
   /**
    * #swagger.tags = ["Privacy"]
