@@ -2942,7 +2942,6 @@ class MainWindow(wx.Frame):
         self.SetMenuBar(menubar)
         self.Bind(wx.EVT_MENU, self._on_mark_all_read, id=self._ID_MARK_ALL_READ)
         self.Bind(wx.EVT_MENU, self.on_ctrl_comma,     id=self._ID_SETTINGS)
-        self.Bind(wx.EVT_MENU, self.on_open_accounts,  id=self._ID_ACCOUNTS)
         self.Bind(wx.EVT_MENU, self._on_menu_disconnect, id=self._ID_DISCONNECT)
         self.Bind(wx.EVT_MENU, lambda e: self.quit_all_accounts(), id=self._ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_menu_resync_all, id=self._ID_RESYNC_ALL)
