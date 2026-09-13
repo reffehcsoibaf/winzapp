@@ -2028,6 +2028,12 @@ class MainWindow(wx.Frame):
         self._archived_chats = set()
         self._pinned_chats = set()
         self._muted_chats = {}
+        # Chats the PHONE has WhatsApp Chat Lock on (chat["isLocked"] from
+        # WPPConnect), persisted the same way _archived_chats is so a chat
+        # locked from the phone is already hidden on the very first paint
+        # after opening WinZapp — before any fresh sync has run — instead of
+        # only after list-chats answers again (e.g. after an F5).
+        self._phone_locked_chats = set()
         # Set by init_UI() when all wx widgets are ready.  start_sync() waits
         # on this before making any wx.CallAfter calls so it never touches
         # widgets that don't exist yet (e.g. when ShowModal() is blocking init_UI).
@@ -11700,6 +11706,14 @@ class MainWindow(wx.Frame):
         # what WPPConnect's /blocklist endpoint returns (see get_block_list()).
         self._blocked_contacts = set(self.db.get_metadata_json("blocked_contacts", []))
 
+        # 6c. phone_locked_chats — durable membership for WhatsApp's own Chat
+        # Lock (chat["isLocked"]), mirroring archived_chats. Without this, a
+        # chat locked from the phone only shows as locked once THIS session
+        # has fetched a fresh list-chats itself; the DB row from last session
+        # never carried isLocked (it isn't a persisted chat column), so cold
+        # start read it as unlocked every time.
+        self._phone_locked_chats = set(self.db.get_metadata_json("phone_locked_chats", []))
+
         # 6b. exhausted_chats — conversations WhatsApp Web has no older history
         # for. It used to live only in memory, which was fine while the only
         # consumer was a user scrolling up in one conversation: worst case it
@@ -15174,6 +15188,7 @@ class MainWindow(wx.Frame):
             self._pinned_chats = set()
             self._muted_chats = {}
             self._blocked_contacts = set()
+            self._phone_locked_chats = set()
             self._presence_pushname_map = {}
             self._locally_read_at = {}
             # The read anchors and the arrivals counter they qualify. A group
@@ -16324,9 +16339,26 @@ class MainWindow(wx.Frame):
                 # keeping the conversation stuck in the Archived tab forever.
                 self._archived_chats.discard(key)
                 db_changed = True
+
+            # Same durability the archive flag gets, for WhatsApp's own Chat
+            # Lock. isLocked itself is never written to the chats table (see
+            # database.py), so without this membership set a chat the phone
+            # locked shows as unlocked on every cold start until THIS session
+            # fetches a fresh list-chats and repopulates chat["isLocked"] in
+            # memory — which is exactly the "only after F5" symptom reported.
+            is_locked = _parse_bool_flag(chat.get("isLocked"))
+            if is_locked is True:
+                if key not in self._phone_locked_chats:
+                    self._phone_locked_chats.add(key)
+                    db_changed = True
+            elif is_locked is False and key in self._phone_locked_chats:
+                self._phone_locked_chats.discard(key)
+                db_changed = True
+
             normalized[key] = chat
         if db_changed and hasattr(self, "db") and self.db is not None:
             self.db.set_metadata_json("archived_chats", list(self._archived_chats))
+            self.db.set_metadata_json("phone_locked_chats", list(self._phone_locked_chats))
         return normalized
 
     def deduplicate_chats(self, chats: dict) -> dict:
@@ -26854,20 +26886,45 @@ class MainWindow(wx.Frame):
     # Purely local/WinZapp concept — WhatsApp's protocol has nothing like it,
     # so unlike archive there is no _api_* counterpart and nothing to sync.
 
+    @staticmethod
+    def _chat_isLocked_flag(chat):
+        """A chat record's stated WhatsApp Chat Lock flag, or None when it
+        states none. Mirrors _chat_archive_flag() for the same reason: every
+        caller that decides phone-lock state must parse this identically."""
+        if not isinstance(chat, dict):
+            return None
+        return _parse_bool_flag(chat.get("isLocked"))
+
+    def _chat_phone_locked(self, jid_norm: str, chat) -> bool:
+        """Whether the PHONE has this chat under WhatsApp Chat Lock.
+
+        Same precedence as is_chat_archived(): the record's own isLocked
+        flag (server truth, present once this session has a fresh
+        list-chats) wins when stated; the persisted _phone_locked_chats
+        membership is the fallback for a cold start that hasn't fetched one
+        yet, so the chat is still correctly hidden from the very first
+        paint instead of only after the next sync/F5.
+        """
+        flag = self._chat_isLocked_flag(chat)
+        if flag is not None:
+            return flag
+        return jid_norm in self._phone_locked_chats
+
     def is_chat_locked(self, jid: str) -> bool:
         """True if this chat is hidden by EITHER lock: our own local flag
         (chat['locked']) or the real WhatsApp Chat Lock synced from the
         phone (chat['isLocked'] — confirmed present on the chat object
         WPPConnect already returns, same place as chat['archive'])."""
-        chat = self.chats.get(self._normalize_jid(jid))
-        return bool(chat and (chat.get("locked") or chat.get("isLocked")))
+        jid_norm = self._normalize_jid(jid)
+        chat = self.chats.get(jid_norm)
+        return bool((chat and chat.get("locked")) or self._chat_phone_locked(jid_norm, chat))
 
     def is_chat_phone_locked(self, jid: str) -> bool:
         """True only for the real, phone-synced WhatsApp Chat Lock. WinZapp
         cannot unlock this on its own — only the phone's own secret code
         can — so the context menu must not offer Unlock for these."""
-        chat = self.chats.get(self._normalize_jid(jid))
-        return bool(chat and chat.get("isLocked"))
+        jid_norm = self._normalize_jid(jid)
+        return self._chat_phone_locked(jid_norm, self.chats.get(jid_norm))
 
     def has_locked_chats_code_configured(self) -> bool:
         return bool(self.settings.get("privacy", {}).get("locked_chats_code_hash", ""))
@@ -28911,7 +28968,8 @@ class MainWindow(wx.Frame):
 
     @staticmethod
     def _filter_archived_chats(chats: list, names: list, conv_filter: str,
-                               search: str, fold_mode: str) -> "tuple[list, list]":
+                               search: str, fold_mode: str,
+                               locked_jids: "set | None" = None) -> "tuple[list, list]":
         """Return (chats, names) after applying the archived panel's own
         filter tabs and its own search field.
 
@@ -28922,11 +28980,20 @@ class MainWindow(wx.Frame):
         caller (normalize_for_search()/self._search_normalization_mode()),
         same as add_chats_to_ui() does for the main list's own search field —
         this one never reaches outside the archived list it filters.
+
+        *locked_jids*: remoteJids the caller has already determined are
+        locked (our own flag or WhatsApp's phone-synced Chat Lock). A chat
+        can be both archived and locked, and locked always wins — Arquivadas
+        must not be a second place a "trancada" chat leaks into. Optional
+        (default: no exclusion) so existing direct callers/tests that only
+        care about the filter tabs and search are unaffected.
         """
         displayed_chats: list = []
         displayed_names: list = []
         for i, chat in enumerate(chats):
             chat_jid = chat.get("remoteJid", "")
+            if locked_jids and chat_jid in locked_jids:
+                continue
             if conv_filter == 'unread' and effective_unread_count(chat) == 0:
                 continue
             if conv_filter == 'groups' and not chat_jid.endswith("@g.us"):
@@ -28958,8 +29025,16 @@ class MainWindow(wx.Frame):
             panel.search_field.GetValue().strip() if hasattr(panel, "search_field") else "",
             _fold,
         )
+        locked_jids = {
+            c.get("remoteJid", "")
+            for c in arch_full_chats
+            if c.get("locked") or self._chat_phone_locked(
+                self._normalize_jid(c.get("remoteJid", "")), c
+            )
+        }
         filtered_chats, filtered_names = self._filter_archived_chats(
-            arch_full_chats, arch_full_names, arch_filter, arch_search, _fold
+            arch_full_chats, arch_full_names, arch_filter, arch_search, _fold,
+            locked_jids=locked_jids,
         )
 
         new_arch_chats: list = []
@@ -29522,7 +29597,9 @@ class MainWindow(wx.Frame):
         for i, chat in enumerate(full_chats):
             name     = full_names[i]
             chat_jid = chat.get("remoteJid", "")
-            _is_locked = bool(chat.get("locked") or chat.get("isLocked"))
+            _is_locked = bool(chat.get("locked")) or self._chat_phone_locked(
+                self._normalize_jid(chat_jid), chat
+            )
             if _reveal_locked:
                 # Reveal mode: only locked chats, nothing else matters.
                 if not _is_locked:
