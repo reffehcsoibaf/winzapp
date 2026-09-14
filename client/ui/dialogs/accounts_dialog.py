@@ -78,14 +78,6 @@ class AccountsDialog(wx.Dialog):
         sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
-        # TEMP — investigating the setPrivacyForOneCategory "is not a
-        # function" bug (reported upstream: wppconnect-team/wa-js). Remove
-        # once that's actually sorted (see debug_privacy_functions()'s
-        # docstring on MainWindow).
-        self._wa_privacy_debug_btn = wx.Button(panel, label="Depurar: ver funcoes WPP.privacy (temporario)")
-        sizer.Add(self._wa_privacy_debug_btn, 0, wx.ALL, 8)
-        self._wa_privacy_debug_btn.Bind(wx.EVT_BUTTON, self._on_debug_privacy_functions)
-
         sizer.AddStretchSpacer()
         close_btn = wx.Button(panel, wx.ID_CLOSE, i18n.t("close"))
         sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
@@ -148,8 +140,3 @@ class AccountsDialog(wx.Dialog):
             )
         else:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
-
-    def _on_debug_privacy_functions(self, event):
-        """TEMP — see the button's own comment above."""
-        report = self.main_window.debug_privacy_functions()
-        wx.MessageBox(report, "Depurar WPP.privacy (temporario)", wx.OK, self)
