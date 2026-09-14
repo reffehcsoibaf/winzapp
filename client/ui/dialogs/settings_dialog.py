@@ -1173,6 +1173,11 @@ class SettingsDialog(wx.Dialog):
         )
         ai_sizer.Add(self._ai_describe_videos_check, 0, wx.ALL, 8)
 
+        self._ai_transcribe_stickers_check = wx.CheckBox(
+            self._ai_page, label=i18n.t("ai_transcribe_stickers_label")
+        )
+        ai_sizer.Add(self._ai_transcribe_stickers_check, 0, wx.ALL, 8)
+
         self._ai_pdf_accessible_check = wx.CheckBox(
             self._ai_page, label=i18n.t("ai_pdf_accessible_label")
         )
@@ -1644,6 +1649,9 @@ class SettingsDialog(wx.Dialog):
         self._ai_describe_videos_check.SetValue(
             ai_settings.get("describe_videos", True)
         )
+        self._ai_transcribe_stickers_check.SetValue(
+            ai_settings.get("transcribe_stickers", True)
+        )
         self._ai_pdf_accessible_check.SetValue(
             ai_settings.get("pdf_to_accessible_text", True)
         )
@@ -2082,6 +2090,7 @@ class SettingsDialog(wx.Dialog):
         self._ai_transcribe_audio_check.Enable(enabled)
         self._ai_describe_images_check.Enable(enabled)
         self._ai_describe_videos_check.Enable(enabled)
+        self._ai_transcribe_stickers_check.Enable(enabled)
         self._ai_pdf_accessible_check.Enable(enabled)
 
     def _validate(self) -> bool:
@@ -2766,6 +2775,7 @@ class SettingsDialog(wx.Dialog):
             "transcribe_audio": self._ai_transcribe_audio_check.GetValue(),
             "describe_images": self._ai_describe_images_check.GetValue(),
             "describe_videos": self._ai_describe_videos_check.GetValue(),
+            "transcribe_stickers": self._ai_transcribe_stickers_check.GetValue(),
             "pdf_to_accessible_text": self._ai_pdf_accessible_check.GetValue(),
         }
 
@@ -3019,6 +3029,7 @@ class SettingsDialog(wx.Dialog):
         self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))
+        self._ai_transcribe_stickers_check.SetLabel(i18n.t("ai_transcribe_stickers_label"))
         self._ai_pdf_accessible_check.SetLabel(i18n.t("ai_pdf_accessible_label"))
 
         # Privacy tab

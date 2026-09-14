@@ -11080,6 +11080,8 @@ class ConversationsPanel(wx.Panel):
             return i18n.t("ai_describe_image_menu")
         if msg_type == "videoMessage" and settings.get("describe_videos", True):
             return i18n.t("ai_describe_video_menu")
+        if msg_type == "stickerMessage" and settings.get("transcribe_stickers", True):
+            return i18n.t("ai_transcribe_sticker_menu")
         if msg_type == "documentMessage" and settings.get("pdf_to_accessible_text", True):
             # The Gemini prompt used below is written specifically for PDFs;
             # _on_menu_ai_process() double-checks the real mimetype before
@@ -11190,11 +11192,15 @@ class ConversationsPanel(wx.Panel):
                     result_text = _gemini_transcribe_audio(tmp_path, api_key)
                     title = self.main_window.i18n.t("ai_result_transcription_title")
                     ask_fn = None
-                elif msg_type in ("imageMessage", "videoMessage"):
+                elif msg_type in ("imageMessage", "videoMessage", "stickerMessage"):
                     result_text = _gemini_describe_visual_media(
                         tmp_path, api_key, is_video=is_video
                     )
-                    title = self.main_window.i18n.t("ai_result_description_title")
+                    title = (
+                        self.main_window.i18n.t("ai_result_sticker_title")
+                        if msg_type == "stickerMessage"
+                        else self.main_window.i18n.t("ai_result_description_title")
+                    )
                     # Kept alive by closing over tmp_path/api_key/is_video —
                     # tmp_dir is only cleaned up when the OS clears the temp
                     # folder, so the file is still there for follow-up

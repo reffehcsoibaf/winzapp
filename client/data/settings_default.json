@@ -123,6 +123,7 @@
         "transcribe_audio": true,
         "describe_images": true,
         "describe_videos": true,
+        "transcribe_stickers": true,
         "pdf_to_accessible_text": true
     }
 }
