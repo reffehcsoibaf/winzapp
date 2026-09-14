@@ -1715,6 +1715,13 @@ def unexpired_group_send_verdict(stored, now, max_age_seconds):
 
 
 class MainWindow(wx.Frame):
+    # Contas > Privacidade menu item — hidden while WPP.privacy's write path
+    # (Apply) is broken by an upstream wa-js bug (setPrivacyForOneCategory
+    # never resolves; bug report filed with wppconnect-team/wa-js). Flip back
+    # to True once that's fixed. See _build_menubar()'s own comment at the
+    # point this is checked.
+    _ACC_PRIVACY_MENU_ENABLED = False
+
     def __init__(self, account_id=None, account_name=None, startup_source="user",
                  resume_pending=False, registry=None, global_dir=None):
         import time as _time
@@ -2889,8 +2896,14 @@ class MainWindow(wx.Frame):
         if _accounts_menu_had_switcher_items:
             accounts_menu.AppendSeparator()
         self._ID_ACC_PRIVACY = wx.NewIdRef()
-        accounts_menu.Append(self._ID_ACC_PRIVACY, self.i18n.t("menu_acc_privacy"))
-        self.Bind(wx.EVT_MENU, self.on_open_accounts, id=self._ID_ACC_PRIVACY)
+        # Hidden while the WhatsApp account privacy dialog's Apply is broken
+        # by an upstream wa-js bug (setPrivacyForOneCategory never resolves —
+        # bug report filed with wppconnect-team/wa-js). Re-enable this once
+        # that's actually fixed; see accounts_dialog.py for the dialog itself,
+        # which still works fine to just LOOK at the current settings.
+        if self._ACC_PRIVACY_MENU_ENABLED:
+            accounts_menu.Append(self._ID_ACC_PRIVACY, self.i18n.t("menu_acc_privacy"))
+            self.Bind(wx.EVT_MENU, self.on_open_accounts, id=self._ID_ACC_PRIVACY)
         menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
 
         # Frame-level Ctrl+0..9 → jump to an existing message bookmark,
