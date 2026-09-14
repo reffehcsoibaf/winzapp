@@ -21033,6 +21033,12 @@ class MainWindow(wx.Frame):
             if (allowed is None or self._normalize_jid(chat.get("remoteJid") or key) in allowed)
             for msg in chat.get("messages", {}).get("messages", {}).get("records", [])
             if (msg.get("messageType") in _MEDIA_TYPES or msg.get("type") in _MEDIA_TYPES)
+            # _media_sync_candidate() applies the SAME local-only checks
+            # sync_if_media() itself would (type, the day/size caps, the CDN
+            # TTL, the known-expired-id cache) — filtering the list down to
+            # this BEFORE counting is what fixes total_tasks (the spoken
+            # progress' "Y"): see _media_sync_candidate()'s own docstring.
+            and self._media_sync_candidate(msg)
         ]
         if not tasks:
             return 0
@@ -22329,17 +22335,26 @@ class MainWindow(wx.Frame):
         msg_jid = self._normalize_jid(key.get("remoteJid", ""))
         return msg_jid == self._normalize_jid(open_jid)
 
-    def sync_if_media(self, msg, timeout=60):
-        """Download media for a single message during the background sync phase.
+    def _media_sync_candidate(self, msg) -> bool:
+        """Fast, local-only (no network) eligibility check for automatic media
+        download: type, the Configuracoes > Armazenamento toggles/caps, the
+        CDN-TTL window, and the known-expired-id cache. Everything here is a
+        dict/cache lookup — no I/O — so it's cheap to run over an entire
+        chat history's worth of candidates before ever touching the network.
 
-        Returns True only when a file was actually downloaded. Every skip
-        below — offline, not a media message, past the CDN TTL, past the
-        user's day/size caps, a known-expired id, already on disk — returns
-        False, so sync_media_for_all_chats() can count real work rather than
-        candidates.
+        Split out of sync_if_media() so sync_media_for_all_chats() can filter
+        its *tasks* list down to this BEFORE counting them, instead of only
+        finding out — one network attempt at a time, with a single worker —
+        which of possibly many thousand historical messages were never going
+        to be downloaded anyway. Reported live as the spoken "processadas X
+        de Y" progress climbing "devagar, mas nunca chega ao fim": Y used to
+        be every media message the app had ever loaded into memory, including
+        years of history well past both the CDN's own TTL and the user's own
+        day cap — so the denominator was frequently in the thousands while
+        the messages that could actually still be fetched numbered in the
+        tens or hundreds. Slow, honest progress against an inflated total
+        reads identically to stuck progress from the person listening to it.
         """
-        if not getattr(self, "_wa_connected", False) or getattr(self, "offline_mode", False):
-            return False
         message_type = msg.get("messageType", "")
         if not message_type and msg.get("type"):
             t = str(msg.get("type"))
@@ -22410,6 +22425,28 @@ class MainWindow(wx.Frame):
                     max_bytes / (1024 * 1024),
                 )
                 return False
+
+        return True
+
+    def sync_if_media(self, msg, timeout=60):
+        """Download media for a single message during the background sync phase.
+
+        Returns True only when a file was actually downloaded. Every skip
+        below — offline, not a media message, past the CDN TTL, past the
+        user's day/size caps, a known-expired id, already on disk — returns
+        False, so sync_media_for_all_chats() can count real work rather than
+        candidates.
+        """
+        if not getattr(self, "_wa_connected", False) or getattr(self, "offline_mode", False):
+            return False
+        if not self._media_sync_candidate(msg):
+            return False
+        message_type = msg.get("messageType") or (
+            {"audio": "audioMessage", "ptt": "audioMessage", "image": "imageMessage",
+             "video": "videoMessage", "document": "documentMessage", "doc": "documentMessage",
+             "sticker": "stickerMessage"}.get(str(msg.get("type")))
+        )
+        msg_id = msg.get("key", {}).get("id", "")
 
         try:
             if message_type == "audioMessage":
