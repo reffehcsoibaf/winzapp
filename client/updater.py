@@ -1355,7 +1355,38 @@ class UpdateChecker:
                     )
                     self._release_prompt()
                     return
-                # Install launched — quit the app so the batch script can run
+                # Install launched — quit the app so the batch script can run.
+                # But first: check the session is actually CONNECTED, not
+                # mid-reconnect or some other transitional state.
+                # WPPConnect's own closeSession (called from real_exit()'s
+                # shutdown path) force-kills without flushing auth for any
+                # session that isn't exactly CONNECTED/open — see
+                # _stop_wpp_server()'s own comment on this — which is exactly
+                # what corrupts the profile into demanding re-pairing on the
+                # next launch. Same two-signal check that function uses (a
+                # live probe and the continuously-updated in-memory flag);
+                # either saying "yes" is enough.
+                pre_status = self._mw._raw_session_status()
+                session_connected = (
+                    pre_status in ("CONNECTED", "open")
+                    or getattr(self._mw, "_wa_connected", False)
+                )
+                if not session_connected:
+                    i18n = self._mw.i18n
+                    if wx.MessageBox(
+                        i18n.t("update_session_not_connected_msg"),
+                        i18n.t("update_session_not_connected_title"),
+                        wx.YES_NO | wx.ICON_WARNING,
+                        self._mw,
+                    ) != wx.YES:
+                        # Not installing this time — the batch script keeps
+                        # waiting harmlessly for a PID that won't exit yet;
+                        # the periodic retry (_schedule_retry) will offer this
+                        # same update again once the session has had time to
+                        # settle.
+                        self._release_prompt()
+                        self._schedule_retry()
+                        return
                 self._mw.real_exit()
                 return
 

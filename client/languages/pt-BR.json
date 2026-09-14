@@ -362,6 +362,8 @@
     "menu_force_reinstall_zip": "Forçar reinstalação pelo arquivo &ZIP",
     "menu_force_reinstall_wpp": "Forçar reinstalação da &WPPConnect",
     "force_reinstall_confirm_title": "Forçar reinstalação",
+    "update_session_not_connected_title": "Sessão do WhatsApp não está totalmente conectada",
+    "update_session_not_connected_msg": "A sessão do WhatsApp não parece estar totalmente conectada agora. Fechar para instalar nesse estado pode corrompê-la e pedir pareamento de novo na próxima abertura. Continuar instalando mesmo assim?",
     "force_reinstall_confirm_msg": "Isso vai baixar e reinstalar a versão mais recente (v{version}) direto do arquivo ZIP da release, mesmo que já seja a versão instalada. O WinZapp será fechado durante a reinstalação. Continuar?",
     "wpp_update_available_title": "Atualização da WPPConnect disponível",
     "wpp_update_available_msg": "Há uma nova versão da WPPConnect Server disponível (atual: {current}, nova: {new}). Deseja atualizar agora? O WinZapp vai parar a API, instalar a nova versão e reiniciá-la automaticamente.",
