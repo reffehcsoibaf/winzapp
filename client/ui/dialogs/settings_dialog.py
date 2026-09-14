@@ -1617,7 +1617,7 @@ class SettingsDialog(wx.Dialog):
 
         # Storage
         storage = self.main_window.settings.get("storage", {})
-        self._auto_download_media_check.SetValue(storage.get("auto_download_media", True))
+        self._auto_download_media_check.SetValue(storage.get("auto_download_media", False))
         self._media_max_days_field.SetValue(str(storage.get("media_max_days", 30)))
         self._media_max_mb_field.SetValue(str(storage.get("media_max_mb", 100)))
         self._probe_video_duration_check.SetValue(

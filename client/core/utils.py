@@ -938,7 +938,15 @@ DEFAULT_SETTINGS = {
     "conversation_sounds": {},
     "cleared_chats": {},
     "storage": {
-        "auto_download_media": True,
+        # Off by default for a NEW install (existing users keep whatever is
+        # already in their settings.json — this only ever seeds a
+        # missing/corrupt file, see this dict's own docstring above).
+        # First contact with the app should be light and quick: sync only
+        # builds the chat/message index, media stays on-demand (opening a
+        # message by hand still downloads it — see auto_download_allows()'s
+        # comment at its own call site) instead of pulling every photo,
+        # video and voice message in the account's history right away.
+        "auto_download_media": False,
         # Which categories the auto-download covers. All of them by default —
         # see auto_download_allows(). Links are not a category here.
         "auto_download_media_types": list(AUTO_DOWNLOAD_MEDIA_TYPES),
