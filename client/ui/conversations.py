@@ -879,6 +879,16 @@ class ConversationsPanel(wx.Panel):
         self._hide_media_transfer_gauge()
         self._media_action_slot.Hide()
 
+        # ── AI transcribe/describe button ────────────────────────────────────
+        # Same action as the context menu's AI item (_on_menu_ai_process) —
+        # this just gives it a Tab-reachable button right next to Open/Save,
+        # matching the pattern those two already set, instead of making it
+        # context-menu-only like it was before.
+        self._action_ai_btn = wx.Button(self._media_action_slot, label="")
+        self._action_ai_btn.Bind(wx.EVT_BUTTON, self._on_action_ai_process)
+        self._media_action_sizer.Add(self._action_ai_btn, 0, wx.TOP, 2)
+        self._action_ai_btn.Hide()
+
         # ── Business reply buttons container ───────────────────────────────
         self._buttons_container = wx.Panel(self.conversation_panel)
         self._buttons_container.SetSizer(wx.WrapSizer(wx.HORIZONTAL))
@@ -4306,6 +4316,19 @@ class ConversationsPanel(wx.Panel):
                 self._action_open_btn.Show()
                 self.conversation_panel.Layout()
 
+        # AI transcribe/describe button — one check covering every type
+        # _ai_menu_label_for_type() knows about (audio, image, video,
+        # sticker, PDF document), instead of repeating this in each branch
+        # above. Audio in particular has no branch of its own above (its
+        # Open/Save equivalent is Enter-to-play, not a button here), so this
+        # is also the only place that can ever reveal its Transcrever button.
+        # Returns "" (button stays hidden) for anything else, or when the
+        # feature/toggle for this specific type is off.
+        ai_label = self._ai_menu_label_for_type(msg_type, self.main_window.i18n)
+        if ai_label:
+            self._action_ai_btn.SetLabel(ai_label)
+            self._action_ai_btn.Show()
+
         # ── Link detection ────────────────────────────────────────────────
         # Always check the rendered text for URLs (regardless of msg_type).
         # Must use _render_message_line(msg) — the full, untruncated text —
@@ -4825,6 +4848,7 @@ class ConversationsPanel(wx.Panel):
         self._action_open_btn.Hide()
         self._action_save_as_btn.Hide()
         self._action_download_btn.Hide()
+        self._action_ai_btn.Hide()
         self._hide_media_transfer_gauge()
         # The gauge IS selection-scoped, and the comment that used to sit here
         # said the opposite while this very call contradicted it. One gauge
@@ -7133,6 +7157,16 @@ class ConversationsPanel(wx.Panel):
                     self.messages_list.SetFocus()
                 except Exception:
                     pass
+
+    def _on_action_ai_process(self, event, index=None):
+        """AI transcribe/describe for the focused row's media — same action
+        as the context-menu item, reached from the Open/Save button row
+        instead."""
+        if index is None:
+            index = self.messages_list.GetFirstSelected()
+        if index < 0 or index >= len(self._sorted_messages):
+            return
+        self._on_menu_ai_process(self._sorted_messages[index])
 
     def _on_action_open(self, event, index=None):
         """Open the media of the focused row (or of *index*, when given)."""
@@ -10433,6 +10467,7 @@ class ConversationsPanel(wx.Panel):
             getattr(self, "_action_open_btn", None),
             getattr(self, "_action_save_as_btn", None),
             getattr(self, "_action_download_btn", None),
+            getattr(self, "_action_ai_btn", None),
         )
         visible = any(control is not None and control.IsShown() for control in controls)
         slot.Show(visible)
