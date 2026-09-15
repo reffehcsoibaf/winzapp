@@ -310,13 +310,15 @@ class UnpairedStartDialog:
 
 def build_accounts_menu(menu, accounts, current_account_id, i18n, id_factory):
     """Populate a wx 'Accounts' menu (plan Zad 4.2). Adds a radio-style item per
-    paired account with Ctrl+Shift+<n> for the first 9, a separator, then
-    'Switch account…' and 'Manage accounts…'. Returns a dict mapping wx ids to
-    an action: {'switch': account_id} or {'open_switch': True}/{'open_manager': True}.
+    paired account with Ctrl+Alt+<n> for the first 9, a separator, then
+    'Switch account…' (only past 9 accounts — see below) and
+    'Manage accounts…'. Returns a dict mapping wx ids to an action:
+    {'switch': account_id} or {'open_switch': True}/{'open_manager': True}.
     """
     wx = _wx()
     id_map: dict = {}
-    for slot, acc in accelerator_slots(switchable_accounts(accounts)):
+    switchable = switchable_accounts(accounts)
+    for slot, acc in accelerator_slots(switchable):
         item_id = id_factory()
         label = f"&{slot} {acc.get('name', acc['id'])}\tCtrl+Alt+{slot}"
         item = menu.AppendRadioItem(item_id, label)
@@ -324,9 +326,15 @@ def build_accounts_menu(menu, accounts, current_account_id, i18n, id_factory):
             item.Check(True)
         id_map[item_id] = {"switch": acc["id"]}
     menu.AppendSeparator()
-    sw_id = id_factory()
-    menu.Append(sw_id, f"{i18n.t('acc_menu_switch')}\tCtrl+Shift+A")
-    id_map[sw_id] = {"open_switch": True}
+    # "Escolher conta…" duplicates the radio items above for anyone with 9 or
+    # fewer paired accounts — clicking either does the same _switch_to_account
+    # call. It only earns its place once there's a 10th+ account with no
+    # Ctrl+Alt+<n> slot of its own (accelerator_slots() caps at 9) and
+    # therefore no other way to reach it from this menu.
+    if len(switchable) > _MAX_HOTKEY_SLOTS:
+        sw_id = id_factory()
+        menu.Append(sw_id, f"{i18n.t('acc_menu_switch')}\tCtrl+Shift+A")
+        id_map[sw_id] = {"open_switch": True}
     mg_id = id_factory()
     menu.Append(mg_id, i18n.t("acc_menu_manage"))
     id_map[mg_id] = {"open_manager": True}
