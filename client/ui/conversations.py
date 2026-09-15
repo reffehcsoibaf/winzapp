@@ -4625,6 +4625,17 @@ class ConversationsPanel(wx.Panel):
                 lambda e: self._on_save_contact_message(None),
                 save_card_item,
             )
+        elif msg_type == "contactsArrayMessage":
+            # Several contacts shared in one message. Only "ver nome e
+            # número" is wired up here — copy/converse/save assume a single
+            # card and would need their own contact-picker first; out of
+            # scope for the "always says no number" bug this fixes.
+            details_item = menu.Append(wx.ID_ANY, i18n.t("contact_view_details"))
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, m=msg: self._on_contact_view_details(m),
+                details_item,
+            )
 
         # Copy caption (photo/video/document messages that have one) — a
         # separate shortcut from Ctrl+C, which for these types already
@@ -15029,6 +15040,19 @@ class ConversationsPanel(wx.Panel):
             return None
         return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
 
+    def _contacts_from_message(self, msg: dict) -> list:
+        """Every contact card on this message, normalized to a flat list of
+        {displayName, vcard} dicts — a lone contactMessage becomes a
+        one-item list, contactsArrayMessage's own "contacts" list is
+        returned as-is. Lets _on_contact_view_details() treat both the same
+        way instead of needing a second copy of itself."""
+        m = msg.get("message") or {}
+        if "contactMessage" in m:
+            return [m["contactMessage"]]
+        if "contactsArrayMessage" in m:
+            return (m["contactsArrayMessage"] or {}).get("contacts") or []
+        return []
+
     def _jid_from_vcard(self, vcard: str) -> str | None:
         """Extract the WhatsApp JID from a vCard string."""
         if not vcard:
@@ -15048,8 +15072,16 @@ class ConversationsPanel(wx.Panel):
         displayName field, falling back to parsing "FN:" out of the vCard
         (some clients only ever populate the vcard, or stuff the whole vcard
         into displayName)."""
-        i18n = self.main_window.i18n
         contact = (msg.get("message") or {}).get("contactMessage") or {}
+        return self._contact_dict_name(contact)
+
+    def _contact_dict_name(self, contact: dict) -> str:
+        """Same extraction as _contact_display_name(), but taking a single
+        {displayName, vcard} dict directly — the shape both a lone
+        contactMessage and each entry of contactsArrayMessage's own
+        "contacts" list already have, so this works for either without
+        needing the surrounding message."""
+        i18n = self.main_window.i18n
         name  = contact.get("displayName") or ""
         vcard = contact.get("vcard") or ""
 
@@ -15148,18 +15180,42 @@ class ConversationsPanel(wx.Panel):
         finally:
             dlg.Destroy()
 
+    def _contact_dict_numbers(self, contact: dict) -> list:
+        """_contact_message_numbers()'s per-contact logic (vCard TEL lines,
+        falling back to the waid= JID), taking a single {displayName, vcard}
+        dict directly so it works for a contactsArrayMessage entry too."""
+        vcard = contact.get("vcard", "")
+        numbers = self._vcard_phone_numbers(vcard)
+        if numbers:
+            return numbers
+        jid = self._jid_from_vcard(vcard)
+        if jid:
+            return [("", format_number(jid))]
+        return []
+
     def _on_contact_view_details(self, msg: dict):
         """Context menu > "Ver nome e número": name plus every number on the
         card, spoken and shown, since the message row itself only ever renders
-        the name (issue #84)."""
+        the name (issue #84). Also covers a contactsArrayMessage — sharing
+        several contacts in one message — which used to show this same item
+        but always land on "no number", because it only ever looked at the
+        singular contactMessage shape; a batch-shared card was never actually
+        empty, this code just wasn't looking in the right place for it."""
         i18n = self.main_window.i18n
-        name = self._contact_display_name(msg)
-        numbers = self._contact_message_numbers(msg)
-        if numbers:
-            lines = [f"{lbl}: {num}" if lbl else num for lbl, num in numbers]
-            body = "\n".join([name] + lines)
+        contacts = self._contacts_from_message(msg)
+        if not contacts:
+            body = i18n.t("contact_no_number")
         else:
-            body = "\n".join([name, i18n.t("contact_no_number")])
+            blocks = []
+            for contact in contacts:
+                name = self._contact_dict_name(contact)
+                numbers = self._contact_dict_numbers(contact)
+                if numbers:
+                    lines = [f"{lbl}: {num}" if lbl else num for lbl, num in numbers]
+                    blocks.append("\n".join([name] + lines))
+                else:
+                    blocks.append("\n".join([name, i18n.t("contact_no_number")]))
+            body = "\n\n".join(blocks)
         self.main_window.output(body.replace("\n", ". "), interrupt=True)
         wx.MessageBox(body, i18n.t("contact_details_title"), wx.OK | wx.ICON_INFORMATION, self)
 
