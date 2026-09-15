@@ -142,6 +142,12 @@
   .col-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-ui); font-size: 13.5px; line-height: 1.6; }
   .col-card h4 { font-size: 13px; font-weight: 700; margin-bottom: .5rem; color: var(--ink); display: flex; align-items: center; gap: 6px; }
 
+  .field-table { width: 100%; border-collapse: collapse; font-family: var(--font-ui); font-size: 13.5px; margin: 1rem 0 1.5rem; }
+  .field-table th { text-align: left; padding: 8px 12px; background: var(--surface-3); border: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-muted); font-weight: 700; }
+  .field-table td { padding: 8px 12px; border: 1px solid var(--border); color: var(--ink-light); vertical-align: top; line-height: 1.5; }
+  .field-table tr:nth-child(even) td { background: var(--surface-2); }
+  .field-name { font-family: var(--font-code); font-size: 13px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+
   [id] { scroll-margin-top: 1.5rem; }
 
   .hero-toc { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin: 1.5rem 0 2rem; font-family: var(--font-ui); font-size: 13.5px; }
@@ -307,31 +313,145 @@
   <!-- 4. IA: TRANSCRIÇÕES E DESCRIÇÕES -->
   <section id="ia-transcricoes" class="wiki-section" aria-labelledby="h-ia-transcricoes">
     <h2 id="h-ia-transcricoes">🤖 4. IA: Transcrições e Descrições</h2>
-    <p class="em-breve">Em breve.</p>
+    <p>O WinZapp pode usar o Google Gemini para transcrever áudios e figurinhas, e descrever imagens e vídeos — útil pra saber o que uma mídia contém sem precisar enxergá-la. PDFs recebidos também podem ser convertidos em texto acessível.</p>
+
+    <h3>Como ativar</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>Vá em Configurações &gt; aba Conversas &gt; botão <span class="btn-demo outline">Transcrições e Descrições</span>.</li>
+      <li><span class="step-num">2</span>Marque <strong>Ativar recursos de IA</strong>.</li>
+      <li><span class="step-num">3</span>Cole sua <strong>Chave de API do Gemini</strong> no campo correspondente — é grátis, obtida em <code>aistudio.google.com/apikey</code>.</li>
+      <li><span class="step-num">4</span>Marque quais tipos você quer que sejam processados: áudio, imagens, vídeos, figurinhas e/ou PDFs. Cada um tem sua própria caixa de seleção, independente das outras.</li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="callout-title">⚠️ Chave obrigatória</div>
+      Sem uma chave de API válida, o WinZapp avisa e não deixa ativar os recursos de IA.
+    </div>
+
+    <h3>Como usar</h3>
+    <p>Com o recurso ligado pro tipo de mídia certo, focar uma mensagem correspondente (foto, áudio, figurinha, vídeo ou PDF) e dar <kbd>Tab</kbd> mostra um botão — <span class="btn-demo outline">Descrever</span> ou <span class="btn-demo outline">Transcrever</span>, dependendo do tipo. O mesmo botão também está disponível no menu de contexto da mensagem. O resultado aparece numa janela própria, com o texto pronto pra ser lido pelo leitor de tela ou copiado.</p>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Figurinhas com texto</div>
+      A descrição de figurinhas e imagens já inclui qualquer texto visível na própria mídia — útil pra memes e figurinhas com frases.
+    </div>
   </section>
 
   <!-- 5. CHAMADAS -->
   <section id="chamadas" class="wiki-section" aria-labelledby="h-chamadas">
     <h2 id="h-chamadas">📞 5. Chamadas</h2>
-    <p class="em-breve">Em breve.</p>
+    <p>O WinZapp anuncia chamadas de voz e vídeo recebidas — de contato ou em grupo — falando quem está ligando ("Fulano está te ligando." ou "Chamada em grupo recebida no grupo X.").</p>
+
+    <h3>Janela de chamada recebida</h3>
+    <p>Se a opção estiver ativada (Configurações &gt; aba Conversas &gt; botão <span class="btn-demo outline">Chamadas</span> &gt; <strong>Abrir uma janela ao receber uma chamada</strong>), uma janela aparece com dois botões: <span class="btn-demo outline">Desligar</span> e <span class="btn-demo outline">Fechar janela</span>. Fechar a janela não desliga a chamada — só some com o aviso, a chamada continua tocando no celular.</p>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Chamada em si acontece no celular</div>
+      O WinZapp avisa e permite recusar uma chamada recebida, mas atender/conversar continua sendo feito pelo próprio celular — o WinZapp não tem áudio/vídeo de chamada embutido.
+    </div>
+
+    <p>É possível desligar os avisos de chamada por completo, desmarcando <strong>Permitir alertas de chamadas recebidas</strong> nas mesmas configurações.</p>
   </section>
 
   <!-- 6. CONFIGURAÇÕES -->
   <section id="configuracoes" class="wiki-section" aria-labelledby="h-configuracoes">
     <h2 id="h-configuracoes">⚙️ 6. Configurações</h2>
-    <p class="em-breve">Em breve.</p>
+    <p>Chegue em Configurações pelo menu Arquivo, ou pelo atalho <kbd>Ctrl</kbd>+<kbd>,</kbd>. A janela é organizada em seis abas; algumas guardam vários assuntos relacionados atrás de botões, que abrem numa janela própria.</p>
+
+    <div class="cols-2">
+      <div class="col-card"><h4>🌐 Geral</h4>Idioma, verificação ortográfica, e o botão <strong>Interface</strong> (preferências visuais da interface do próprio WinZapp).</div>
+      <div class="col-card"><h4>♿ Acessibilidade</h4>Preferências de leitor de tela, e o botão <strong>Conteúdo falado</strong> (o que é anunciado em voz alta e quando).</div>
+    </div>
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>🔌 Conexão</h4>Endereço e porta do servidor WPPConnect local, e opções de reconexão.</div>
+      <div class="col-card"><h4>💾 Armazenamento</h4>Download automático de mídia (quais tipos, quantos dias, tamanho máximo) e as opções de onde/como salvar arquivos.</div>
+    </div>
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>💬 Conversas</h4>Quatro botões: <strong>Conversas trancadas</strong> (código de trava), <strong>Transcrições e Descrições</strong> (IA), <strong>Reprodução de áudio</strong> e <strong>Chamadas</strong>.</div>
+      <div class="col-card"><h4>🔊 Sons</h4>Dois botões: <strong>Ajustes de áudio</strong> (dispositivo de entrada/saída) e <strong>Sons de eventos</strong> (qual som toca pra cada evento — mensagem, chamada, etc.).</div>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Por que os botões?</div>
+      Configurações que antes eram abas separadas — Interface, Conteúdo Falado, Dispositivos de Áudio, Sons de Alerta, Eventos de Som, Reprodução de Áudio, Chamadas, Transcrições/Descrições, Privacidade (das conversas trancadas) — foram agrupadas em menos abas, cada assunto acessível por um botão, pra facilitar a navegação.
+    </div>
   </section>
 
   <!-- 7. MENU CONTAS -->
   <section id="menu-contas" class="wiki-section" aria-labelledby="h-menu-contas">
     <h2 id="h-menu-contas">👤 7. Menu Contas</h2>
-    <p class="em-breve">Em breve.</p>
+    <p>O menu Contas, na barra de menus, tem duas funções:</p>
+
+    <h3>Trocar de conta</h3>
+    <p>Se você tiver mais de um número de WhatsApp pareado no WinZapp, cada um aparece listado aqui — selecionar um troca pra ele. Também dá pra trocar rápido pelo teclado: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> até <kbd>9</kbd> vai direto pra conta correspondente, não importa onde o foco esteja no momento.</p>
+
+    <h3>Privacidade da conta do WhatsApp</h3>
+    <div class="callout warn">
+      <div class="callout-title">⚠️ Temporariamente indisponível</div>
+      O item Privacidade (visto por último, foto de perfil, confirmação de leitura, etc.) está escondido por enquanto — a função de salvar essas configurações está quebrada por um bug do lado do WhatsApp Web, fora do controle do WinZapp. Volta assim que for corrigido.
+    </div>
   </section>
 
   <!-- 8. ATALHOS DE TECLADO -->
   <section id="atalhos-teclado" class="wiki-section" aria-labelledby="h-atalhos-teclado">
     <h2 id="h-atalhos-teclado">⌨️ 8. Atalhos de teclado</h2>
-    <p class="em-breve">Em breve.</p>
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Lista sempre atualizada: F1</div>
+      A lista abaixo cobre os atalhos mais usados, organizados por assunto. Pra referência completa e sempre atualizada, aperte <kbd>F1</kbd> a qualquer momento dentro do WinZapp.
+    </div>
+
+    <h3>Navegação geral</h3>
+    <table class="field-table">
+      <tr><th>Atalho</th><th>Ação</th></tr>
+      <tr><td class="field-name">Alt+1</td><td>Ir para conversas</td></tr>
+      <tr><td class="field-name">Alt+2</td><td>Ir para a última mensagem</td></tr>
+      <tr><td class="field-name">Alt+3</td><td>Ir para mensagens não lidas</td></tr>
+      <tr><td class="field-name">Alt+4</td><td>Ir para conversas arquivadas</td></tr>
+      <tr><td class="field-name">Alt+5</td><td>Ir para status</td></tr>
+      <tr><td class="field-name">Alt+T</td><td>Anunciar status da conversa (visto por último, online, digitando)</td></tr>
+      <tr><td class="field-name">Ctrl+,</td><td>Abrir Configurações</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+1 a 9</td><td>Trocar de conta (menu Contas)</td></tr>
+      <tr><td class="field-name">Esc / Ctrl+W</td><td>Fechar conversa</td></tr>
+      <tr><td class="field-name">F1</td><td>Exibir todos os atalhos</td></tr>
+    </table>
+
+    <h3>Dentro de uma conversa</h3>
+    <table class="field-table">
+      <tr><th>Atalho</th><th>Ação</th></tr>
+      <tr><td class="field-name">Alt+R</td><td>Responder à mensagem focada</td></tr>
+      <tr><td class="field-name">Alt+Shift+R</td><td>Responder em particular (grupos)</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+R</td><td>Reagir à mensagem</td></tr>
+      <tr><td class="field-name">Alt+Shift+D</td><td>Dados da mensagem</td></tr>
+      <tr><td class="field-name">Alt+E</td><td>Editar mensagem</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+E</td><td>Encaminhar mensagem</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+O</td><td>Favoritar mensagem</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+P</td><td>Fixar/desafixar mensagem selecionada</td></tr>
+      <tr><td class="field-name">Delete</td><td>Apagar mensagem ou conversa</td></tr>
+      <tr><td class="field-name">Ctrl+C</td><td>Copiar mensagem</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+A</td><td>Adicionar anexo</td></tr>
+      <tr><td class="field-name">Ctrl+R</td><td>Gravar mensagem de voz</td></tr>
+      <tr><td class="field-name">Ctrl+0 a Ctrl+9</td><td>Criar/ir até um marcador na mensagem focada</td></tr>
+    </table>
+
+    <h3>Reprodução de áudio/vídeo</h3>
+    <table class="field-table">
+      <tr><th>Atalho</th><th>Ação</th></tr>
+      <tr><td class="field-name">Alt+, / Alt+.</td><td>Diminuir / aumentar velocidade</td></tr>
+      <tr><td class="field-name">Shift+Esquerda / Direita</td><td>Retroceder / avançar 5 segundos</td></tr>
+      <tr><td class="field-name">Shift+Page Up / Down</td><td>Retroceder / avançar 1 minuto</td></tr>
+    </table>
+
+    <h3>Seleção em massa</h3>
+    <table class="field-table">
+      <tr><th>Atalho</th><th>Ação</th></tr>
+      <tr><td class="field-name">Ctrl+Espaço</td><td>Marcar/desmarcar a conversa ou mensagem focada</td></tr>
+      <tr><td class="field-name">Shift+Seta para baixo</td><td>Marcar a próxima e mover o foco até ela</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+Espaço</td><td>Marcar todas / desmarcar todas</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+C</td><td>Copiar as selecionadas</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+E</td><td>Encaminhar as selecionadas</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+S</td><td>Salvar as selecionadas</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+Delete</td><td>Apagar as selecionadas</td></tr>
+    </table>
   </section>
 
 </main>
