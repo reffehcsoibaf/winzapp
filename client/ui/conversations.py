@@ -4625,6 +4625,16 @@ class ConversationsPanel(wx.Panel):
                 lambda e: self._on_save_contact_message(None),
                 save_card_item,
             )
+            # TEMP (investigating "ver nome e numero" still saying no number
+            # for a single-contact card, e.g. Bernardo Cavalcanti) — remove
+            # once sorted. Dumps msg["message"]["contactMessage"] as-is so we
+            # can see the real field names/shape instead of guessing.
+            debug_contact_item = menu.Append(wx.ID_ANY, "Depurar: ver cartao de contato bruto (temporario)")
+            self.Bind(
+                wx.EVT_MENU,
+                lambda e, m=msg: self._on_debug_contact_raw(m),
+                debug_contact_item,
+            )
         elif msg_type == "contactsArrayMessage":
             # Several contacts shared in one message. Only "ver nome e
             # número" is wired up here — copy/converse/save assume a single
@@ -15039,6 +15049,28 @@ class ConversationsPanel(wx.Panel):
         except (TypeError, ValueError):
             return None
         return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
+
+    def _on_debug_contact_raw(self, msg: dict):
+        """TEMP — see the menu item's own comment above."""
+        import json as _json
+        raw = _json.dumps(
+            msg.get("message", {}).get("contactMessage")
+            if isinstance(msg.get("message"), dict)
+            else msg.get("message"),
+            indent=2, ensure_ascii=False, default=str,
+        )
+        dlg = wx.Dialog(self, title="Cartao de contato bruto", size=(700, 500),
+                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        text = wx.TextCtrl(dlg, value=raw, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP)
+        sizer.Add(text, 1, wx.EXPAND | wx.ALL, 8)
+        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Fechar")
+        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
+        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, 8)
+        dlg.SetSizer(sizer)
+        text.SetFocus()
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _contacts_from_message(self, msg: dict) -> list:
         """Every contact card on this message, normalized to a flat list of
