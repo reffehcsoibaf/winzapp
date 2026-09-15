@@ -629,6 +629,15 @@ class Connect:
         )
         self.quit_btn.Bind(wx.EVT_BUTTON, self.on_quit_from_connect)
 
+        # Usage guide — same dialog as Ajuda > Guia de uso. Someone pairing
+        # for the first time has nowhere else in the app to ask "what do I
+        # do next", so it belongs right here too, not just in a menu they
+        # won't see until after they're already connected.
+        self.guide_btn = wx.Button(
+            self.connection_dial, label=self.i18n.t("menu_help_guide")
+        )
+        self.guide_btn.Bind(wx.EVT_BUTTON, self.on_open_guide)
+
         # Bind close event
         self.connection_dial.Bind(wx.EVT_CLOSE, self.on_dialog_close)
 
@@ -636,6 +645,7 @@ class Connect:
         main_sizer = wx.BoxSizer(wx.VERTICAL)
         main_sizer.Add(self.qrcode_panel, 1, wx.ALL | wx.EXPAND, 5)
         main_sizer.Add(self.phone_panel, 1, wx.ALL | wx.EXPAND, 5)
+        main_sizer.Add(self.guide_btn, 0, wx.ALL | wx.CENTER, 5)
         main_sizer.Add(self.quit_btn, 0, wx.ALL | wx.CENTER, 5)
         self.connection_dial.SetSizer(main_sizer)
 
@@ -2186,6 +2196,12 @@ class Connect:
 
         self._close_active_session()
         event.Skip()
+
+    def on_open_guide(self, event):
+        from ui.dialogs.help_guide_dialog import HelpGuideDialog
+        dlg = HelpGuideDialog(self.connection_dial, self.main_window)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def on_quit_from_connect(self, event):
         logging.info("[on_quit_from_connect] Quit requested from connection dialog.")

@@ -628,6 +628,7 @@ def pyinstaller_compile():
             (os.path.join(CLIENT_DIR, "sounds"), "sounds"),
             (os.path.join(CLIENT_DIR, "languages"), "languages"),
             (SETTINGS_DEFAULT, os.path.join("data", "settings_default.json")),
+            (os.path.join(CLIENT_DIR, "data", "help_guide"), os.path.join("data", "help_guide")),
         ]
         wpp_min_version_file = os.path.join(CLIENT_DIR, "wpp_minimum_version.txt")
         if os.path.isfile(wpp_min_version_file):
@@ -753,6 +754,11 @@ def assemble_staging():
     os.makedirs(data_dir)
     shutil.copy2(SETTINGS_DEFAULT, os.path.join(data_dir, "settings_default.json"))
     print(f"  -> data/settings_default.json")
+
+    help_guide_src = os.path.join(CLIENT_DIR, "data", "help_guide")
+    if os.path.isdir(help_guide_src):
+        shutil.copytree(help_guide_src, os.path.join(data_dir, "help_guide"))
+        print(f"  -> data/help_guide/  ({len(os.listdir(help_guide_src))} files)")
 
     # wpp_minimum_version.txt (plain text, just the version string) feeds
     # MainWindow.ensure_wpp_version() — see its own docstring for why this

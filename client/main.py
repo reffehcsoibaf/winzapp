@@ -2939,6 +2939,10 @@ class MainWindow(wx.Frame):
 
         # ── Ajuda ─────────────────────────────────────────────────────────────
         help_menu = wx.Menu()
+        self._ID_HELP_GUIDE = wx.NewIdRef()
+        help_menu.Append(self._ID_HELP_GUIDE, self.i18n.t("menu_help_guide"))
+        self.Bind(wx.EVT_MENU, self._on_open_help_guide, id=self._ID_HELP_GUIDE)
+        help_menu.AppendSeparator()
         help_menu.Append(
             self._ID_SHORTCUTS,
             f"{self.i18n.t('menu_shortcuts')}\tF1",
@@ -3484,6 +3488,9 @@ class MainWindow(wx.Frame):
             help_menu = mb.GetMenu(help_idx)
         if help_menu is not None:
             mb.SetMenuLabel(help_idx, self.i18n.t("menu_help"))
+            help_menu.FindItemById(self._ID_HELP_GUIDE).SetItemLabel(
+                self.i18n.t("menu_help_guide")
+            )
             help_menu.FindItemById(self._ID_SHORTCUTS).SetItemLabel(
                 f"{self.i18n.t('menu_shortcuts')}\tF1"
             )
@@ -10331,6 +10338,12 @@ class MainWindow(wx.Frame):
     def open_settings(self):
         from ui.dialogs.settings_dialog import SettingsDialog
         dlg = SettingsDialog(self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _on_open_help_guide(self, event):
+        from ui.dialogs.help_guide_dialog import HelpGuideDialog
+        dlg = HelpGuideDialog(self, self)
         dlg.ShowModal()
         dlg.Destroy()
 

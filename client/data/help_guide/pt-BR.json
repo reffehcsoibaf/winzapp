@@ -1,0 +1,44 @@
+{
+  "sections": [
+    {
+      "id": "primeiros_passos",
+      "title": "Primeiros passos",
+      "body": "COMO PAREAR O WHATSAPP\n\nAo abrir o WinZapp pela primeira vez (ou depois de desconectar), aparece a tela de conexão com duas formas de parear:\n\n1. QR Code (padrão): no celular, abra o WhatsApp, vá em Configurações > Aparelhos conectados > Conectar um aparelho, e aponte a câmera pro código que aparece na tela do WinZapp.\n\n2. Número de telefone: clique em \"Conectar com número de telefone\", escolha o país, digite seu número e clique em Continuar. O WhatsApp vai gerar um código de algumas letras/números — digite esse código no celular, no mesmo caminho (Configurações > Aparelhos conectados > Conectar com número de telefone).\n\nOs dois botões pra trocar entre QR Code e número de telefone ficam na própria tela de conexão, então dá pra mudar de ideia a qualquer momento antes de parear.\n\nO QUE ACONTECE DEPOIS DE PAREAR\n\nAssim que o pareamento é confirmado, o WinZapp começa a sincronizar suas conversas. Esse processo tem duas partes:\n\n- Primeiro, ele monta a lista de conversas e mensagens (o índice) — isso é rápido, porque nenhuma mídia (foto, áudio, vídeo, figurinha, documento) é baixada automaticamente nesse momento. Isso mantém o primeiro acesso leve e rápido.\n\n- Depois, se você tiver o download automático de mídia ativado (em Configurações > Armazenamento), ele vai buscando as mídias mais recentes aos poucos, em segundo plano. Enquanto isso roda, o WinZapp fala periodicamente quantas já foram processadas.\n\nMesmo com o download automático desligado, abrir uma mídia manualmente (foto, áudio, etc.) sempre baixa ela na hora, sob demanda.\n\nSE PRECISAR PAREAR DE NOVO\n\nDe vez em quando o WhatsApp pode encerrar a sessão (por exemplo, se o celular ficar muito tempo sem internet, ou se você remover o aparelho manualmente pelo celular). Quando isso acontece, o WinZapp mostra a mesma tela de conexão de novo, e o processo é idêntico ao pareamento inicial."
+    },
+    {
+      "id": "navegacao_basica",
+      "title": "Navegação básica",
+      "body": "Em breve."
+    },
+    {
+      "id": "dentro_conversa",
+      "title": "Dentro de uma conversa",
+      "body": "Em breve."
+    },
+    {
+      "id": "ia_transcricoes",
+      "title": "IA: Transcrições e Descrições",
+      "body": "Em breve."
+    },
+    {
+      "id": "chamadas",
+      "title": "Chamadas",
+      "body": "Em breve."
+    },
+    {
+      "id": "configuracoes",
+      "title": "Configurações",
+      "body": "Em breve."
+    },
+    {
+      "id": "menu_contas",
+      "title": "Menu Contas",
+      "body": "Em breve."
+    },
+    {
+      "id": "atalhos_teclado",
+      "title": "Atalhos de teclado",
+      "body": "Em breve."
+    }
+  ]
+}
