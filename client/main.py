@@ -10342,10 +10342,24 @@ class MainWindow(wx.Frame):
         dlg.Destroy()
 
     def _on_open_help_guide(self, event):
-        from ui.dialogs.help_guide_dialog import HelpGuideDialog
-        dlg = HelpGuideDialog(self, self)
-        dlg.ShowModal()
-        dlg.Destroy()
+        self._open_help_guide_html()
+
+    def _open_help_guide_html(self):
+        """Opens the usage guide (client/data/help_guide/<lang>.html) in the
+        system's default browser — not an in-app dialog. It's a full styled
+        HTML page (sidebar nav, search, dark mode via prefers-color-scheme),
+        same visual approach as the user's own Banca Pro wiki.html, and a
+        real browser's own accessibility tree is more robust than
+        reimplementing navigation/search inside a wx dialog. Falls back to
+        pt-BR if the current language has no guide file yet."""
+        from app_paths import resource_path
+        lang = self.i18n.language
+        for candidate in (lang, "pt-BR"):
+            path = resource_path("data", "help_guide", f"{candidate}.html")
+            if os.path.isfile(path):
+                os.startfile(path)
+                return
+        logging.warning("[help_guide] No guide HTML found for %s or pt-BR fallback.", lang)
 
     def on_open_accounts(self, event):
         """Opens the WhatsApp account settings (privacy, and later profile

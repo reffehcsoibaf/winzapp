@@ -2198,10 +2198,7 @@ class Connect:
         event.Skip()
 
     def on_open_guide(self, event):
-        from ui.dialogs.help_guide_dialog import HelpGuideDialog
-        dlg = HelpGuideDialog(self.connection_dial, self.main_window)
-        dlg.ShowModal()
-        dlg.Destroy()
+        self.main_window._open_help_guide_html()
 
     def on_quit_from_connect(self, event):
         logging.info("[on_quit_from_connect] Quit requested from connection dialog.")
