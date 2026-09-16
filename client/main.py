@@ -2904,6 +2904,9 @@ class MainWindow(wx.Frame):
         if self._ACC_PRIVACY_MENU_ENABLED:
             accounts_menu.Append(self._ID_ACC_PRIVACY, self.i18n.t("menu_acc_privacy"))
             self.Bind(wx.EVT_MENU, self.on_open_accounts, id=self._ID_ACC_PRIVACY)
+        self._ID_ACC_BACKUP = wx.NewIdRef()
+        accounts_menu.Append(self._ID_ACC_BACKUP, self.i18n.t("menu_acc_backup"))
+        self.Bind(wx.EVT_MENU, self._on_open_backup, id=self._ID_ACC_BACKUP)
         menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
 
         # Frame-level Ctrl+0..9 → jump to an existing message bookmark,
@@ -3472,6 +3475,9 @@ class MainWindow(wx.Frame):
         acc_privacy_item = mb.GetMenu(2).FindItemById(self._ID_ACC_PRIVACY)
         if acc_privacy_item is not None:
             acc_privacy_item.SetItemLabel(self.i18n.t("menu_acc_privacy"))
+        acc_backup_item = mb.GetMenu(2).FindItemById(self._ID_ACC_BACKUP)
+        if acc_backup_item is not None:
+            acc_backup_item.SetItemLabel(self.i18n.t("menu_acc_backup"))
         # The Help menu is NOT at a fixed index: with multi-account a "Konta"
         # menu sits between Sync and Help (File=0, Sync=1, Konta=2, Help=3),
         # without it Help is at index 2. Locate it by the item it owns rather
@@ -10361,9 +10367,15 @@ class MainWindow(wx.Frame):
                 return
         logging.warning("[help_guide] No guide HTML found for %s or pt-BR fallback.", lang)
 
+    def _on_open_backup(self, event):
+        from ui.dialogs.backup_dialog import BackupHubDialog
+        dlg = BackupHubDialog(self, self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
     def on_open_accounts(self, event):
         """Opens the WhatsApp account settings (privacy, and later profile
-        editing/backup). Lives under the Contas/Konta menu (acc_menu_title)
+        editing). Lives under the Contas/Konta menu (acc_menu_title)
         rather than Arquivo — putting an "Accounts" item under File as well
         just duplicated this same menu's name right next to Sync, which is
         confusing, not two different things."""
