@@ -18134,6 +18134,60 @@ class MainWindow(wx.Frame):
 
         return main_chats, main_names, arch_chats, arch_names
 
+    @staticmethod
+    def _conversation_chat_options(main_chats, main_names, arch_chats, arch_names,
+                                    chats_dict, is_locked):
+        """Build (jid, name, is_group) options for a chat picker (backup,
+        media cleanup) from the app's own already-resolved main+archived
+        conversation lists — never a contacts search, and never a
+        re-derivation of display names. _compute_chat_lists() already
+        handles the phone-number fallback for chats with no contact/display
+        name and already excludes blocked-contact chats; redoing that here
+        would just be a second place to get it wrong.
+
+        *chats_dict* recovers each chat's real self.chats key from its
+        remoteJid — the two are not always the same string after a
+        merge/rename (see _compute_chat_lists()'s own note on this), and
+        backup.py/cleanup.py index main_window.chats by that original key.
+
+        Locked chats are excluded, matching every other list in the app —
+        unlock one from Configurações > Conversas > Conversas trancadas to
+        include it here.
+
+        Extracted as a pure staticmethod (no main_window access beyond what
+        is passed in) so it can be tested without a running wx.App, same as
+        _filter_archived_chats() above.
+        """
+        rjid_to_key = {}
+        for key, chat in chats_dict.items():
+            rjid = chat.get("remoteJid") or key
+            rjid_to_key.setdefault(rjid, key)
+
+        options = []
+        seen: set = set()
+        for chats, names in ((main_chats, main_names), (arch_chats, arch_names)):
+            for chat, name in zip(chats, names):
+                rjid = chat.get("remoteJid") or ""
+                if not rjid or rjid in seen or is_locked(rjid):
+                    continue
+                seen.add(rjid)
+                key = rjid_to_key.get(rjid, rjid)
+                options.append((key, name, rjid.endswith("@g.us")))
+        options.sort(key=lambda o: o[1].lower())
+        return options
+
+    def get_backup_chat_options(self):
+        """(jid, name, is_group) options for the backup/cleanup chat
+        pickers. Calls _compute_chat_lists(), which can do blocking network
+        requests (uncached group names) — safe on a background thread only,
+        never on the wx main thread. See _compute_chat_lists()'s docstring.
+        """
+        main_chats, main_names, arch_chats, arch_names = self._compute_chat_lists()
+        return self._conversation_chat_options(
+            main_chats, main_names, arch_chats, arch_names,
+            dict(self.chats), self.is_chat_locked,
+        )
+
     def _apply_chat_lists(self, main_chats, main_names, arch_chats, arch_names):
         """Apply sorted chat lists to panels and refresh UI. Must run on main thread."""
         if not hasattr(self, "conversations_panel"):

@@ -58,7 +58,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 
-from core.utils import group_media_category, backfill_missing_defaults
+from core.utils import group_media_category, backfill_missing_defaults, format_number
 
 log = logging.getLogger(__name__)
 
@@ -192,11 +192,19 @@ def create_backup(main_window, dest_path: str, chat_jids: list,
             chat = main_window.chats.get(jid)
             if not chat:
                 continue
-            name = chat.get("name") or chat.get("pushName") or jid
+            remote_jid = chat.get("remoteJid", jid)
+            # Never fall back to the raw JID here — it's exactly the "weird
+            # identifier" NVDA would otherwise read out digit by digit, both
+            # in the create-backup picker and later in Restore's own list
+            # (manifest_chats below feeds that list straight from "name").
+            name = chat.get("name") or chat.get("pushName") or ""
+            if not name:
+                name = (main_window.i18n.t("unknown_group") if remote_jid.endswith("@g.us")
+                        else format_number(remote_jid))
             conn.execute(
                 "INSERT INTO chats (jid, remote_jid, name, push_name, chat_type) "
                 "VALUES (?, ?, ?, ?, ?)",
-                (jid, chat.get("remoteJid", jid), name,
+                (jid, remote_jid, name,
                  chat.get("pushName", ""), chat.get("chatType", "chat")),
             )
             records = (chat.get("messages") or {}).get("messages", {}).get("records", [])

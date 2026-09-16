@@ -6,6 +6,7 @@ end. Restore is merge-only; see core/backup.py's own docstring for
 exactly what that means per data type.
 """
 
+import logging
 import os
 import threading
 
@@ -14,6 +15,8 @@ import wx
 from core.backup import (
     MEDIA_CATEGORIES, create_backup, read_backup_info, restore_backup,
 )
+from core.utils import format_number
+from ui.dialogs.chat_picker import ChatCheckList
 
 
 _CATEGORY_LABEL_KEYS = {
@@ -23,6 +26,24 @@ _CATEGORY_LABEL_KEYS = {
     "voice_messages": "backup_cat_voice_messages",
     "documents": "backup_cat_documents",
 }
+
+
+def _manifest_display_name(i18n, chat_entry):
+    """Display name for one manifest chat entry ({"jid","name",
+    "message_count"}), with the message count appended. A backup created
+    before create_backup() learned the phone-number fallback (see
+    core/backup.py) can still carry a raw JID as "name" — recognizable
+    because it contains "@", which no resolved contact/group name ever
+    does — so that case is caught here too, defensively.
+    """
+    jid = chat_entry.get("jid", "")
+    name = (chat_entry.get("name") or "").strip()
+    if not name or "@" in name:
+        if jid.endswith("@g.us"):
+            name = i18n.t("unknown_group")
+        else:
+            name = format_number(jid) if jid else i18n.t("unknown_contact")
+    return f"{name} ({chat_entry.get('message_count', 0)})"
 
 
 class BackupHubDialog(wx.Dialog):
@@ -74,20 +95,9 @@ class CreateBackupDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         sizer.Add(wx.StaticText(panel, label=i18n.t("backup_chats_label")), 0, wx.ALL, 8)
-        self._chat_list = wx.CheckListBox(panel)
-        self._chat_jids = []
-        for jid, chat in sorted(
-            main_window.chats.items(),
-            key=lambda kv: (kv[1].get("name") or kv[1].get("pushName") or kv[0]).lower(),
-        ):
-            name = chat.get("name") or chat.get("pushName") or jid
-            self._chat_jids.append(jid)
-            self._chat_list.Append(name)
-        sizer.Add(self._chat_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
-
-        select_all_btn = wx.Button(panel, label=i18n.t("backup_select_all_button"))
-        select_all_btn.Bind(wx.EVT_BUTTON, self._on_select_all)
-        sizer.Add(select_all_btn, 0, wx.ALL, 8)
+        self._chat_picker = ChatCheckList(panel, i18n)
+        sizer.Add(self._chat_picker, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        self._load_chat_options()
 
         sizer.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(wx.StaticText(panel, label=i18n.t("backup_media_types_label")), 0, wx.ALL, 8)
@@ -123,17 +133,28 @@ class CreateBackupDialog(wx.Dialog):
 
         panel.SetSizer(sizer)
 
-    def _on_select_all(self, event):
-        all_checked = all(self._chat_list.IsChecked(i) for i in range(self._chat_list.GetCount()))
-        for i in range(self._chat_list.GetCount()):
-            self._chat_list.Check(i, not all_checked)
+    def _load_chat_options(self):
+        """Populate the picker from the app's own conversation lists (main +
+        archived), never from a contacts search. get_backup_chat_options()
+        can do blocking network requests (uncached group names), so it runs
+        on a background thread — the picker shows its own loading row
+        meanwhile (ChatCheckList.set_loading(), already called by its
+        constructor)."""
+        main_window = self.main_window
+
+        def _work():
+            try:
+                options = main_window.get_backup_chat_options()
+            except Exception:
+                logging.exception("[CreateBackupDialog] failed to load chat options")
+                options = []
+            wx.CallAfter(self._chat_picker.set_options, options)
+
+        threading.Thread(target=_work, daemon=True).start()
 
     def _on_go(self, event):
         i18n = self._i18n
-        selected_jids = [
-            self._chat_jids[i] for i in range(self._chat_list.GetCount())
-            if self._chat_list.IsChecked(i)
-        ]
+        selected_jids = self._chat_picker.checked_jids()
         if not selected_jids:
             wx.MessageBox(i18n.t("backup_no_chats_selected"), i18n.t("error").format(
                 app_name=self.main_window.app_name), wx.OK | wx.ICON_ERROR, self)
@@ -225,13 +246,9 @@ class RestoreBackupDialog(wx.Dialog):
         sizer.Add(self._file_label, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
 
         sizer.Add(wx.StaticText(panel, label=i18n.t("backup_chats_label")), 0, wx.ALL, 8)
-        self._chat_list = wx.CheckListBox(panel)
-        self._chat_jids = []
-        sizer.Add(self._chat_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
-
-        select_all_btn = wx.Button(panel, label=i18n.t("backup_select_all_button"))
-        select_all_btn.Bind(wx.EVT_BUTTON, self._on_select_all)
-        sizer.Add(select_all_btn, 0, wx.ALL, 8)
+        self._chat_picker = ChatCheckList(panel, i18n)
+        self._chat_picker.set_placeholder(i18n.t("backup_no_file_chosen"))
+        sizer.Add(self._chat_picker, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
         sizer.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(wx.StaticText(panel, label=i18n.t("backup_media_types_label")), 0, wx.ALL, 8)
@@ -264,11 +281,6 @@ class RestoreBackupDialog(wx.Dialog):
         sizer.Add(btn_row, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
 
         panel.SetSizer(sizer)
-
-    def _on_select_all(self, event):
-        all_checked = all(self._chat_list.IsChecked(i) for i in range(self._chat_list.GetCount()))
-        for i in range(self._chat_list.GetCount()):
-            self._chat_list.Check(i, not all_checked)
 
     def _on_choose_file(self, event):
         i18n = self._i18n
@@ -319,13 +331,11 @@ class RestoreBackupDialog(wx.Dialog):
         self._info = info
         self._file_label.SetLabel(os.path.basename(path))
 
-        self._chat_list.Clear()
-        self._chat_jids = []
+        options = []
         for c in info.chats:
-            self._chat_jids.append(c["jid"])
-            self._chat_list.Append(f"{c['name']} ({c['message_count']})")
-        for i in range(self._chat_list.GetCount()):
-            self._chat_list.Check(i, True)
+            jid = c.get("jid", "")
+            options.append((jid, _manifest_display_name(i18n, c), jid.endswith("@g.us")))
+        self._chat_picker.set_options(options, check_all=True)
 
         for cat, chk in self._category_checks.items():
             available = cat in info.media_categories
@@ -338,10 +348,7 @@ class RestoreBackupDialog(wx.Dialog):
 
     def _on_go(self, event):
         i18n = self._i18n
-        selected_jids = [
-            self._chat_jids[i] for i in range(self._chat_list.GetCount())
-            if self._chat_list.IsChecked(i)
-        ]
+        selected_jids = self._chat_picker.checked_jids()
         if not selected_jids:
             wx.MessageBox(i18n.t("backup_no_chats_selected"), i18n.t("error").format(
                 app_name=self.main_window.app_name), wx.OK | wx.ICON_ERROR, self)
