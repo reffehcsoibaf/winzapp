@@ -15189,6 +15189,159 @@ class ConversationsPanel(wx.Panel):
         contact = (msg.get("message") or {}).get("contactMessage") or {}
         return self._contact_dict_numbers(contact)
 
+    @staticmethod
+    def _vcard_clean_label(label: str) -> str:
+        """Apple's Contacts export wraps its own built-in label names in
+        "_$!<Label>!$_" (e.g. "_$!<HomePage>!$_", "_$!<Mother>!$_") — a
+        placeholder syntax meant for their own app to translate, meaningless
+        shown as-is. Strip the wrapper down to the plain word inside it;
+        anything else (a label the person typed themselves, like "Vivo" or
+        "iCloud") passes through unchanged."""
+        m = re.match(r"^_\$!<(.+?)>!\$_$", label.strip())
+        return m.group(1) if m else label.strip()
+
+    def _parse_vcard_full(self, vcard: str) -> dict:
+        """Every field on a vCard, grouped by section, for _on_contact_view_details()'s
+        "see everything" mode. Real cards exported from macOS/iOS Contacts
+        (confirmed from actual data) split a single logical entry — a phone
+        number and its own label, say — across two lines that share an
+        "itemN." prefix (e.g. "item1.TEL:...", "item1.X-ABLabel:Vivo");
+        this groups those back together instead of listing the label as its
+        own unlabeled field. Lines with no itemN prefix stand alone.
+
+        Returns {"name", "birthday", "org", "title", "phones", "emails",
+        "addresses", "urls", "social", "related", "note"} — every value a
+        string except the list ones, each a list of (label, value) pairs
+        (label is "" when the card names none). A field the card doesn't
+        have is simply absent from the dict, never an empty placeholder.
+        """
+        groups: dict = {}   # item key ("" for unprefixed) -> {prop: value}
+        order: list = []    # item keys in first-seen order, "" entries kept separately
+        unprefixed: list = []  # (prop, value) in card order, for name/bday/org/etc.
+
+        for line in vcard.splitlines():
+            line = line.strip()
+            if not line or ":" not in line:
+                continue
+            key_part, _, value = line.partition(":")
+            m = re.match(r"^item(\d+)\.(.+)$", key_part, re.IGNORECASE)
+            if m:
+                item_key, prop = m.group(1), m.group(2)
+                if item_key not in groups:
+                    groups[item_key] = {}
+                    order.append(item_key)
+                groups[item_key][prop.upper().split(";")[0]] = (prop, value)
+            else:
+                prop = key_part.upper().split(";")[0]
+                unprefixed.append((prop, key_part, value))
+
+        result: dict = {"phones": [], "emails": [], "addresses": [],
+                         "urls": [], "social": [], "related": []}
+
+        for prop, key_part, value in unprefixed:
+            value = value.strip()
+            if not value:
+                continue
+            if prop == "FN":
+                result.setdefault("name", value)
+            elif prop == "BDAY":
+                result["birthday"] = value.replace("value=date:", "").replace("VALUE=date:", "")
+            elif prop == "ORG":
+                result["org"] = value.rstrip(";").replace(";", " / ")
+            elif prop == "TITLE":
+                result["title"] = value
+            elif prop == "NOTE":
+                result["note"] = value
+            elif prop == "TEL":
+                label = ""
+                m = re.search(r"TYPE=([^;:]+)", key_part, re.IGNORECASE)
+                if m:
+                    label = m.group(1).strip().strip('"')
+                result["phones"].append((label, " ".join(value.split())))
+            elif prop == "EMAIL":
+                result["emails"].append(("", value))
+            elif prop == "URL":
+                result["urls"].append(("", value))
+
+        for item_key in order:
+            props = groups[item_key]
+            label = ""
+            if "X-ABLABEL" in props:
+                label = self._vcard_clean_label(props["X-ABLABEL"][1])
+            for prop_name, (key_part, value) in props.items():
+                value = value.strip()
+                if not value or prop_name in ("X-ABLABEL", "X-ABADR"):
+                    continue
+                if prop_name == "TEL":
+                    result["phones"].append((label, " ".join(value.split())))
+                elif prop_name == "EMAIL":
+                    result["emails"].append((label, value))
+                elif prop_name == "ADR":
+                    parts = [p.strip() for p in value.split(";") if p.strip()]
+                    if parts:
+                        result["addresses"].append((label, ", ".join(parts)))
+                elif prop_name == "URL":
+                    result["urls"].append((label, value))
+                elif prop_name in ("X-SKYPE",):
+                    result["social"].append(("Skype", value))
+                elif prop_name == "X-ABRELATEDNAMES":
+                    result["related"].append((label, value))
+                elif prop_name.startswith("X-") and value:
+                    # Any other X- extension this parser doesn't special-case
+                    # by name still shows up, generically labeled, rather
+                    # than silently disappearing.
+                    result["social"].append((label or prop_name.lstrip("X-").title(), value))
+
+        for prop, key_part, value in unprefixed:
+            value = value.strip()
+            if prop == "X-SOCIALPROFILE" and value:
+                m = re.search(r"TYPE=([^;:]+)", key_part, re.IGNORECASE)
+                network = m.group(1).strip() if m else ""
+                result["social"].append((network, value))
+            elif prop == "X-FACEBOOK" and value:
+                result["social"].append(("Facebook", value))
+
+        return result
+
+    def _vcard_full_text(self, contact: dict) -> str:
+        """Every field on a contact card, formatted as one readable block —
+        _on_contact_view_details()'s "ver tudo" mode."""
+        i18n = self.main_window.i18n
+        fields = self._parse_vcard_full(self._effective_vcard(contact))
+        name = self._contact_dict_name(contact)
+        lines = [name]
+
+        if fields.get("title") and fields.get("org"):
+            lines.append(f"{fields['title']} — {fields['org']}")
+        elif fields.get("title"):
+            lines.append(fields["title"])
+        elif fields.get("org"):
+            lines.append(fields["org"])
+        if fields.get("birthday"):
+            lines.append(f"{i18n.t('vcard_field_birthday')}: {fields['birthday']}")
+
+        def _section(key: str, title_key: str):
+            entries = fields.get(key) or []
+            if not entries:
+                return
+            lines.append("")
+            lines.append(f"{i18n.t(title_key)}:")
+            for label, value in entries:
+                lines.append(f"  {label}: {value}" if label else f"  {value}")
+
+        _section("phones", "vcard_field_phones")
+        _section("emails", "vcard_field_emails")
+        _section("addresses", "vcard_field_addresses")
+        _section("urls", "vcard_field_urls")
+        _section("social", "vcard_field_social")
+        _section("related", "vcard_field_related")
+
+        if fields.get("note"):
+            lines.append("")
+            lines.append(f"{i18n.t('vcard_field_note')}: {fields['note']}")
+
+        return "\n".join(lines)
+
     def _pick_contact_number(self, msg: dict) -> str:
         """The number to act on, asking the user when the card holds several.
 
@@ -15230,9 +15383,11 @@ class ConversationsPanel(wx.Panel):
         return []
 
     def _on_contact_view_details(self, msg: dict):
-        """Context menu > "Ver nome e número": name plus every number on the
-        card, spoken and shown, since the message row itself only ever renders
-        the name (issue #84). Also covers a contactsArrayMessage — sharing
+        """Context menu > "Ver dados do contato": every field on the card —
+        name, birthday, org, phones, emails, addresses, URLs, social
+        profiles, related names — not just name and number, since a real
+        card frequently carries much more than that (confirmed from real
+        multi-field cards). Also covers a contactsArrayMessage — sharing
         several contacts in one message — which used to show this same item
         but always land on "no number", because it only ever looked at the
         singular contactMessage shape; a batch-shared card was never actually
@@ -15242,16 +15397,7 @@ class ConversationsPanel(wx.Panel):
         if not contacts:
             body = i18n.t("contact_no_number")
         else:
-            blocks = []
-            for contact in contacts:
-                name = self._contact_dict_name(contact)
-                numbers = self._contact_dict_numbers(contact)
-                if numbers:
-                    lines = [f"{lbl}: {num}" if lbl else num for lbl, num in numbers]
-                    blocks.append("\n".join([name] + lines))
-                else:
-                    blocks.append("\n".join([name, i18n.t("contact_no_number")]))
-            body = "\n\n".join(blocks)
+            body = "\n\n".join(self._vcard_full_text(c) for c in contacts)
         self.main_window.output(body.replace("\n", ". "), interrupt=True)
         wx.MessageBox(body, i18n.t("contact_details_title"), wx.OK | wx.ICON_INFORMATION, self)
 

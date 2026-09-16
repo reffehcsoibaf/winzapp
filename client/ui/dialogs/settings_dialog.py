@@ -1077,6 +1077,14 @@ class SettingsDialog(wx.Dialog):
             wx.StaticLine(self._storage_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
         )
         storage_sizer.Add(self._files_page, 0, wx.EXPAND)
+
+        storage_sizer.Add(
+            wx.StaticLine(self._storage_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
+        )
+        self._cleanup_btn = wx.Button(self._storage_page, label=i18n.t("cleanup_open_button"))
+        self._cleanup_btn.Bind(wx.EVT_BUTTON, self._on_open_cleanup)
+        storage_sizer.Add(self._cleanup_btn, 0, wx.EXPAND | wx.ALL, 8)
+
         self._storage_page.Layout()
 
         # ── Audio playback tab ───────────────────────────────────────────────
@@ -1878,6 +1886,12 @@ class SettingsDialog(wx.Dialog):
     def _on_save_folder_mode_changed(self, event):
         self._sync_save_folder_controls()
         event.Skip()
+
+    def _on_open_cleanup(self, event):
+        from ui.dialogs.cleanup_dialog import CleanupDialog
+        dlg = CleanupDialog(self, self.main_window)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _on_browse_save_folder(self, event):
         """Pick the custom folder through Explorer's own folder picker.
@@ -2874,6 +2888,7 @@ class SettingsDialog(wx.Dialog):
         self._speech_btn.SetLabel(i18n.t("tab_speech_content"))
         self._ui_dialog.SetTitle(i18n.t("btn_interface"))
         self._ui_btn.SetLabel(i18n.t("btn_interface"))
+        self._cleanup_btn.SetLabel(i18n.t("cleanup_open_button"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
