@@ -7482,10 +7482,20 @@ class ConversationsPanel(wx.Panel):
                 or msg.get("title")
                 or media_data.get("filename")
                 or media_data.get("fileName")
-                or inner.get("caption")
-                or msg.get("caption")
                 or ""
             )
+        # Caption text is only a plausible filename source for documents —
+        # someone captioning a shared file sometimes retypes its name. For
+        # a photo/video/sticker/voice note the caption is just what the
+        # sender typed about it (confirmed live: "Essa gente me racha a
+        # cara kkkkkk" on a photo), never a filename, and it never carries
+        # an extension — if the message's own mimetype was also empty,
+        # this used to leave default_file with no extension at all
+        # (step 3 below's ext branches never run once file_name is truthy),
+        # which is exactly what made Gemini reject the file as
+        # application/octet-stream: no extension, no way to guess the type.
+        if not file_name and msg_type == "documentMessage":
+            file_name = inner.get("caption") or msg.get("caption") or ""
 
         # 3. If parsing from URL, ignore WhatsApp CDN hashes (.enc, .chk, encrypted blobs)
         if not file_name:
