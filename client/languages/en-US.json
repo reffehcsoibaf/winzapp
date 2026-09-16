@@ -352,6 +352,7 @@
     "chat_picker_select_all": "Select all",
     "chat_picker_loading": "Loading chats…",
     "chat_picker_empty": "No chats match these filters.",
+    "chat_picker_column_label": "Chat",
     "backup_media_types_label": "Include media files:",
     "backup_cat_photos": "Photos and stickers",
     "backup_cat_videos": "Videos",

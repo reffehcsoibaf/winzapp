@@ -352,6 +352,7 @@
     "chat_picker_select_all": "Zaznacz wszystkie",
     "chat_picker_loading": "Wczytywanie rozmów…",
     "chat_picker_empty": "Nie znaleziono żadnej rozmowy pasującej do tych filtrów.",
+    "chat_picker_column_label": "Rozmowa",
     "backup_media_types_label": "Uwzględnij pliki multimedialne:",
     "backup_cat_photos": "Zdjęcia i naklejki",
     "backup_cat_videos": "Filmy",
