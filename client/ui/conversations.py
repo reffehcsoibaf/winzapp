@@ -4303,7 +4303,7 @@ class ConversationsPanel(wx.Panel):
 
         elif msg_type == "contactMessage":
             contact = msg_obj.get("contactMessage") or {}
-            vcard = contact.get("vcard", "")
+            vcard = self._effective_vcard(contact)
             self._contact_msg_jid = self._jid_from_vcard(vcard)
             if self._contact_msg_jid:
                 self._contact_converse_btn.Show()
@@ -4446,7 +4446,7 @@ class ConversationsPanel(wx.Panel):
             # Enter/Space on a contact message → open a conversation with
             # that contact, same as clicking the "Conversar" button.
             contact = msg_obj.get("contactMessage") or {}
-            jid = self._jid_from_vcard(contact.get("vcard", ""))
+            jid = self._jid_from_vcard(self._effective_vcard(contact))
             self._on_contact_converse(None, jid=jid)
 
     def on_messages_context_menu(self, event):
@@ -4624,16 +4624,6 @@ class ConversationsPanel(wx.Panel):
                 wx.EVT_MENU,
                 lambda e: self._on_save_contact_message(None),
                 save_card_item,
-            )
-            # TEMP (investigating "ver nome e numero" still saying no number
-            # for a single-contact card, e.g. Bernardo Cavalcanti) — remove
-            # once sorted. Dumps msg["message"]["contactMessage"] as-is so we
-            # can see the real field names/shape instead of guessing.
-            debug_contact_item = menu.Append(wx.ID_ANY, "Depurar: ver cartao de contato bruto (temporario)")
-            self.Bind(
-                wx.EVT_MENU,
-                lambda e, m=msg: self._on_debug_contact_raw(m),
-                debug_contact_item,
             )
         elif msg_type == "contactsArrayMessage":
             # Several contacts shared in one message. Only "ver nome e
@@ -15050,28 +15040,6 @@ class ConversationsPanel(wx.Panel):
             return None
         return f"https://www.google.com/maps/search/?api=1&query={lat},{lng}"
 
-    def _on_debug_contact_raw(self, msg: dict):
-        """TEMP — see the menu item's own comment above."""
-        import json as _json
-        raw = _json.dumps(
-            msg.get("message", {}).get("contactMessage")
-            if isinstance(msg.get("message"), dict)
-            else msg.get("message"),
-            indent=2, ensure_ascii=False, default=str,
-        )
-        dlg = wx.Dialog(self, title="Cartao de contato bruto", size=(700, 500),
-                         style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
-        sizer = wx.BoxSizer(wx.VERTICAL)
-        text = wx.TextCtrl(dlg, value=raw, style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP)
-        sizer.Add(text, 1, wx.EXPAND | wx.ALL, 8)
-        close_btn = wx.Button(dlg, wx.ID_CLOSE, "Fechar")
-        close_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CLOSE))
-        sizer.Add(close_btn, 0, wx.ALIGN_RIGHT | wx.RIGHT | wx.BOTTOM, 8)
-        dlg.SetSizer(sizer)
-        text.SetFocus()
-        dlg.ShowModal()
-        dlg.Destroy()
-
     def _contacts_from_message(self, msg: dict) -> list:
         """Every contact card on this message, normalized to a flat list of
         {displayName, vcard} dicts — a lone contactMessage becomes a
@@ -15107,6 +15075,22 @@ class ConversationsPanel(wx.Panel):
         contact = (msg.get("message") or {}).get("contactMessage") or {}
         return self._contact_dict_name(contact)
 
+    @staticmethod
+    def _effective_vcard(contact: dict) -> str:
+        """The actual vCard text for a contact card, whichever field it's
+        really in. WhatsApp's own field is "vcard", but some senders'
+        clients (macOS/iOS Contacts exports among them, confirmed from a
+        real card) leave "vcard" empty and put the whole vCard block —
+        "BEGIN:VCARD\\n...END:VCARD" — into "displayName" instead. Every
+        vCard-reading helper in this file should go through this instead of
+        reading contact.get("vcard") directly, or it silently sees an empty
+        card for exactly the contacts this covers."""
+        vcard = contact.get("vcard") or ""
+        if vcard:
+            return vcard
+        name = contact.get("displayName") or ""
+        return name if "BEGIN:VCARD" in name else ""
+
     def _contact_dict_name(self, contact: dict) -> str:
         """Same extraction as _contact_display_name(), but taking a single
         {displayName, vcard} dict directly — the shape both a lone
@@ -15114,13 +15098,10 @@ class ConversationsPanel(wx.Panel):
         "contacts" list already have, so this works for either without
         needing the surrounding message."""
         i18n = self.main_window.i18n
-        name  = contact.get("displayName") or ""
-        vcard = contact.get("vcard") or ""
-
+        name = contact.get("displayName") or ""
         if not name or "BEGIN:VCARD" in name:
-            vcard_to_parse = name if "BEGIN:VCARD" in name else vcard
             parsed_name = ""
-            for line in vcard_to_parse.splitlines():
+            for line in self._effective_vcard(contact).splitlines():
                 if line.startswith("FN:"):
                     parsed_name = line[3:].strip()
                     break
@@ -15151,9 +15132,15 @@ class ConversationsPanel(wx.Panel):
         seen = set()
         for line in vcard.splitlines():
             line = line.strip()
-            if not line.upper().startswith("TEL"):
+            # "item1.TEL:...", "item2.TEL;waid=...:..." — macOS/iOS Contacts
+            # exports group a TEL with its own label (X-ABLabel) this way;
+            # a plain .startswith("TEL") misses every one of them, silently
+            # dropping numbers from a card that has several (confirmed from
+            # a real multi-number card).
+            bare_line = re.sub(r"^item\d+\.", "", line, flags=re.IGNORECASE)
+            if not bare_line.upper().startswith("TEL"):
                 continue
-            prop, _, value = line.partition(":")
+            prop, _, value = bare_line.partition(":")
             number = " ".join(value.split()).strip()
             if not number:
                 continue
@@ -15169,21 +15156,10 @@ class ConversationsPanel(wx.Panel):
         return out
 
     def _contact_message_numbers(self, msg: dict) -> list:
-        """_vcard_phone_numbers() for a contactMessage, with the waid fallback.
-
-        Some cards carry the WhatsApp id and nothing parseable as a TEL line;
-        _jid_from_vcard() already knows how to dig that out, so fall back to it
-        rather than telling the user the card has no number when it plainly
-        shows one.
-        """
+        """_contact_dict_numbers() for a contactMessage's own {displayName,
+        vcard} dict, extracted from the wrapping message."""
         contact = (msg.get("message") or {}).get("contactMessage") or {}
-        numbers = self._vcard_phone_numbers(contact.get("vcard", ""))
-        if numbers:
-            return numbers
-        jid = self._jid_from_vcard(contact.get("vcard", ""))
-        if jid:
-            return [("", format_number(jid))]
-        return []
+        return self._contact_dict_numbers(contact)
 
     def _pick_contact_number(self, msg: dict) -> str:
         """The number to act on, asking the user when the card holds several.
@@ -15216,7 +15192,7 @@ class ConversationsPanel(wx.Panel):
         """_contact_message_numbers()'s per-contact logic (vCard TEL lines,
         falling back to the waid= JID), taking a single {displayName, vcard}
         dict directly so it works for a contactsArrayMessage entry too."""
-        vcard = contact.get("vcard", "")
+        vcard = self._effective_vcard(contact)
         numbers = self._vcard_phone_numbers(vcard)
         if numbers:
             return numbers
@@ -15295,7 +15271,7 @@ class ConversationsPanel(wx.Panel):
         if self._is_separator(msg) or msg.get("messageType", "") != "contactMessage":
             return
         contact = (msg.get("message") or {}).get("contactMessage") or {}
-        jid = self._jid_from_vcard(contact.get("vcard", ""))
+        jid = self._jid_from_vcard(self._effective_vcard(contact))
         if not jid:
             return
 
