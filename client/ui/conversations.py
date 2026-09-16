@@ -14023,7 +14023,11 @@ class ConversationsPanel(wx.Panel):
         sizer.Add(emoji_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
 
         cancel_btn = wx.Button(panel, wx.ID_CANCEL, label=i18n.t("cancel"))
-        sizer.Add(cancel_btn, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
+        more_btn = wx.Button(panel, label=i18n.t("react_more_emojis_button"))
+        btn_row = wx.BoxSizer(wx.HORIZONTAL)
+        btn_row.Add(more_btn, 0, wx.RIGHT, 8)
+        btn_row.Add(cancel_btn, 0)
+        sizer.Add(btn_row, 0, wx.ALIGN_RIGHT | wx.ALL, 8)
 
         panel.SetSizer(sizer)
         dlg_sizer = wx.BoxSizer(wx.VERTICAL)
@@ -14047,6 +14051,13 @@ class ConversationsPanel(wx.Panel):
 
         emoji_list.Bind(wx.EVT_LIST_ITEM_ACTIVATED, _on_emoji_activated)
         cancel_btn.Bind(wx.EVT_BUTTON, lambda e: dlg.EndModal(wx.ID_CANCEL))
+        more_clicked = [False]
+
+        def _on_more_emojis(event):
+            more_clicked[0] = True
+            dlg.EndModal(wx.ID_CANCEL)
+
+        more_btn.Bind(wx.EVT_BUTTON, _on_more_emojis)
         dlg.Bind(wx.EVT_CHAR_HOOK, lambda e: dlg.EndModal(wx.ID_CANCEL) if e.GetKeyCode() == wx.WXK_ESCAPE else e.Skip())
 
         # A pre-populated list must never leave focus/selection pointing at
@@ -14061,6 +14072,23 @@ class ConversationsPanel(wx.Panel):
         dlg.CentreOnParent()
         result = dlg.ShowModal()
         dlg.Destroy()
+
+        if more_clicked[0]:
+            # Full emoji picker (same one the message field's own emoji
+            # button uses — search, categories, skin tones) instead of the
+            # fixed 12-emoji quick list above, per the user's own request:
+            # WhatsApp itself lets a reaction be any emoji, not just a
+            # short preset list.
+            from ui.dialogs.emoji_picker import EmojiPickerDialog
+            picker = EmojiPickerDialog(self.main_window, i18n)
+            try:
+                if picker.ShowModal() == wx.ID_OK:
+                    chosen = picker.get_selected_emoji()
+                    if chosen:
+                        self._send_reaction(msg, chosen)
+            finally:
+                picker.Destroy()
+            return
 
         if result == wx.ID_OK and selected_emoji[0] is not None:
             emoji = selected_emoji[0]
