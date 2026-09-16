@@ -2721,9 +2721,10 @@ class MainWindow(wx.Frame):
             except Exception:
                 logging.exception("[accounts] set_last_foreground failed (non-fatal)")
 
-        # ── Quick tip after first pairing ─────────────────────────────────────
-        if not self.background_mode and self._just_paired:
-            wx.CallAfter(self._check_quick_tip)
+        # Quick tip after first pairing — removed at the user's own request
+        # (didn't want the F1-shortcuts popup shown after pairing a new
+        # account). _check_quick_tip() itself is left in place, guarded by
+        # the same quick_tip_shown setting, in case this is wanted back.
 
         # Auto-updater already scheduled early in constructor
 
@@ -8663,11 +8664,30 @@ class MainWindow(wx.Frame):
                     return
                 self._send_capabilities_warning = signature
                 logging.error("[startup] Send compatibility probe failed: %s", signature)
-                # Deliberately NOT interrupt=True: the unpinned-version warning
-                # is queued moments earlier on the one path where both fire, and
-                # interrupting cut it off mid-sentence — leaving the user with
-                # neither message.
-                wx.CallAfter(self.output, self.i18n.t("send_capabilities_incompatible"))
+                # Only "text"/"media" missing is worth alarming a blind user
+                # about on every connection — that's regular message sending,
+                # which is what "o envio pode não funcionar" actually claims.
+                # The Status-related checks (statusText/statusImage/
+                # statusVideo/statusReaction) cover a feature most people
+                # never touch, and statusReaction in particular depends on a
+                # deep, lazily-loaded internal module (see
+                # getSendCapabilities()'s own comment on it) that's exactly
+                # the kind of thing prone to breaking when WhatsApp Web
+                # itself changes — same class of bug already hit for privacy
+                # and message-ack. Reported live as firing on every single
+                # connection with no text/media problem ever actually
+                # observed: speaking the generic "sending" warning for a
+                # Status-only gap cries wolf about something that isn't
+                # broken. Still logged either way for anyone who does need
+                # to see it.
+                missing = set(details.get("missing") or [])
+                critical_missing = missing & {"text", "media"}
+                if critical_missing:
+                    # Deliberately NOT interrupt=True: the unpinned-version
+                    # warning is queued moments earlier on the one path where
+                    # both fire, and interrupting cut it off mid-sentence —
+                    # leaving the user with neither message.
+                    wx.CallAfter(self.output, self.i18n.t("send_capabilities_incompatible"))
                 return
             except Exception as exc:
                 logging.warning("[startup] Send compatibility probe unavailable: %s", exc)
