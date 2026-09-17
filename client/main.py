@@ -2908,6 +2908,9 @@ class MainWindow(wx.Frame):
         self._ID_ACC_BACKUP = wx.NewIdRef()
         accounts_menu.Append(self._ID_ACC_BACKUP, self.i18n.t("menu_acc_backup"))
         self.Bind(wx.EVT_MENU, self._on_open_backup, id=self._ID_ACC_BACKUP)
+        self._ID_ACC_PROFILE = wx.NewIdRef()
+        accounts_menu.Append(self._ID_ACC_PROFILE, self.i18n.t("menu_acc_profile"))
+        self.Bind(wx.EVT_MENU, self._on_open_profile, id=self._ID_ACC_PROFILE)
         menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
 
         # Frame-level Ctrl+0..9 → jump to an existing message bookmark,
@@ -3479,6 +3482,9 @@ class MainWindow(wx.Frame):
         acc_backup_item = mb.GetMenu(2).FindItemById(self._ID_ACC_BACKUP)
         if acc_backup_item is not None:
             acc_backup_item.SetItemLabel(self.i18n.t("menu_acc_backup"))
+        acc_profile_item = mb.GetMenu(2).FindItemById(self._ID_ACC_PROFILE)
+        if acc_profile_item is not None:
+            acc_profile_item.SetItemLabel(self.i18n.t("menu_acc_profile"))
         # The Help menu is NOT at a fixed index: with multi-account a "Konta"
         # menu sits between Sync and Help (File=0, Sync=1, Konta=2, Help=3),
         # without it Help is at index 2. Locate it by the item it owns rather
@@ -10390,6 +10396,12 @@ class MainWindow(wx.Frame):
     def _on_open_backup(self, event):
         from ui.dialogs.backup_dialog import BackupHubDialog
         dlg = BackupHubDialog(self, self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _on_open_profile(self, event):
+        from ui.dialogs.profile_dialog import ProfileDialog
+        dlg = ProfileDialog(self, self)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -28119,6 +28131,54 @@ class MainWindow(wx.Frame):
                               r.status_code, full_id, r.text[:300])
         except Exception as exc:
             logging.error("[edit_message] exception for %s: %s", full_id, exc)
+
+    def set_profile_name(self, name: str) -> "str | None":
+        """Sets the account's own displayed WhatsApp name via WPPConnect's
+        setProfileName() — its own higher-level client method, not a direct
+        wa-js internal lookup, so this isn't exposed to the same class of
+        "internal module went missing" bug that's hit privacy and
+        message-ack. Returns an error string on failure, None on success."""
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/change-username"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"name": name}, headers=headers, timeout=15)
+            if r.ok:
+                return None
+            return r.json().get("message", r.text)
+        except Exception as exc:
+            return str(exc)
+
+    def set_profile_status(self, status: str) -> "str | None":
+        """Sets the account's own "recado"/About text via WPPConnect's
+        setProfileStatus(). Returns an error string on failure, None on
+        success."""
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/profile-status"
+        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
+        try:
+            r = api_post(url, json={"status": status}, headers=headers, timeout=15)
+            if r.ok:
+                return None
+            return r.json().get("message", r.text)
+        except Exception as exc:
+            return str(exc)
+
+    def set_profile_pic(self, image_path: str) -> "str | None":
+        """Uploads *image_path* as the account's own WhatsApp profile photo
+        via WPPConnect's setProfilePic(). Returns an error string on
+        failure, None on success. Unlike send_media(), this never needs
+        the streaming multipart body — a profile photo is always small —
+        so a plain requests files= upload is enough."""
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/set-profile-pic"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            with open(image_path, "rb") as f:
+                files = {"file": (os.path.basename(image_path), f, "image/jpeg")}
+                r = api_post(url, files=files, headers=headers, timeout=30)
+            if r.ok:
+                return None
+            return r.json().get("message", r.text)
+        except Exception as exc:
+            return str(exc)
 
     def fetch_privacy_settings(self) -> "dict | None":
         """All account-wide WhatsApp privacy fields in one call (see
