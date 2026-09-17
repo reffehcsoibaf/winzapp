@@ -1,4 +1,4 @@
-"""Backup/restore dialogs (Contas > Backup). See core/backup.py for the
+"""Backup/restore dialogs (Configurações > Armazenamento > Backup). See core/backup.py for the
 actual engine — this file is UI only: chat/media-type pickers, the
 password prompt, a progress readout while the (potentially slow)
 create/restore work runs on a background thread, and a summary at the

@@ -1,15 +1,21 @@
-"""Arquivo > Contas — WhatsApp account-level settings, as opposed to
-WinZapp's own app settings (which stay in the regular Settings dialog).
+"""Menu > Configurações > Configurações do WhatsApp — settings that live on
+the WhatsApp account itself, as opposed to WinZapp's own app settings (which
+stay in the regular Settings dialog, opened separately as "Configurações do
+WinZapp").
 
-Currently holds the account privacy section (WPP.privacy bridge: visto
-por último, online, recado, foto de perfil, confirmação de leitura,
-quem pode me adicionar em grupos) that used to live inside Settings'
-"Privacidade" tab, alongside the (WinZapp-only) chat-lock code fields.
-Those two were split on purpose — this dialog is the "account" side;
-Settings keeps the "app" side. Profile editing and backup are meant to
-land here too later (see winzapp.md future-intentions list) — this
-dialog exists so they have a home from day one instead of getting
-bolted onto Settings again.
+Three tabs, reflecting how far each one actually is:
+  - Privacidade: WPP.privacy bridge (visto por último, online, recado, foto
+    de perfil, confirmação de leitura, quem pode me adicionar em grupos).
+    Fully wired — reading always works; Apply can still fail on some fields
+    while wppconnect-team/wa-js's setPrivacyForOneCategory is broken
+    upstream, which _on_apply_whatsapp_privacy() already reports per field
+    rather than pretending it succeeded.
+  - Perfil and Contatos bloqueados: not built yet (profile editing — nome
+    exibido, recado, foto — and a dedicated blocked-contacts screen are both
+    still on the winzapp.md future-intentions list). They get a tab now,
+    with a plain "ainda não implementado" placeholder, so the window this
+    functionality lands in already exists instead of getting bolted onto
+    Configurações again once it's ready.
 """
 
 import wx
@@ -22,15 +28,38 @@ class AccountsDialog(wx.Dialog):
         super().__init__(
             parent,
             title=i18n.t("accounts_dialog_title"),
-            size=(480, 520),
+            size=(480, 560),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._i18n = i18n
 
-        panel = wx.Panel(self)
+        outer_panel = wx.Panel(self)
+        outer_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._notebook = wx.Notebook(outer_panel)
+        self._build_privacy_tab(i18n)
+        self._build_profile_tab(i18n)
+        self._build_blocked_contacts_tab(i18n)
+        outer_sizer.Add(self._notebook, 1, wx.EXPAND | wx.ALL, 8)
+
+        close_btn = wx.Button(outer_panel, wx.ID_CLOSE, i18n.t("close"))
+        outer_sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
+        close_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_CLOSE))
+        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_CLOSE))
+
+        outer_panel.SetSizer(outer_sizer)
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(outer_panel, 1, wx.EXPAND)
+        self.SetSizer(outer)
+
+        self._load_values()
+
+    # ── Privacidade (WPP.privacy bridge) ────────────────────────────────────
+
+    def _build_privacy_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # ── WhatsApp account privacy (WPP.privacy bridge) ───────────────────
         # Six simple-enum settings; "who sees my Status/Stories" needs a
         # contact-list picker instead of a dropdown, so it isn't here yet.
         self._wa_privacy_section_label = wx.StaticText(
@@ -78,18 +107,8 @@ class AccountsDialog(wx.Dialog):
         sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
-        sizer.AddStretchSpacer()
-        close_btn = wx.Button(panel, wx.ID_CLOSE, i18n.t("close"))
-        sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
-        close_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_CLOSE))
-        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_CLOSE))
-
         panel.SetSizer(sizer)
-        outer = wx.BoxSizer(wx.VERTICAL)
-        outer.Add(panel, 1, wx.EXPAND)
-        self.SetSizer(outer)
-
-        self._load_values()
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_privacy"))
 
     def _load_values(self):
         wa_privacy = self.main_window.fetch_privacy_settings()
@@ -140,3 +159,25 @@ class AccountsDialog(wx.Dialog):
             )
         else:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
+
+    # ── Perfil (placeholder — not implemented yet) ──────────────────────────
+
+    def _build_profile_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(panel, label=i18n.t("wa_profile_coming_soon"))
+        label.Wrap(400)
+        sizer.Add(label, 0, wx.ALL, 12)
+        panel.SetSizer(sizer)
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_profile"))
+
+    # ── Contatos bloqueados (placeholder — not implemented yet) ─────────────
+
+    def _build_blocked_contacts_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(panel, label=i18n.t("wa_blocked_contacts_coming_soon"))
+        label.Wrap(400)
+        sizer.Add(label, 0, wx.ALL, 12)
+        panel.SetSizer(sizer)
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_blocked"))

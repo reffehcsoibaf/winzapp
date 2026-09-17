@@ -1085,6 +1085,15 @@ class SettingsDialog(wx.Dialog):
         self._cleanup_btn.Bind(wx.EVT_BUTTON, self._on_open_cleanup)
         storage_sizer.Add(self._cleanup_btn, 0, wx.EXPAND | wx.ALL, 8)
 
+        # Moved here from the menu bar's Contas submenu (2026-09 menu
+        # reorganization) — backup/restore is a WinZapp-side concern (it
+        # covers WinZapp's own settings as an optional category, not just
+        # WhatsApp data), so it belongs in Armazenamento next to Limpeza de
+        # mídia rather than under the WhatsApp-account menu.
+        self._backup_btn = wx.Button(self._storage_page, label=i18n.t("menu_acc_backup"))
+        self._backup_btn.Bind(wx.EVT_BUTTON, self._on_open_backup)
+        storage_sizer.Add(self._backup_btn, 0, wx.EXPAND | wx.ALL, 8)
+
         self._storage_page.Layout()
 
         # ── Audio playback tab ───────────────────────────────────────────────
@@ -1890,6 +1899,12 @@ class SettingsDialog(wx.Dialog):
     def _on_open_cleanup(self, event):
         from ui.dialogs.cleanup_dialog import CleanupDialog
         dlg = CleanupDialog(self, self.main_window)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _on_open_backup(self, event):
+        from ui.dialogs.backup_dialog import BackupHubDialog
+        dlg = BackupHubDialog(self, self.main_window)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -2889,6 +2904,7 @@ class SettingsDialog(wx.Dialog):
         self._ui_dialog.SetTitle(i18n.t("btn_interface"))
         self._ui_btn.SetLabel(i18n.t("btn_interface"))
         self._cleanup_btn.SetLabel(i18n.t("cleanup_open_button"))
+        self._backup_btn.SetLabel(i18n.t("menu_acc_backup"))
         self._audio_input_label.SetLabel(i18n.t("audio_input_device_label"))
         self._audio_output_label.SetLabel(i18n.t("audio_output_device_label"))
         self._audio_effects_label.SetLabel(i18n.t("audio_effects_output_device_label"))
