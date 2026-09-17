@@ -260,6 +260,14 @@
     <h3>A lista de conversas</h3>
     <p>Ao abrir o WinZapp, a lista principal mostra suas conversas normais — particulares e em grupo — ordenadas pela mais recente primeiro. Setas para cima/baixo navegam entre elas; <kbd>Enter</kbd> abre a conversa focada.</p>
 
+    <h3>Começar algo novo</h3>
+    <p>No menu principal (aperte <kbd>Alt</kbd>), logo no topo, ficam três atalhos pra começar algo do zero:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>💬 Nova conversa</h4>Busca por nome ou número entre seus contatos e conversas existentes. Também é o atalho <kbd>Ctrl</kbd>+<kbd>N</kbd>.</div>
+      <div class="col-card"><h4>👥 Novo grupo</h4>Escolha um nome e os participantes a partir dos seus contatos salvos, com busca.</div>
+    </div>
+    <p><strong>Novo contato</strong> salva nome, sobrenome e número localmente no WinZapp, pra aparecer nas próximas buscas.</p>
+
     <div class="cols-2">
       <div class="col-card"><h4>📦 Arquivadas</h4>Conversas arquivadas não aparecem na lista principal — ficam numa aba própria, com busca e filtros (todas, não lidas, grupos, particulares). Arquivar/desarquivar sincroniza com o celular.</div>
       <div class="col-card"><h4>🔒 Trancadas</h4>Uma conversa trancada (recurso do próprio WhatsApp) some completamente da lista assim que você abre o app, sem precisar fazer nada manualmente.</div>
@@ -356,7 +364,7 @@
   <!-- 6. CONFIGURAÇÕES -->
   <section id="configuracoes" class="wiki-section" aria-labelledby="h-configuracoes">
     <h2 id="h-configuracoes">⚙️ 6. Configurações</h2>
-    <p>Chegue em Configurações pelo menu Arquivo, ou pelo atalho <kbd>Ctrl</kbd>+<kbd>,</kbd>. A janela é organizada em seis abas; algumas guardam vários assuntos relacionados atrás de botões, que abrem numa janela própria.</p>
+    <p>Chegue em Configurações pelo menu principal (aperte <kbd>Alt</kbd>, desça até <strong>Configurações</strong> e entre com a seta pra direita, depois <strong>Configurações do WinZapp</strong>), ou pelo atalho <kbd>Ctrl</kbd>+<kbd>,</kbd>. A janela é organizada em seis abas; algumas guardam vários assuntos relacionados atrás de botões, que abrem numa janela própria.</p>
 
     <div class="cols-2">
       <div class="col-card"><h4>🌐 Geral</h4>Idioma, verificação ortográfica, e o botão <strong>Interface</strong> (preferências visuais da interface do próprio WinZapp).</div>
@@ -364,43 +372,57 @@
     </div>
     <div class="cols-2" style="margin-top:1rem;">
       <div class="col-card"><h4>🔌 Conexão</h4>Endereço e porta do servidor WPPConnect local, e opções de reconexão.</div>
-      <div class="col-card"><h4>💾 Armazenamento</h4>Download automático de mídia (quais tipos, quantos dias, tamanho máximo), opções de onde/como salvar arquivos, e o botão <strong>Limpeza de mídia</strong>.</div>
+      <div class="col-card"><h4>💾 Armazenamento</h4>Download automático de mídia (quais tipos, quantos dias, tamanho máximo), opções de onde/como salvar arquivos, e os botões <strong>Limpeza de mídia</strong> e <strong>Backup</strong>.</div>
     </div>
     <div class="cols-2" style="margin-top:1rem;">
       <div class="col-card"><h4>💬 Conversas</h4>Quatro botões: <strong>Conversas trancadas</strong> (código de trava), <strong>Transcrições e Descrições</strong> (IA), <strong>Reprodução de áudio</strong> e <strong>Chamadas</strong>.</div>
       <div class="col-card"><h4>🔊 Sons</h4>Dois botões: <strong>Ajustes de áudio</strong> (dispositivo de entrada/saída) e <strong>Sons de eventos</strong> (qual som toca pra cada evento — mensagem, chamada, etc.).</div>
     </div>
 
+    <h3>Configurações do WhatsApp</h3>
+    <p>É uma janela separada — <strong>Configurações</strong> &gt; <strong>Configurações do WhatsApp</strong>, no menu principal — porque essas opções vivem na sua conta do WhatsApp, não no WinZapp. Tem duas abas prontas:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>👤 Perfil</h4>Nome exibido, recado e foto de perfil — três campos independentes. Preencha só o que quiser mudar (ou escolha uma foto); um campo em branco não é alterado.</div>
+      <div class="col-card"><h4>🔒 Privacidade</h4>Visto por último, online, recado, foto, confirmação de leitura e quem pode me adicionar em grupos. A leitura sempre funciona; salvar pode falhar em alguns campos por um problema atual do lado do WhatsApp Web, fora do controle do WinZapp — quando isso acontece, aparece exatamente quais campos falharam.</div>
+    </div>
+
     <h3>Limpeza de mídia</h3>
     <p>Dentro de Armazenamento, o botão <strong>Limpeza de mídia</strong> apaga arquivos já baixados pra liberar espaço em disco — as mensagens continuam lá, só o arquivo some (pode ser baixado de novo depois, se ainda estiver disponível).</p>
     <ol class="steps">
-      <li><span class="step-num">1</span>Escolha as conversas, os tipos de mídia (fotos, vídeos, áudios, mensagens de voz, documentos) e, se quiser, um tamanho mínimo em MB.</li>
-      <li><span class="step-num">2</span>Clique em <span class="btn-demo outline">Reunir dados</span> — aparece um panorama: quantas conversas afetadas, quantos arquivos, e o total em MB, por tipo.</li>
-      <li><span class="step-num">3</span>Confira o panorama e clique em <span class="btn-demo outline">Prosseguir com a limpeza</span> pra confirmar, ou feche a janela pra cancelar sem apagar nada.</li>
+      <li><span class="step-num">1</span>Escolha as conversas: a lista mostra só as que já estão nas suas conversas (comuns e arquivadas), identificadas pelo nome do contato/grupo ou, quando não há nome, pelo número de telefone. Um filtro deixa mostrar todas, só grupos ou só conversas particulares, e o primeiro item da lista, <strong>Marcar todas</strong>, seleciona ou limpa de uma vez tudo o que o filtro atual está mostrando.</li>
+      <li><span class="step-num">2</span>Escolha também os tipos de mídia (fotos, vídeos, áudios, mensagens de voz, documentos) e, se quiser, um tamanho mínimo em MB.</li>
+      <li><span class="step-num">3</span>Clique em <span class="btn-demo outline">Reunir dados</span> — aparece um panorama: quantas conversas afetadas, quantos arquivos, e o total em MB, por tipo.</li>
+      <li><span class="step-num">4</span>Confira o panorama e clique em <span class="btn-demo outline">Prosseguir com a limpeza</span> pra confirmar, ou feche a janela pra cancelar sem apagar nada.</li>
     </ol>
     <div class="callout warn">
       <div class="callout-title">⚠️ Não pode ser desfeito</div>
       Apagar os arquivos de mídia é permanente. As mensagens em si nunca são afetadas — só o arquivo baixado.
+    </div>
+
+    <h3>Backup e restauração</h3>
+    <p>Dentro de Armazenamento, o botão <strong>Backup</strong> abre uma janela com dois caminhos:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>💾 Criar backup</h4>Escolha quais conversas incluir, quais tipos de mídia (fotos, vídeos, áudios, mensagens de voz, documentos) e, opcionalmente, as configurações do WinZapp. Dá pra proteger o arquivo com uma senha.</div>
+      <div class="col-card"><h4>♻️ Restaurar backup</h4>Escolha o arquivo, digite a senha se ele tiver uma, e selecione o que restaurar — mesma lógica de conversas e tipos de mídia.</div>
+    </div>
+    <p>Nos dois casos, a lista de conversas identifica cada uma pelo nome do contato/grupo ou, quando não há nome, pelo número de telefone; um filtro deixa mostrar todas, só grupos ou só conversas particulares; e o primeiro item da lista, <strong>Marcar todas</strong>, seleciona ou limpa de uma vez tudo o que o filtro atual está mostrando. Ao criar um backup, a lista traz só as conversas que já aparecem nas suas listas de conversas (comuns e arquivadas) — não é feita nenhuma busca entre todos os contatos.</p>
+    <div class="callout tip">
+      <div class="callout-title">💡 Restaurar nunca apaga nada</div>
+      Restaurar só adiciona o que ainda não existe na sua conta — nenhuma conversa ou mensagem já presente é sobrescrita ou alterada. É preciso fechar e abrir o WinZapp de novo pra ver o conteúdo restaurado na lista.
     </div>
   </section>
 
   <!-- 7. MENU CONTAS -->
   <section id="menu-contas" class="wiki-section" aria-labelledby="h-menu-contas">
     <h2 id="h-menu-contas">👤 7. Menu Contas</h2>
-    <p>O menu Contas, na barra de menus, permite trocar entre os números de WhatsApp pareados no WinZapp: cada conta aparece listada, e selecionar uma troca pra ela. Também dá pra trocar rápido pelo teclado: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> até <kbd>9</kbd> vai direto pra conta correspondente, não importa onde o foco esteja no momento.</p>
-
-    <h3>Perfil</h3>
-    <p>O item <strong>Perfil</strong> abre uma janela com três campos independentes — nome exibido, recado e foto de perfil. Preencha só o que quiser mudar; um campo em branco (ou nenhuma foto escolhida) não é alterado.</p>
-
-    <h3>Backup e restauração</h3>
-    <p>O item <strong>Backup</strong> abre uma janela com dois caminhos:</p>
+    <p>O menu Contas fica dentro do menu principal (aperte <kbd>Alt</kbd>, desça até <strong>Contas</strong> e entre com a seta pra direita). Ele reúne tudo relacionado à conta do WhatsApp conectada:</p>
     <div class="cols-2">
-      <div class="col-card"><h4>💾 Criar backup</h4>Escolha quais conversas incluir, quais tipos de mídia (fotos, vídeos, áudios, mensagens de voz, documentos) e, opcionalmente, as configurações do WinZapp. Dá pra proteger o arquivo com uma senha.</div>
-      <div class="col-card"><h4>♻️ Restaurar backup</h4>Escolha o arquivo, digite a senha se ele tiver uma, e selecione o que restaurar — mesma lógica de conversas e tipos de mídia.</div>
+      <div class="col-card"><h4>🔀 Trocar de conta</h4>Cada número pareado aparece listado; selecionar um troca pra ele. Também dá pra trocar rápido pelo teclado: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> até <kbd>9</kbd> vai direto pra conta correspondente, não importa onde o foco esteja no momento.</div>
+      <div class="col-card"><h4>⚙️ Gerenciar contas</h4>Abre uma janela pra adicionar, renomear, arquivar, restaurar ou remover contas pareadas.</div>
     </div>
-    <div class="callout tip">
-      <div class="callout-title">💡 Restaurar nunca apaga nada</div>
-      Restaurar só adiciona o que ainda não existe na sua conta — nenhuma conversa ou mensagem já presente é sobrescrita ou alterada. É preciso fechar e abrir o WinZapp de novo pra ver o conteúdo restaurado na lista.
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>📴 Modo offline</h4>Interrompe a sincronização com o WhatsApp sem desconectar de verdade — útil pra pausar o consumo de dados/bateria do celular por um tempo.</div>
+      <div class="col-card"><h4>🔌 Desconectar</h4>Encerra a sessão da conta atual; pra usar de novo é preciso parear novamente.</div>
     </div>
   </section>
 
@@ -421,6 +443,7 @@
       <tr><td class="field-name">Alt+4</td><td>Ir para conversas arquivadas</td></tr>
       <tr><td class="field-name">Alt+5</td><td>Ir para status</td></tr>
       <tr><td class="field-name">Alt+T</td><td>Anunciar status da conversa (visto por último, online, digitando)</td></tr>
+      <tr><td class="field-name">Ctrl+N</td><td>Nova conversa</td></tr>
       <tr><td class="field-name">Ctrl+,</td><td>Abrir Configurações</td></tr>
       <tr><td class="field-name">Ctrl+Alt+1 a 9</td><td>Trocar de conta (menu Contas)</td></tr>
       <tr><td class="field-name">Esc / Ctrl+W</td><td>Fechar conversa</td></tr>

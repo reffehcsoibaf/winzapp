@@ -1,15 +1,26 @@
-"""Arquivo > Contas — WhatsApp account-level settings, as opposed to
-WinZapp's own app settings (which stay in the regular Settings dialog).
+"""Menu > Configurações > Configurações do WhatsApp — settings that live on
+the WhatsApp account itself, as opposed to WinZapp's own app settings (which
+stay in the regular Settings dialog, opened separately as "Configurações do
+WinZapp").
 
-Currently holds the account privacy section (WPP.privacy bridge: visto
-por último, online, recado, foto de perfil, confirmação de leitura,
-quem pode me adicionar em grupos) that used to live inside Settings'
-"Privacidade" tab, alongside the (WinZapp-only) chat-lock code fields.
-Those two were split on purpose — this dialog is the "account" side;
-Settings keeps the "app" side. Profile editing and backup are meant to
-land here too later (see winzapp.md future-intentions list) — this
-dialog exists so they have a home from day one instead of getting
-bolted onto Settings again.
+Three tabs, reflecting how far each one actually is:
+  - Privacidade: WPP.privacy bridge (visto por último, online, recado, foto
+    de perfil, confirmação de leitura, quem pode me adicionar em grupos).
+    Fully wired — reading always works; Apply can still fail on some fields
+    while wppconnect-team/wa-js's setPrivacyForOneCategory is broken
+    upstream, which _on_apply_whatsapp_privacy() already reports per field
+    rather than pretending it succeeded.
+  - Perfil: nome exibido, recado, foto — each applied independently via
+    MainWindow.set_profile_name()/set_profile_status()/set_profile_pic(),
+    which go through WPPConnect's own higher-level client methods rather
+    than a direct wa-js internal lookup, so unlike Privacidade this isn't
+    exposed to that same class of bug. A blank field (or no photo chosen)
+    means "leave this one alone", not "clear it".
+  - Contatos bloqueados: not built yet (a dedicated blocked-contacts screen
+    is still on the winzapp.md future-intentions list). Gets a tab now,
+    with a plain "ainda não implementado" placeholder, so the window this
+    functionality lands in already exists instead of getting bolted onto
+    Configurações again once it's ready.
 """
 
 import wx
@@ -22,15 +33,38 @@ class AccountsDialog(wx.Dialog):
         super().__init__(
             parent,
             title=i18n.t("accounts_dialog_title"),
-            size=(480, 520),
+            size=(480, 560),
             style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER,
         )
         self._i18n = i18n
 
-        panel = wx.Panel(self)
+        outer_panel = wx.Panel(self)
+        outer_sizer = wx.BoxSizer(wx.VERTICAL)
+
+        self._notebook = wx.Notebook(outer_panel)
+        self._build_privacy_tab(i18n)
+        self._build_profile_tab(i18n)
+        self._build_blocked_contacts_tab(i18n)
+        outer_sizer.Add(self._notebook, 1, wx.EXPAND | wx.ALL, 8)
+
+        close_btn = wx.Button(outer_panel, wx.ID_CLOSE, i18n.t("close"))
+        outer_sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
+        close_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_CLOSE))
+        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_CLOSE))
+
+        outer_panel.SetSizer(outer_sizer)
+        outer = wx.BoxSizer(wx.VERTICAL)
+        outer.Add(outer_panel, 1, wx.EXPAND)
+        self.SetSizer(outer)
+
+        self._load_values()
+
+    # ── Privacidade (WPP.privacy bridge) ────────────────────────────────────
+
+    def _build_privacy_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        # ── WhatsApp account privacy (WPP.privacy bridge) ───────────────────
         # Six simple-enum settings; "who sees my Status/Stories" needs a
         # contact-list picker instead of a dropdown, so it isn't here yet.
         self._wa_privacy_section_label = wx.StaticText(
@@ -78,18 +112,8 @@ class AccountsDialog(wx.Dialog):
         sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
-        sizer.AddStretchSpacer()
-        close_btn = wx.Button(panel, wx.ID_CLOSE, i18n.t("close"))
-        sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
-        close_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_CLOSE))
-        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_CLOSE))
-
         panel.SetSizer(sizer)
-        outer = wx.BoxSizer(wx.VERTICAL)
-        outer.Add(panel, 1, wx.EXPAND)
-        self.SetSizer(outer)
-
-        self._load_values()
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_privacy"))
 
     def _load_values(self):
         wa_privacy = self.main_window.fetch_privacy_settings()
@@ -140,3 +164,120 @@ class AccountsDialog(wx.Dialog):
             )
         else:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
+
+    # ── Perfil ────────────────────────────────────────────────────────────
+
+    def _build_profile_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        sizer.Add(wx.StaticText(panel, label=i18n.t("profile_blank_note")), 0, wx.ALL, 8)
+
+        sizer.Add(wx.StaticText(panel, label=i18n.t("profile_name_label")), 0,
+                  wx.LEFT | wx.TOP, 8)
+        self._profile_name_field = wx.TextCtrl(panel)
+        sizer.Add(self._profile_name_field, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+        sizer.Add(wx.StaticText(panel, label=i18n.t("profile_status_label")), 0,
+                  wx.LEFT | wx.TOP, 8)
+        self._profile_status_field = wx.TextCtrl(panel)
+        sizer.Add(self._profile_status_field, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+
+        sizer.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        sizer.Add(wx.StaticText(panel, label=i18n.t("profile_photo_label")), 0, wx.ALL, 8)
+        choose_photo_btn = wx.Button(panel, label=i18n.t("profile_choose_photo_button"))
+        choose_photo_btn.Bind(wx.EVT_BUTTON, self._on_choose_profile_photo)
+        sizer.Add(choose_photo_btn, 0, wx.LEFT | wx.RIGHT, 8)
+        self._profile_photo_path = None
+        self._profile_photo_label = wx.StaticText(panel, label=i18n.t("profile_no_photo_chosen"))
+        sizer.Add(self._profile_photo_label, 0, wx.ALL, 8)
+
+        self._profile_status_msg = wx.StaticText(panel, label="")
+        sizer.Add(self._profile_status_msg, 0, wx.ALL, 8)
+
+        self._profile_save_btn = wx.Button(panel, label=i18n.t("profile_save_button"))
+        self._profile_save_btn.Bind(wx.EVT_BUTTON, self._on_save_profile)
+        sizer.Add(self._profile_save_btn, 0, wx.ALL, 8)
+
+        panel.SetSizer(sizer)
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_profile"))
+
+    def _on_choose_profile_photo(self, event):
+        i18n = self._i18n
+        with wx.FileDialog(
+            self, i18n.t("profile_choose_photo_button"),
+            wildcard=i18n.t("profile_photo_wildcard"),
+            style=wx.FD_OPEN | wx.FD_FILE_MUST_EXIST,
+        ) as file_dlg:
+            if file_dlg.ShowModal() != wx.ID_OK:
+                return
+            self._profile_photo_path = file_dlg.GetPath()
+        import os
+        self._profile_photo_label.SetLabel(os.path.basename(self._profile_photo_path))
+
+    def _on_save_profile(self, event):
+        i18n = self._i18n
+        name = self._profile_name_field.GetValue().strip()
+        status = self._profile_status_field.GetValue().strip()
+        photo = self._profile_photo_path
+
+        if not name and not status and not photo:
+            wx.MessageBox(
+                i18n.t("profile_nothing_to_save"),
+                i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR, self,
+            )
+            return
+
+        self._profile_save_btn.Disable()
+        self._profile_status_msg.SetLabel(i18n.t("profile_saving"))
+
+        def _work():
+            errors = []
+            if name:
+                err = self.main_window.set_profile_name(name)
+                if err:
+                    errors.append(f"{i18n.t('profile_name_label')}: {err}")
+            if status:
+                err = self.main_window.set_profile_status(status)
+                if err:
+                    errors.append(f"{i18n.t('profile_status_label')}: {err}")
+            if photo:
+                err = self.main_window.set_profile_pic(photo)
+                if err:
+                    errors.append(f"{i18n.t('profile_photo_label')}: {err}")
+            wx.CallAfter(self._on_profile_save_done, errors)
+
+        import threading
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_profile_save_done(self, errors):
+        i18n = self._i18n
+        self._profile_save_btn.Enable()
+        self._profile_status_msg.SetLabel("")
+        if errors:
+            wx.MessageBox(
+                i18n.t("profile_save_partial_error") + "\n\n" + "\n".join(errors),
+                i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR, self,
+            )
+        else:
+            wx.MessageBox(
+                i18n.t("profile_save_success"),
+                i18n.t("wa_settings_tab_profile"), wx.OK | wx.ICON_INFORMATION, self,
+            )
+            self._profile_name_field.SetValue("")
+            self._profile_status_field.SetValue("")
+            self._profile_photo_path = None
+            self._profile_photo_label.SetLabel(i18n.t("profile_no_photo_chosen"))
+
+    # ── Contatos bloqueados (placeholder — not implemented yet) ─────────────
+
+    def _build_blocked_contacts_tab(self, i18n):
+        panel = wx.Panel(self._notebook)
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        label = wx.StaticText(panel, label=i18n.t("wa_blocked_contacts_coming_soon"))
+        label.Wrap(400)
+        sizer.Add(label, 0, wx.ALL, 12)
+        panel.SetSizer(sizer)
+        self._notebook.AddPage(panel, i18n.t("wa_settings_tab_blocked"))

@@ -5,11 +5,13 @@ build a filter, see a panorama of what it matches, THEN decide whether to
 actually delete anything.
 """
 
+import logging
 import threading
 
 import wx
 
 from core.cleanup import MEDIA_CATEGORIES, execute_cleanup, scan_cleanup_candidates
+from ui.dialogs.chat_picker import ChatCheckList
 
 _CATEGORY_LABEL_KEYS = {
     "photos": "backup_cat_photos",
@@ -35,22 +37,9 @@ class CleanupDialog(wx.Dialog):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         sizer.Add(wx.StaticText(panel, label=i18n.t("cleanup_chats_label")), 0, wx.ALL, 8)
-        self._chat_list = wx.CheckListBox(panel)
-        self._chat_jids = []
-        for jid, chat in sorted(
-            main_window.chats.items(),
-            key=lambda kv: (kv[1].get("name") or kv[1].get("pushName") or kv[0]).lower(),
-        ):
-            name = chat.get("name") or chat.get("pushName") or jid
-            self._chat_jids.append(jid)
-            self._chat_list.Append(name)
-        for i in range(self._chat_list.GetCount()):
-            self._chat_list.Check(i, True)
-        sizer.Add(self._chat_list, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
-
-        select_all_btn = wx.Button(panel, label=i18n.t("backup_select_all_button"))
-        select_all_btn.Bind(wx.EVT_BUTTON, self._on_select_all)
-        sizer.Add(select_all_btn, 0, wx.ALL, 8)
+        self._chat_picker = ChatCheckList(panel, i18n)
+        sizer.Add(self._chat_picker, 1, wx.EXPAND | wx.LEFT | wx.RIGHT, 8)
+        self._load_chat_options()
 
         sizer.Add(wx.StaticLine(panel), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         sizer.Add(wx.StaticText(panel, label=i18n.t("backup_media_types_label")), 0, wx.ALL, 8)
@@ -95,18 +84,31 @@ class CleanupDialog(wx.Dialog):
 
         panel.SetSizer(sizer)
 
-    def _on_select_all(self, event):
-        all_checked = all(self._chat_list.IsChecked(i) for i in range(self._chat_list.GetCount()))
-        for i in range(self._chat_list.GetCount()):
-            self._chat_list.Check(i, not all_checked)
+    def _load_chat_options(self):
+        """Populate the picker from the app's own conversation lists (main +
+        archived), never from a contacts search. get_backup_chat_options()
+        can do blocking network requests (uncached group names), so it runs
+        on a background thread — the picker shows its own loading row
+        meanwhile (ChatCheckList.set_loading(), already called by its
+        constructor)."""
+        main_window = self.main_window
 
-    def _selected_jids(self):
-        return [self._chat_jids[i] for i in range(self._chat_list.GetCount())
-                if self._chat_list.IsChecked(i)]
+        def _work():
+            try:
+                options = main_window.get_backup_chat_options()
+            except Exception:
+                logging.exception("[CleanupDialog] failed to load chat options")
+                options = []
+            wx.CallAfter(self._on_chat_options_loaded, options)
+
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_chat_options_loaded(self, options):
+        self._chat_picker.set_options(options, check_all=True)
 
     def _on_scan(self, event):
         i18n = self._i18n
-        selected_jids = self._selected_jids()
+        selected_jids = self._chat_picker.checked_jids()
         if not selected_jids:
             wx.MessageBox(i18n.t("backup_no_chats_selected"), i18n.t("error").format(
                 app_name=self.main_window.app_name), wx.OK | wx.ICON_ERROR, self)

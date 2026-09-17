@@ -1715,13 +1715,6 @@ def unexpired_group_send_verdict(stored, now, max_age_seconds):
 
 
 class MainWindow(wx.Frame):
-    # Contas > Privacidade menu item — hidden while WPP.privacy's write path
-    # (Apply) is broken by an upstream wa-js bug (setPrivacyForOneCategory
-    # never resolves; bug report filed with wppconnect-team/wa-js). Flip back
-    # to True once that's fixed. See _build_menubar()'s own comment at the
-    # point this is checked.
-    _ACC_PRIVACY_MENU_ENABLED = False
-
     def __init__(self, account_id=None, account_name=None, startup_source="user",
                  resume_pending=False, registry=None, global_dir=None):
         import time as _time
@@ -2785,10 +2778,32 @@ class MainWindow(wx.Frame):
         except Exception:
             return False
 
+    # Kept dormant on purpose (see _build_menubar): the debug-only "force
+    # reinstall from ZIP" action still works, it's just no longer surfaced in
+    # the visible Ajuda submenu — same pattern _ACC_PRIVACY_MENU_ENABLED used
+    # before it moved to Configurações do WhatsApp. Flip this back to True to
+    # get it back on screen without reconstructing it from scratch.
+    _HELP_FORCE_REINSTALL_ZIP_ENABLED = False
+
     def _build_menubar(self):
-        """Create the menu bar with Arquivo, Sincronização and Ajuda menus."""
+        """Create the menu bar.
+
+        As of the 2026-09 reorganization there is a single top-level entry —
+        "Menu" (menu_main) — instead of the previous Arquivo/Sincronização/
+        Contas/Ajuda row. That single entry is what Alt still activates
+        (unchanged), and it holds every other menu as a *nested* wx.Menu
+        (Contas, Mensagens, Configurações, Ajuda), reached with the Right
+        arrow instead of Left/Right cycling across the bar. This is what
+        gives the requested "menu vertical" navigation — Down/Up moves
+        between rows in whichever menu is open, Right drills into a row that
+        has its own submenu — and it needed no custom control at all: a
+        wx.Menu already behaves exactly like this once it has more than one
+        level, so NVDA reads it exactly as it reads any other native Windows
+        menu.
+        """
         self._ID_MARK_ALL_READ = wx.NewIdRef()
         self._ID_SETTINGS      = wx.NewIdRef()
+        self._ID_WA_SETTINGS   = wx.NewIdRef()
         self._ID_DISCONNECT    = wx.NewIdRef()
         self._ID_EXIT          = wx.NewIdRef()
         self._ID_RESYNC_ALL    = wx.NewIdRef()
@@ -2800,53 +2815,27 @@ class MainWindow(wx.Frame):
         self._ID_FORCE_REINSTALL_WPP = wx.NewIdRef()
         self._ID_WHATS_NEW     = wx.NewIdRef()
         self._ID_ABOUT         = wx.NewIdRef()
+        self._ID_NEW_CONVERSATION = wx.NewIdRef()
+        self._ID_NEW_GROUP     = wx.NewIdRef()
+        self._ID_NEW_CONTACT   = wx.NewIdRef()
+        self._ID_HELP_GUIDE    = wx.NewIdRef()
 
         menubar = wx.MenuBar()
+        root_menu = wx.Menu()
 
-        # ── Arquivo ───────────────────────────────────────────────────────────
-        file_menu = wx.Menu()
-        file_menu.Append(
-            self._ID_MARK_ALL_READ,
-            f"{self.i18n.t('menu_mark_all_read')}\tCtrl+Shift+Alt+M",
+        # ── Nova conversa / Novo grupo / Novo contato ───────────────────────
+        root_menu.Append(
+            self._ID_NEW_CONVERSATION,
+            f"{self.i18n.t('menu_new_conversation')}\tCtrl+N",
         )
-        file_menu.AppendSeparator()
-        file_menu.Append(
-            self._ID_SETTINGS,
-            f"{self.i18n.t('menu_settings')}\tCtrl+,",
-        )
-        file_menu.AppendSeparator()
-        file_menu.Append(
-            self._ID_DISCONNECT,
-            f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D",
-        )
-        file_menu.AppendSeparator()
-        file_menu.Append(
-            self._ID_EXIT,
-            f"{self.i18n.t('menu_exit')}\tCtrl+Alt+Shift+Q",
-        )
-        menubar.Append(file_menu, self.i18n.t("menu_file"))
+        root_menu.Append(self._ID_NEW_GROUP, self.i18n.t("menu_new_group"))
+        root_menu.Append(self._ID_NEW_CONTACT, self.i18n.t("menu_new_contact"))
+        root_menu.AppendSeparator()
 
-        # ── Sincronização ─────────────────────────────────────────────────────
-        sync_menu = wx.Menu()
-        sync_menu.Append(
-            self._ID_RESYNC_ALL,
-            f"{self.i18n.t('menu_resync_all')}\tF5",
-        )
-        sync_menu.Append(
-            self._ID_SYNC_MEDIA,
-            f"{self.i18n.t('menu_sync_media')}\tCtrl+Shift+Alt+B",
-        )
-        self._sync_offline_menu_item = sync_menu.AppendCheckItem(
-            self._ID_OFFLINE_MENU,
-            f"{self.i18n.t('tray_offline_mode')}\tCtrl+Alt+Shift+O",
-        )
-        self._sync_offline_menu_item.Check(bool(self.offline_mode))
-        menubar.Append(sync_menu, self.i18n.t("menu_sync"))
-
-        # ── Konta (multi-account) ─────────────────────────────────────────────
-        # Always built (unlike before) — "Privacidade" (the WhatsApp account
-        # settings dialog) belongs here regardless of whether multi-account
-        # switching is active, so this menu must exist even with
+        # ── Contas (multi-account) ───────────────────────────────────────────
+        # Always built (unlike before "Konta" existed at all) — Modo offline
+        # and Desconectar live here regardless of whether multi-account
+        # switching is active, so this submenu must exist even with
         # account_id/registry unset (single-account installs).
         self._accounts_menu_id_map = {}
         accounts_menu = wx.Menu()
@@ -2896,22 +2885,49 @@ class MainWindow(wx.Frame):
 
         if _accounts_menu_had_switcher_items:
             accounts_menu.AppendSeparator()
-        self._ID_ACC_PRIVACY = wx.NewIdRef()
-        # Hidden while the WhatsApp account privacy dialog's Apply is broken
-        # by an upstream wa-js bug (setPrivacyForOneCategory never resolves —
-        # bug report filed with wppconnect-team/wa-js). Re-enable this once
-        # that's actually fixed; see accounts_dialog.py for the dialog itself,
-        # which still works fine to just LOOK at the current settings.
-        if self._ACC_PRIVACY_MENU_ENABLED:
-            accounts_menu.Append(self._ID_ACC_PRIVACY, self.i18n.t("menu_acc_privacy"))
-            self.Bind(wx.EVT_MENU, self.on_open_accounts, id=self._ID_ACC_PRIVACY)
-        self._ID_ACC_BACKUP = wx.NewIdRef()
-        accounts_menu.Append(self._ID_ACC_BACKUP, self.i18n.t("menu_acc_backup"))
-        self.Bind(wx.EVT_MENU, self._on_open_backup, id=self._ID_ACC_BACKUP)
-        self._ID_ACC_PROFILE = wx.NewIdRef()
-        accounts_menu.Append(self._ID_ACC_PROFILE, self.i18n.t("menu_acc_profile"))
-        self.Bind(wx.EVT_MENU, self._on_open_profile, id=self._ID_ACC_PROFILE)
-        menubar.Append(accounts_menu, self.i18n.t("acc_menu_title"))
+        if _accounts_menu_had_switcher_items:
+            accounts_menu.AppendSeparator()
+        self._sync_offline_menu_item = accounts_menu.AppendCheckItem(
+            self._ID_OFFLINE_MENU,
+            f"{self.i18n.t('tray_offline_mode')}\tCtrl+Alt+Shift+O",
+        )
+        self._sync_offline_menu_item.Check(bool(self.offline_mode))
+        accounts_menu.Append(
+            self._ID_DISCONNECT,
+            f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D",
+        )
+        root_menu.AppendSubMenu(accounts_menu, self.i18n.t("acc_menu_title"))
+
+        # ── Mensagens ─────────────────────────────────────────────────────────
+        messages_menu = wx.Menu()
+        messages_menu.Append(
+            self._ID_RESYNC_ALL,
+            f"{self.i18n.t('menu_resync_all')}\tF5",
+        )
+        messages_menu.Append(
+            self._ID_SYNC_MEDIA,
+            f"{self.i18n.t('menu_sync_media')}\tCtrl+Shift+Alt+B",
+        )
+        messages_menu.Append(
+            self._ID_MARK_ALL_READ,
+            f"{self.i18n.t('menu_mark_all_read')}\tCtrl+Shift+Alt+M",
+        )
+        root_menu.AppendSubMenu(messages_menu, self.i18n.t("menu_messages"))
+
+        # ── Configurações ─────────────────────────────────────────────────────
+        # Backup used to live under Contas — it moved to Configurações >
+        # Armazenamento as a plain button (settings_dialog.py) since it's
+        # squarely a WinZapp-side concern, not a WhatsApp-account one.
+        # Profile editing lives inside accounts_dialog.py's own Perfil tab
+        # (reached through Configurações do WhatsApp below), not a menu
+        # item of its own — same reasoning as Privacidade already got.
+        settings_menu = wx.Menu()
+        settings_menu.Append(
+            self._ID_SETTINGS,
+            f"{self.i18n.t('menu_settings_winzapp')}\tCtrl+,",
+        )
+        settings_menu.Append(self._ID_WA_SETTINGS, self.i18n.t("menu_settings_whatsapp"))
+        root_menu.AppendSubMenu(settings_menu, self.i18n.t("menu_settings"))
 
         # Frame-level Ctrl+0..9 → jump to an existing message bookmark,
         # regardless of which control currently has focus — bound
@@ -2946,7 +2962,6 @@ class MainWindow(wx.Frame):
 
         # ── Ajuda ─────────────────────────────────────────────────────────────
         help_menu = wx.Menu()
-        self._ID_HELP_GUIDE = wx.NewIdRef()
         help_menu.Append(self._ID_HELP_GUIDE, self.i18n.t("menu_help_guide"))
         self.Bind(wx.EVT_MENU, self._on_open_help_guide, id=self._ID_HELP_GUIDE)
         help_menu.AppendSeparator()
@@ -2956,16 +2971,33 @@ class MainWindow(wx.Frame):
         )
         help_menu.AppendSeparator()
         help_menu.Append(self._ID_FORCE_UPDATE, self.i18n.t("menu_force_update"))
-        help_menu.Append(self._ID_FORCE_REINSTALL_ZIP, self.i18n.t("menu_force_reinstall_zip"))
+        # Debug-only, kept out of the visible menu — see
+        # _HELP_FORCE_REINSTALL_ZIP_ENABLED's own comment.
+        if self._HELP_FORCE_REINSTALL_ZIP_ENABLED:
+            help_menu.Append(self._ID_FORCE_REINSTALL_ZIP, self.i18n.t("menu_force_reinstall_zip"))
         help_menu.Append(self._ID_FORCE_REINSTALL_WPP, self.i18n.t("menu_force_reinstall_wpp"))
         help_menu.AppendSeparator()
         help_menu.Append(self._ID_WHATS_NEW, self.i18n.t("menu_whats_new"))
         help_menu.Append(self._ID_ABOUT, self.i18n.t("menu_about"))
-        menubar.Append(help_menu, self.i18n.t("menu_help"))
+        root_menu.AppendSubMenu(help_menu, self.i18n.t("menu_help"))
 
+        # ── Sair ──────────────────────────────────────────────────────────────
+        # A plain leaf row, not its own submenu — it's the last stop in the
+        # single "Menu" popup rather than a separate top-level bar entry.
+        root_menu.AppendSeparator()
+        root_menu.Append(
+            self._ID_EXIT,
+            f"{self.i18n.t('menu_exit')}\tCtrl+Alt+Shift+Q",
+        )
+
+        menubar.Append(root_menu, self.i18n.t("menu_main"))
         self.SetMenuBar(menubar)
+        self.Bind(wx.EVT_MENU, self._on_menu_new_conversation, id=self._ID_NEW_CONVERSATION)
+        self.Bind(wx.EVT_MENU, self._on_menu_new_group,        id=self._ID_NEW_GROUP)
+        self.Bind(wx.EVT_MENU, self._on_menu_new_contact,      id=self._ID_NEW_CONTACT)
         self.Bind(wx.EVT_MENU, self._on_mark_all_read, id=self._ID_MARK_ALL_READ)
         self.Bind(wx.EVT_MENU, self.on_ctrl_comma,     id=self._ID_SETTINGS)
+        self.Bind(wx.EVT_MENU, self._on_open_whatsapp_settings, id=self._ID_WA_SETTINGS)
         self.Bind(wx.EVT_MENU, self._on_menu_disconnect, id=self._ID_DISCONNECT)
         self.Bind(wx.EVT_MENU, lambda e: self.quit_all_accounts(), id=self._ID_EXIT)
         self.Bind(wx.EVT_MENU, self._on_menu_resync_all, id=self._ID_RESYNC_ALL)
@@ -2977,6 +3009,27 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self._on_force_reinstall_wpp, id=self._ID_FORCE_REINSTALL_WPP)
         self.Bind(wx.EVT_MENU, self._on_whats_new,     id=self._ID_WHATS_NEW)
         self.Bind(wx.EVT_MENU, self._on_about,         id=self._ID_ABOUT)
+
+    def _on_menu_new_conversation(self, event=None):
+        self.conversations_panel._on_new_conversation()
+
+    def _on_menu_new_group(self, event=None):
+        from ui.dialogs.new_group import NewGroupDialog
+        dlg = NewGroupDialog(self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _on_menu_new_contact(self, event=None):
+        from ui.dialogs.new_contact import NewContactDialog
+        dlg = NewContactDialog(self)
+        dlg.ShowModal()
+        dlg.Destroy()
+
+    def _on_open_whatsapp_settings(self, event=None):
+        from ui.dialogs.accounts_dialog import AccountsDialog
+        dlg = AccountsDialog(self, self)
+        dlg.ShowModal()
+        dlg.Destroy()
 
     def _on_account_hotkey_char(self, event):
         """Frame-level Ctrl+Alt+1..9 → switch to the n-th paired account.
@@ -3444,84 +3497,23 @@ class MainWindow(wx.Frame):
                          name="winzapp-quit-all").start()
 
     def _refresh_menubar(self):
-        """Retranslate the menu bar labels after a language change."""
-        mb = self.GetMenuBar()
-        if mb is None:
+        """Retranslate the menu bar after a language change.
+
+        Used to patch every wx.MenuItem's label in place, keyed off
+        hardcoded top-level indices — fragile by nature (the Ajuda index
+        already needed a find-by-item-id fallback because Contas came and
+        went) and worse now that Contas/Mensagens/Configurações/Ajuda are
+        nested submenus of a single root "Menu" rather than separate
+        top-level entries. _build_menubar() already doubles as a safe
+        "rebuild from current state" — the account-registry-changed paths
+        (_on_accounts_menu, _refresh_accounts_menu_if_stale) already call it
+        directly for the same reason — so a language change just does the
+        same thing instead of maintaining a second, parallel description of
+        the same menu tree.
+        """
+        if self.GetMenuBar() is None:
             return
-        file_menu = mb.GetMenu(0)
-        mb.SetMenuLabel(0, self.i18n.t("menu_file"))
-        file_menu.FindItemById(self._ID_MARK_ALL_READ).SetItemLabel(
-            f"{self.i18n.t('menu_mark_all_read')}\tCtrl+Shift+Alt+M"
-        )
-        file_menu.FindItemById(self._ID_SETTINGS).SetItemLabel(
-            f"{self.i18n.t('menu_settings')}\tCtrl+,"
-        )
-        file_menu.FindItemById(self._ID_DISCONNECT).SetItemLabel(
-            f"{self.i18n.t('menu_disconnect')}\tCtrl+Alt+Shift+D"
-        )
-        file_menu.FindItemById(self._ID_EXIT).SetItemLabel(
-            f"{self.i18n.t('menu_exit')}\tCtrl+Alt+Shift+Q"
-        )
-        mb.SetMenuLabel(1, self.i18n.t("menu_sync"))
-        mb.GetMenu(1).FindItemById(self._ID_RESYNC_ALL).SetItemLabel(
-            f"{self.i18n.t('menu_resync_all')}\tF5"
-        )
-        mb.GetMenu(1).FindItemById(self._ID_SYNC_MEDIA).SetItemLabel(
-            f"{self.i18n.t('menu_sync_media')}\tCtrl+Shift+Alt+B"
-        )
-        mb.GetMenu(1).FindItemById(self._ID_OFFLINE_MENU).SetItemLabel(
-            f"{self.i18n.t('tray_offline_mode')}\tCtrl+Alt+Shift+O"
-        )
-        # Konta/Contas is now always menu index 2 (it used to only exist with
-        # multi-account active) — see on_open_accounts()'s docstring for why
-        # "Privacidade" lives here rather than under Arquivo.
-        mb.SetMenuLabel(2, self.i18n.t("acc_menu_title"))
-        acc_privacy_item = mb.GetMenu(2).FindItemById(self._ID_ACC_PRIVACY)
-        if acc_privacy_item is not None:
-            acc_privacy_item.SetItemLabel(self.i18n.t("menu_acc_privacy"))
-        acc_backup_item = mb.GetMenu(2).FindItemById(self._ID_ACC_BACKUP)
-        if acc_backup_item is not None:
-            acc_backup_item.SetItemLabel(self.i18n.t("menu_acc_backup"))
-        acc_profile_item = mb.GetMenu(2).FindItemById(self._ID_ACC_PROFILE)
-        if acc_profile_item is not None:
-            acc_profile_item.SetItemLabel(self.i18n.t("menu_acc_profile"))
-        # The Help menu is NOT at a fixed index: with multi-account a "Konta"
-        # menu sits between Sync and Help (File=0, Sync=1, Konta=2, Help=3),
-        # without it Help is at index 2. Locate it by the item it owns rather
-        # than hard-coding index 2 — otherwise a language change would relabel
-        # the "Konta" menu as "Help" and retranslate the wrong menu.
-        help_idx = mb.FindMenu(self.i18n.t("menu_help"))
-        if help_idx == wx.NOT_FOUND:
-            help_menu = None
-            for i in range(mb.GetMenuCount()):
-                if mb.GetMenu(i).FindItemById(self._ID_ABOUT) is not None:
-                    help_idx, help_menu = i, mb.GetMenu(i)
-                    break
-        else:
-            help_menu = mb.GetMenu(help_idx)
-        if help_menu is not None:
-            mb.SetMenuLabel(help_idx, self.i18n.t("menu_help"))
-            help_menu.FindItemById(self._ID_HELP_GUIDE).SetItemLabel(
-                self.i18n.t("menu_help_guide")
-            )
-            help_menu.FindItemById(self._ID_SHORTCUTS).SetItemLabel(
-                f"{self.i18n.t('menu_shortcuts')}\tF1"
-            )
-            help_menu.FindItemById(self._ID_FORCE_UPDATE).SetItemLabel(
-                self.i18n.t("menu_force_update")
-            )
-            help_menu.FindItemById(self._ID_FORCE_REINSTALL_ZIP).SetItemLabel(
-                self.i18n.t("menu_force_reinstall_zip")
-            )
-            help_menu.FindItemById(self._ID_FORCE_REINSTALL_WPP).SetItemLabel(
-                self.i18n.t("menu_force_reinstall_wpp")
-            )
-            help_menu.FindItemById(self._ID_WHATS_NEW).SetItemLabel(
-                self.i18n.t("menu_whats_new")
-            )
-            help_menu.FindItemById(self._ID_ABOUT).SetItemLabel(
-                self.i18n.t("menu_about")
-            )
+        self._build_menubar()
 
     def _on_whats_new(self, event=None):
         """Help > Novidades: show the full local changelog for the user's
@@ -10392,29 +10384,6 @@ class MainWindow(wx.Frame):
                 os.startfile(path)
                 return
         logging.warning("[help_guide] No guide HTML found for %s or pt-BR fallback.", lang)
-
-    def _on_open_backup(self, event):
-        from ui.dialogs.backup_dialog import BackupHubDialog
-        dlg = BackupHubDialog(self, self)
-        dlg.ShowModal()
-        dlg.Destroy()
-
-    def _on_open_profile(self, event):
-        from ui.dialogs.profile_dialog import ProfileDialog
-        dlg = ProfileDialog(self, self)
-        dlg.ShowModal()
-        dlg.Destroy()
-
-    def on_open_accounts(self, event):
-        """Opens the WhatsApp account settings (privacy, and later profile
-        editing). Lives under the Contas/Konta menu (acc_menu_title)
-        rather than Arquivo — putting an "Accounts" item under File as well
-        just duplicated this same menu's name right next to Sync, which is
-        confusing, not two different things."""
-        from ui.dialogs.accounts_dialog import AccountsDialog
-        dlg = AccountsDialog(self, self)
-        dlg.ShowModal()
-        dlg.Destroy()
 
     def apply_language_changes(self):
         """Refresh all visible translatable text after a language change."""
@@ -18145,6 +18114,60 @@ class MainWindow(wx.Frame):
         arch_names = [n for _, n in arch_pairs]
 
         return main_chats, main_names, arch_chats, arch_names
+
+    @staticmethod
+    def _conversation_chat_options(main_chats, main_names, arch_chats, arch_names,
+                                    chats_dict, is_locked):
+        """Build (jid, name, is_group) options for a chat picker (backup,
+        media cleanup) from the app's own already-resolved main+archived
+        conversation lists — never a contacts search, and never a
+        re-derivation of display names. _compute_chat_lists() already
+        handles the phone-number fallback for chats with no contact/display
+        name and already excludes blocked-contact chats; redoing that here
+        would just be a second place to get it wrong.
+
+        *chats_dict* recovers each chat's real self.chats key from its
+        remoteJid — the two are not always the same string after a
+        merge/rename (see _compute_chat_lists()'s own note on this), and
+        backup.py/cleanup.py index main_window.chats by that original key.
+
+        Locked chats are excluded, matching every other list in the app —
+        unlock one from Configurações > Conversas > Conversas trancadas to
+        include it here.
+
+        Extracted as a pure staticmethod (no main_window access beyond what
+        is passed in) so it can be tested without a running wx.App, same as
+        _filter_archived_chats() above.
+        """
+        rjid_to_key = {}
+        for key, chat in chats_dict.items():
+            rjid = chat.get("remoteJid") or key
+            rjid_to_key.setdefault(rjid, key)
+
+        options = []
+        seen: set = set()
+        for chats, names in ((main_chats, main_names), (arch_chats, arch_names)):
+            for chat, name in zip(chats, names):
+                rjid = chat.get("remoteJid") or ""
+                if not rjid or rjid in seen or is_locked(rjid):
+                    continue
+                seen.add(rjid)
+                key = rjid_to_key.get(rjid, rjid)
+                options.append((key, name, rjid.endswith("@g.us")))
+        options.sort(key=lambda o: o[1].lower())
+        return options
+
+    def get_backup_chat_options(self):
+        """(jid, name, is_group) options for the backup/cleanup chat
+        pickers. Calls _compute_chat_lists(), which can do blocking network
+        requests (uncached group names) — safe on a background thread only,
+        never on the wx main thread. See _compute_chat_lists()'s docstring.
+        """
+        main_chats, main_names, arch_chats, arch_names = self._compute_chat_lists()
+        return self._conversation_chat_options(
+            main_chats, main_names, arch_chats, arch_names,
+            dict(self.chats), self.is_chat_locked,
+        )
 
     def _apply_chat_lists(self, main_chats, main_names, arch_chats, arch_names):
         """Apply sorted chat lists to panels and refresh UI. Must run on main thread."""
