@@ -28155,6 +28155,25 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             logging.error("[edit_message] exception for %s: %s", full_id, exc)
 
+    @staticmethod
+    def _profile_error_detail(r) -> str:
+        """The full error a profile-editing route reports, not just its
+        generic top-level "message" (e.g. "Error on set profile name.") —
+        the actual failure (a wa-js/WPPConnect exception, its type, stack)
+        lives in the response's own "error" field, and swallowing it was
+        making every profile-save failure look identical regardless of
+        cause."""
+        try:
+            body = r.json()
+        except Exception:
+            return r.text[:500]
+        message = body.get("message", "")
+        error = body.get("error")
+        if error and error != message:
+            error_str = error if isinstance(error, str) else json.dumps(error, ensure_ascii=False)
+            return f"{message} ({error_str})" if message else error_str
+        return message or r.text[:500]
+
     def set_profile_name(self, name: str) -> "str | None":
         """Sets the account's own displayed WhatsApp name via WPPConnect's
         setProfileName() — its own higher-level client method, not a direct
@@ -28167,7 +28186,7 @@ class MainWindow(wx.Frame):
             r = api_post(url, json={"name": name}, headers=headers, timeout=15)
             if r.ok:
                 return None
-            return r.json().get("message", r.text)
+            return self._profile_error_detail(r)
         except Exception as exc:
             return str(exc)
 
@@ -28181,7 +28200,7 @@ class MainWindow(wx.Frame):
             r = api_post(url, json={"status": status}, headers=headers, timeout=15)
             if r.ok:
                 return None
-            return r.json().get("message", r.text)
+            return self._profile_error_detail(r)
         except Exception as exc:
             return str(exc)
 
@@ -28199,7 +28218,7 @@ class MainWindow(wx.Frame):
                 r = api_post(url, files=files, headers=headers, timeout=30)
             if r.ok:
                 return None
-            return r.json().get("message", r.text)
+            return self._profile_error_detail(r)
         except Exception as exc:
             return str(exc)
 

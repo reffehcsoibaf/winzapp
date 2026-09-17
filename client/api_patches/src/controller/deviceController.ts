@@ -107,7 +107,7 @@ export async function setProfileName(req: Request, res: Response) {
     res.status(500).json({
       status: 'error',
       message: 'Error on set profile name.',
-      error: error,
+      error: String((error as any)?.message || error),
     });
   }
 }
@@ -2077,7 +2077,7 @@ export async function setProfilePic(req: Request, res: Response) {
     res.status(500).json({
       status: 'error',
       message: 'Error changing profile photo',
-      error: e,
+      error: String((e as any)?.message || e),
     });
   }
 }
@@ -4042,7 +4042,11 @@ export async function setProfileStatus(req: Request, res: Response) {
     req.logger.error(e);
     res
       .status(500)
-      .json({ status: 'error', message: 'Error on set profile status' });
+      .json({
+        status: 'error',
+        message: 'Error on set profile status',
+        error: String((e as any)?.message || e),
+      });
   }
 }
 export async function rejectCall(req: Request, res: Response) {
