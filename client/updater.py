@@ -1459,12 +1459,23 @@ class WppUpdateChecker:
         t = threading.Thread(target=self._check_once, daemon=True)
         t.start()
 
-    def force_check(self):
-        """Called from a forced re-check (mirrors UpdateChecker.force_check)."""
+    def force_check(self, manual: bool = False):
+        """Called from a forced re-check (mirrors UpdateChecker.force_check).
+
+        *manual* marks a check the user asked for from Ajuda > Buscar
+        atualizações da WPPConnect, as opposed to the silent periodic one
+        this class also runs on its own. A manual check always reports back
+        — an "already up to date" message when nothing newer is found, or an
+        error message when the remote version couldn't be determined —
+        instead of just scheduling the next silent retry, which is the right
+        behavior for a background check nobody is waiting on but leaves a
+        user who just clicked a menu item wondering whether anything
+        happened at all.
+        """
         if self._retry_timer is not None:
             self._retry_timer.cancel()
             self._retry_timer = None
-        t = threading.Thread(target=self._check_once, daemon=True)
+        t = threading.Thread(target=self._check_once, kwargs={"manual": manual}, daemon=True)
         t.start()
 
     def force_reinstall(self):
@@ -1536,18 +1547,37 @@ class WppUpdateChecker:
             return homologated
         return latest
 
-    def _check_once(self):
+    def _check_once(self, manual: bool = False):
         logging.info("[WppUpdateChecker] Checking for wppconnect-server updates...")
         installed = self._mw._get_installed_wpp_version()
         if not installed:
             # Not installed yet (or version unreadable) — the normal
             # first-run setup / version-gate flow owns that case, not this
             # checker.
+            if manual:
+                wx.CallAfter(self._notify_check_failed)
             self._schedule_retry()
             return
 
-        tag = self._homologated_or_latest_tag()
+        # Manual (Ajuda > Buscar atualizações) and periodic checks deliberately
+        # compare against different targets. The periodic one stays pinned to
+        # _homologated_or_latest_tag() — see that method's own docstring on
+        # why: popping up a prompt the moment upstream publishes anything is
+        # how a patch set that no longer matches (client/api_patches/) reaches
+        # people who never asked to be first. A manual check is the opposite
+        # case — the user explicitly asked "is there something new", and
+        # answering "no" while a real release sits unmentioned because nobody
+        # has gotten around to raising wpp_minimum_version.txt yet is not an
+        # answer, it's the question dodged. So it uses
+        # _newest_available_tag() instead — genuinely the latest GitHub
+        # release, floored at the homologated tag so it can still never
+        # suggest going backwards. It's the same tag Ajuda > Forçar
+        # reinstalação would fetch; this just adds the "is it actually newer"
+        # check in front of it that force-reinstall intentionally skips.
+        tag = self._newest_available_tag() if manual else self._homologated_or_latest_tag()
         if not tag:
+            if manual:
+                wx.CallAfter(self._notify_check_failed)
             self._schedule_retry()
             return
         remote_version = tag.lstrip("vV")
@@ -1560,11 +1590,15 @@ class WppUpdateChecker:
                 "[WppUpdateChecker] Could not compare versions (installed=%r, remote=%r)",
                 installed, remote_version,
             )
+            if manual:
+                wx.CallAfter(self._notify_check_failed)
             self._schedule_retry()
             return
 
         if not newer_available:
             logging.info("[WppUpdateChecker] wppconnect-server is up to date (%s).", installed)
+            if manual:
+                wx.CallAfter(self._notify_up_to_date, installed)
             self._schedule_retry()
             return
 
@@ -1573,6 +1607,35 @@ class WppUpdateChecker:
             installed, remote_version,
         )
         wx.CallAfter(self._prompt_update, installed, remote_version, tag)
+
+    def _notify_up_to_date(self, installed: str):
+        """Manual-check-only feedback: nothing newer than what's installed.
+
+        The periodic background check stays silent here on purpose (see
+        _check_once) — this is only reached from Ajuda > Buscar
+        atualizações da WPPConnect, where the user is waiting on an answer.
+        """
+        i18n = self._mw.i18n
+        wx.MessageBox(
+            i18n.t("wpp_update_up_to_date_msg").format(current=installed),
+            i18n.t("wpp_update_up_to_date_title"),
+            wx.OK | wx.ICON_INFORMATION,
+            self._mw,
+        )
+
+    def _notify_check_failed(self):
+        """Manual-check-only feedback: the remote version couldn't be
+        determined (network issue, unreadable local install, or a version
+        string that didn't parse). Reuses the same message the force-reinstall
+        flow already shows for an equivalent failure.
+        """
+        i18n = self._mw.i18n
+        wx.MessageBox(
+            i18n.t("wpp_update_fetch_failed_msg"),
+            i18n.t("update_error_title"),
+            wx.OK | wx.ICON_ERROR,
+            self._mw,
+        )
 
     def _prompt_update(self, installed: str, remote_version: str, tag: str):
         if not self._mw.wpp_update_may_run_now():

@@ -1,0 +1,2 @@
+usage: build.py [-h] [--onefile]
+build.py: error: unrecognized arguments: cd C:\github\winzapp

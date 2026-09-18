@@ -2812,6 +2812,7 @@ class MainWindow(wx.Frame):
         self._ID_SHORTCUTS     = wx.NewIdRef()
         self._ID_FORCE_UPDATE  = wx.NewIdRef()
         self._ID_FORCE_REINSTALL_ZIP = wx.NewIdRef()
+        self._ID_CHECK_WPP_UPDATE = wx.NewIdRef()
         self._ID_FORCE_REINSTALL_WPP = wx.NewIdRef()
         self._ID_WHATS_NEW     = wx.NewIdRef()
         self._ID_ABOUT         = wx.NewIdRef()
@@ -2975,6 +2976,7 @@ class MainWindow(wx.Frame):
         # _HELP_FORCE_REINSTALL_ZIP_ENABLED's own comment.
         if self._HELP_FORCE_REINSTALL_ZIP_ENABLED:
             help_menu.Append(self._ID_FORCE_REINSTALL_ZIP, self.i18n.t("menu_force_reinstall_zip"))
+        help_menu.Append(self._ID_CHECK_WPP_UPDATE, self.i18n.t("menu_check_wpp_update"))
         help_menu.Append(self._ID_FORCE_REINSTALL_WPP, self.i18n.t("menu_force_reinstall_wpp"))
         help_menu.AppendSeparator()
         help_menu.Append(self._ID_WHATS_NEW, self.i18n.t("menu_whats_new"))
@@ -3006,6 +3008,7 @@ class MainWindow(wx.Frame):
         self.Bind(wx.EVT_MENU, self.on_f1,             id=self._ID_SHORTCUTS)
         self.Bind(wx.EVT_MENU, self._on_force_update,  id=self._ID_FORCE_UPDATE)
         self.Bind(wx.EVT_MENU, self._on_force_reinstall_zip, id=self._ID_FORCE_REINSTALL_ZIP)
+        self.Bind(wx.EVT_MENU, self._on_check_wpp_update, id=self._ID_CHECK_WPP_UPDATE)
         self.Bind(wx.EVT_MENU, self._on_force_reinstall_wpp, id=self._ID_FORCE_REINSTALL_WPP)
         self.Bind(wx.EVT_MENU, self._on_whats_new,     id=self._ID_WHATS_NEW)
         self.Bind(wx.EVT_MENU, self._on_about,         id=self._ID_ABOUT)
@@ -5067,7 +5070,7 @@ class MainWindow(wx.Frame):
             return False
         return not getattr(self, "_pairing_in_progress", False)
 
-    def _start_wpp_update_checker(self, force: bool = False):
+    def _start_wpp_update_checker(self, force: bool = False, manual: bool = False):
         if self.background_mode:
             return
         updates_enabled = self.settings.get("general", {}).get("updates_enabled", True)
@@ -5083,11 +5086,25 @@ class MainWindow(wx.Frame):
         from updater import WppUpdateChecker
         self._wpp_update_checker = WppUpdateChecker(self)
         if force:
-            self._wpp_update_checker.force_check()
+            self._wpp_update_checker.force_check(manual=manual)
         else:
             self._wpp_update_checker.start()
 
+    def _on_check_wpp_update(self, event):
+        """
+        Ajuda > Buscar atualizações da WPPConnect: checks the installed
+        wppconnect-server version against the homologated/latest tag and only
+        offers to update when a newer one actually exists — unlike
+        _on_force_reinstall_wpp below, which always reinstalls the latest
+        release regardless of what's already installed.
 
+        Reuses the same WppUpdateChecker machinery as the silent periodic
+        check (see _start_wpp_update_checker), just triggered on demand and
+        told to report back either way (manual=True): an "already up to
+        date" message when nothing newer is found, or an error message on
+        failure, instead of the periodic check's silent retry.
+        """
+        self._start_wpp_update_checker(force=True, manual=True)
 
     def _on_force_reinstall_wpp(self, event):
         """

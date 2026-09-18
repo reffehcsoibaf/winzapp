@@ -160,36 +160,89 @@ def _wait_until_active(client: genai.Client, uploaded_file, timeout_seconds: int
     return current
 
 
-def _generate_text(client: genai.Client, model: str, prompt: str, media_part) -> str:
-    try:
-        response = client.models.generate_content(
-            model=model,
-            contents=[media_part, prompt],
-        )
-    except ClientError as exc:
-        # Erros comuns: chave inválida, cota excedida, arquivo rejeitado.
-        if "Unsupported MIME type" in str(exc):
-            raise GeminiClientError(
-                "O Gemini não reconheceu o formato deste arquivo. Isso pode "
-                "acontecer com formatos de áudio/vídeo menos comuns — "
-                "avise o desenvolvedor para que esse formato seja tratado "
-                f"corretamente. Detalhe técnico: {exc}"
-            ) from exc
-        raise GeminiClientError(
-            "O Gemini recusou o pedido. Verifique se a chave de API está "
-            f"correta e se ainda há cota disponível. Detalhe técnico: {exc}"
-        ) from exc
-    except APIError as exc:
-        raise GeminiClientError(
-            f"O serviço do Gemini teve um problema temporário. Tente novamente em instantes. Detalhe técnico: {exc}"
-        ) from exc
+# Quantas tentativas extras (além da primeira) para erros temporários do
+# lado do Gemini (503 "model overloaded", 500 interno, 504 timeout, 429
+# limite de requisições por minuto na camada gratuita). Esse tipo de erro
+# costuma se resolver sozinho em segundos — apps prontos (como o app
+# oficial do Gemini) já fazem esse retry por baixo dos panos, por isso a
+# mesma chave "quase nunca falha" em alguns lugares e falha visivelmente
+# aqui sem essa lógica.
+_MAX_RETRIES = 4
 
-    text = (response.text or "").strip()
-    if not text:
-        raise GeminiClientError(
-            "O Gemini não retornou nenhum conteúdo para este arquivo."
-        )
-    return text
+# Espera entre tentativas, em segundos, crescendo a cada nova tentativa
+# (backoff exponencial: 2s, 4s, 8s, 16s). Evita martelar a API logo depois
+# de uma resposta de sobrecarga.
+_RETRY_BASE_DELAY_SECONDS = 2.0
+
+# Códigos de status HTTP que valem a pena tentar de novo. 503/500/504 são
+# problemas do lado do Gemini (sobrecarga, erro interno, timeout); 429 é
+# limite de requisições por minuto, que também costuma liberar sozinho
+# após uma pequena espera. Outros códigos 4xx (400, 401, 403...) indicam
+# um problema que uma nova tentativa não resolve — chave inválida, cota
+# diária esgotada, arquivo rejeitado — e falham na hora, como antes.
+_RETRYABLE_STATUS_CODES = {429, 500, 502, 503, 504}
+
+
+def _is_retryable(exc: APIError) -> bool:
+    code = getattr(exc, "code", None)
+    if code in _RETRYABLE_STATUS_CODES:
+        return True
+    # Alguns erros de sobrecarga do Gemini chegam como ClientError/APIError
+    # sem o código HTTP populado no objeto, mas com "UNAVAILABLE" ou
+    # "overloaded" no texto — cobre esse caso também.
+    text = str(exc).upper()
+    return "UNAVAILABLE" in text or "OVERLOADED" in text
+
+
+def _generate_text(client: genai.Client, model: str, prompt: str, media_part) -> str:
+    last_exc: Optional[Exception] = None
+
+    for attempt in range(1, _MAX_RETRIES + 2):  # 1 tentativa inicial + retries
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=[media_part, prompt],
+            )
+        except ClientError as exc:
+            # Erros comuns: chave inválida, cota excedida, arquivo rejeitado.
+            if "Unsupported MIME type" in str(exc):
+                raise GeminiClientError(
+                    "O Gemini não reconheceu o formato deste arquivo. Isso pode "
+                    "acontecer com formatos de áudio/vídeo menos comuns — "
+                    "avise o desenvolvedor para que esse formato seja tratado "
+                    f"corretamente. Detalhe técnico: {exc}"
+                ) from exc
+            if _is_retryable(exc) and attempt <= _MAX_RETRIES:
+                last_exc = exc
+                time.sleep(_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
+                continue
+            raise GeminiClientError(
+                "O Gemini recusou o pedido. Verifique se a chave de API está "
+                f"correta e se ainda há cota disponível. Detalhe técnico: {exc}"
+            ) from exc
+        except APIError as exc:
+            if _is_retryable(exc) and attempt <= _MAX_RETRIES:
+                last_exc = exc
+                time.sleep(_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
+                continue
+            raise GeminiClientError(
+                f"O serviço do Gemini teve um problema temporário e continuou "
+                f"indisponível após {attempt} tentativas. Tente novamente em "
+                f"instantes. Detalhe técnico: {exc}"
+            ) from exc
+        else:
+            text = (response.text or "").strip()
+            if not text:
+                raise GeminiClientError(
+                    "O Gemini não retornou nenhum conteúdo para este arquivo."
+                )
+            return text
+
+    # Não deveria chegar aqui (o loop sempre retorna ou levanta antes), mas
+    # cobre o caso defensivamente.
+    raise GeminiClientError(
+        f"O serviço do Gemini teve um problema temporário. Tente novamente em instantes. Detalhe técnico: {last_exc}"
+    )
 
 
 def transcribe_audio(

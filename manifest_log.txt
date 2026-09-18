@@ -1,0 +1,4 @@
+[ok] WinZapp.zip: 0c109597e1aa0f64d597656eb60f892d9b91c4e9352f8a0b13b4f9f1ae9e109a
+[ok] WinZappInstaller.exe: ce617f62a8e5f69f9ec79f21f749dbf2be1cea09d5e1745d24441009754acbb6
+
+Written: C:\github\winzapp\dist\SHA256SUMS.txt

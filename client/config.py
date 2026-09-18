@@ -34,7 +34,7 @@ _load_dotenv()
 # ── Update source: GitHub Releases ───────────────────────────────────────────
 # Override WINZAPP_GITHUB_REPO in .env to point at a fork.
 
-GITHUB_REPO = os.environ.get("WINZAPP_GITHUB_REPO", "gabrielhhaber/WinZapp_Python")
+GITHUB_REPO = os.environ.get("WINZAPP_GITHUB_REPO", "reffehcsoibaf/winzapp")
 
 # The releases LISTING (despite the historical name). Newest-first, paginated —
 # it returns 30 entries unless per_page says otherwise, and it includes
