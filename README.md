@@ -86,11 +86,12 @@ Every release build is gated on the full test suite passing (see [.github/workfl
 
 ### Automated (recommended)
 
-Pushing a stable version tag triggers the [release workflow](.github/workflows/release.yml), which runs the test suite and, if it passes, builds `WinZappInstaller.exe` and `WinZapp.zip` on GitHub's own servers and attaches them to a **draft** release. The maintainer then signs the draft with the offline release key and publishes it (requires the [GitHub CLI](https://cli.github.com/)):
+Creating a draft release for a stable version tag triggers the [release workflow](.github/workflows/release.yml) — it fires on the `release: created` event, not on the tag push by itself. The workflow runs the test suite and, if it passes, builds `WinZappInstaller.exe` and `WinZapp.zip` on GitHub's own servers and attaches them to that **draft** release. The maintainer then signs the draft with the offline release key and publishes it. Everything below runs from the [GitHub CLI](https://cli.github.com/) — no binary ever gets uploaded from the maintainer's own connection, only the small text files (`SHA256SUMS.txt` download and the `.sig` upload):
 
 ```powershell
-git tag v1.2.3.0
-git push origin v1.2.3.0
+gh release create v1.2.3.0 --draft --title "v1.2.3.0" --generate-notes
+# creates the tag and the draft release in one step, which starts the build.
+# Watch it with: gh run watch --repo <owner>/<repo>
 # wait for the Release Build workflow to finish, then:
 venv\Scripts\python.exe .github\scripts\release_signing.py sign-stable v1.2.3.0 --key <path to stable-primary.pem>
 ```
