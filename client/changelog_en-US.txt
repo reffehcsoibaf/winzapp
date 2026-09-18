@@ -62,6 +62,8 @@ FIXES
 
 - Switching accounts now clears the previous account's media properly, which could otherwise be left behind on the computer.
 
+- Business list/option messages (the "choose an option" menus WhatsApp Business sends) sometimes arrived empty, with no options to pick from. WinZapp now fetches the content directly from WhatsApp Web when this happens — both when the message arrives and when you navigate to it with the keyboard — and shows the options normally again, even for messages that had already arrived empty before.
+
 V1.1.0.0
 
 This release adds the Media tab, a media viewer in its own window, link previews, bulk actions and an Accessibility tab in settings. Conversation syncing is much faster, and the conversation list is no longer rebuilt on every message, which cuts down a great deal of screen-reader re-reading.

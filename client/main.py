@@ -6577,6 +6577,7 @@ class MainWindow(wx.Frame):
             except Exception as e:
                 logging.error(f"[on_new_message] Failed to insert message to DB: {e}")
         _insert_fut = self._msg_bg_executor.submit(_bg_insert_msg)
+        self._maybe_enrich_empty_interactive_message(remote_jid, msg)
         if remote_jid.endswith("@lid"):
             # This message is being filed under a JID that a later merge will
             # rename (the @lid is only resolved to a phone JID once
@@ -7090,6 +7091,7 @@ class MainWindow(wx.Frame):
             except Exception as e:
                 logging.error(f"[on_historical_message] Failed to insert message to DB: {e}")
         self._msg_bg_executor.submit(_bg_insert_msg)
+        self._maybe_enrich_empty_interactive_message(remote_jid, msg)
 
         # Debounced UI update
         self._schedule_save(dirty_jid=remote_jid)
@@ -28299,6 +28301,206 @@ class MainWindow(wx.Frame):
         except Exception as exc:
             logging.warning("[fetch_message_ack] exception for %s: %s", full_id, exc)
             return None
+
+    def _fetch_live_message_model(self, remote_jid: str, msg_key: dict) -> "dict | None":
+        """Fetch a message directly via WPPConnect's own GET /message-by-id/
+        <id> (deviceController.getMessageById -> req.client.getMessageById()
+        -> WhatsApp Web's own live in-page Store), independent of whatever
+        the 'received-message' Socket.IO event already serialized and sent
+        us.
+
+        Originally added as a debug probe to investigate interactive
+        messages (listMessage/buttonsMessage/templateMessage) that arrive
+        over the socket with their type set but content empty (e.g.
+        message.listMessage == {}) — see winzapp area notes. Confirmed live:
+        for a listMessage that arrived empty over the socket, this call
+        returned the full title/sections/rows straight from the Store — so
+        the gap is WPPConnect's own event serialization, not a WhatsApp-side
+        limitation, and this fetch is the real fix path (used by
+        _maybe_enrich_empty_interactive_message() below), not just
+        diagnostics. Still used directly by the "Depurar: ver JSON bruto da
+        mensagem" debug menu item too. Mirrors fetch_message_ack()'s request
+        shape.
+        """
+        lid_jid = getattr(self, "_phone_to_lid", {}).get(remote_jid, "")
+        if lid_jid:
+            remote_jid = lid_jid
+        chat_jid = remote_jid.replace("@s.whatsapp.net", "@c.us")
+        full_id = self._serialize_msg_id(chat_jid, msg_key)
+        if not full_id:
+            return None
+        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/message-by-id/{full_id}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            r = api_get(url, headers=headers, timeout=15)
+            if r.status_code not in (200, 201):
+                logging.warning("[_fetch_live_message_model] HTTP %s for %s", r.status_code, full_id)
+                return {"_debug_http_status": r.status_code, "_debug_body": r.text[:2000]}
+            return r.json()
+        except Exception as exc:
+            logging.warning("[_fetch_live_message_model] exception for %s: %s", full_id, exc)
+            return {"_debug_exception": str(exc)}
+
+    # Message types confirmed (against a real captured payload — see
+    # _fetch_live_message_model's docstring) to sometimes arrive over the
+    # live/history event with their content empty even though WhatsApp Web's
+    # own Store already holds the real thing. Deliberately narrow: a type
+    # added here without first capturing a real example repeats a mistake
+    # this project has hit before — guessing WhatsApp's wire format instead
+    # of checking it (see CLAUDE.md). buttonsMessage/templateMessage/
+    # interactiveMessage may well have the same bug class, but their live-
+    # Store field names (the equivalent of "list" below) aren't confirmed.
+    _ENRICHABLE_EMPTY_MESSAGE_TYPES = frozenset({"listMessage"})
+
+    @staticmethod
+    def _normalize_live_list_message(live_data) -> "dict | None":
+        """Build WinZapp's canonical listMessage shape — the one
+        _get_message_content()/_show_list_rows() (conversations.py) and
+        _last_msg_preview() (main.py) already read: {"description",
+        "buttonText", "sections": [{"rows": [{"title", "rowId"}]}]} — from
+        the raw live-Store model _fetch_live_message_model() returns
+        (response.data). Field names verified against one real captured
+        message (see _fetch_live_message_model's docstring): data["list"]
+        holds "description", "buttonText" and "sections"[]["rows"][] with
+        "title"/"rowId" on each row. Returns None if `live_data` doesn't
+        look like a list message at all.
+        """
+        if not isinstance(live_data, dict):
+            return None
+        list_data = live_data.get("list")
+        if not isinstance(list_data, dict):
+            return None
+        sections_out = []
+        for sec in list_data.get("sections") or []:
+            if not isinstance(sec, dict):
+                continue
+            rows_out = [
+                {"title": row.get("title", ""), "rowId": row.get("rowId", "")}
+                for row in (sec.get("rows") or [])
+                if isinstance(row, dict)
+            ]
+            sections_out.append({"rows": rows_out})
+        return {
+            "description": list_data.get("description", ""),
+            "buttonText": list_data.get("buttonText", ""),
+            "sections": sections_out,
+        }
+
+    def _maybe_enrich_empty_interactive_message(self, remote_jid: str, msg: dict):
+        """If `msg` is a recognized interactive type that arrived with empty
+        content (message[type] == {}), fetch the real content from
+        WhatsApp Web's live Store in the background and, if found, replace
+        the stub in place and re-persist + refresh the UI.
+
+        `msg` must be the SAME dict object already appended to the chat's
+        in-memory records list (on_new_message()/on_historical_message()
+        both call this right after that append) — mutating it here updates
+        everything already holding that reference without having to find it
+        again. The DB copy still needs its own re-write, since encryption
+        happened at insert time from a snapshot, not a live reference.
+
+        Runs on _msg_bg_executor (never the calling thread) so a slow or
+        offline local WPPConnect server can never stall the live-message
+        path — this app is used daily by blind users over a screen reader,
+        and blocking here is exactly the kind of hang this project has
+        repeatedly had to hunt down elsewhere (see the sync/DB-bridge notes
+        in CLAUDE.md). One attempt per message, via `_interactive_enrich_
+        attempted`: if WhatsApp's own session can't produce the content
+        right now, hammering it again on every reload/resync would only add
+        load without ever succeeding differently.
+        """
+        msg_type = msg.get("messageType", "")
+        if msg_type not in self._ENRICHABLE_EMPTY_MESSAGE_TYPES:
+            return
+        if (msg.get("message") or {}).get(msg_type):
+            return  # already has real content — nothing to do
+        if msg.get("_interactive_enrich_attempted"):
+            return
+        msg["_interactive_enrich_attempted"] = True
+        msg_key = dict(msg.get("key") or {})
+        msg_id_for_log = msg_key.get("id", "")
+        # TEMPORARY DEBUG: explicit trail while tracking down why the
+        # Urgetrauma listMessages stay empty — remove once confirmed fixed.
+        logging.info(
+            "[_maybe_enrich_empty_interactive_message] triggered for %s "
+            "(remote_jid=%s, type=%s)",
+            msg_id_for_log, remote_jid, msg_type,
+        )
+
+        def _bg_enrich():
+            try:
+                fetched = self._fetch_live_message_model(remote_jid, msg_key)
+                status = fetched.get("status") if isinstance(fetched, dict) else None
+                logging.info(
+                    "[_maybe_enrich_empty_interactive_message] fetch for %s -> status=%r",
+                    msg_id_for_log, status,
+                )
+                if not isinstance(fetched, dict) or fetched.get("status") != "Success":
+                    logging.info(
+                        "[_maybe_enrich_empty_interactive_message] %s aborted: %r",
+                        msg_id_for_log, fetched,
+                    )
+                    return
+                data = (fetched.get("response") or {}).get("data")
+                normalized = (
+                    self._normalize_live_list_message(data)
+                    if msg_type == "listMessage" else None
+                )
+                if not normalized or not normalized.get("sections"):
+                    logging.info(
+                        "[_maybe_enrich_empty_interactive_message] %s normalize "
+                        "produced nothing (data keys=%s)",
+                        msg_id_for_log,
+                        list(data.keys()) if isinstance(data, dict) else type(data),
+                    )
+                    return
+                logging.info(
+                    "[_maybe_enrich_empty_interactive_message] %s enriched with %d section(s)",
+                    msg_id_for_log, len(normalized.get("sections") or []),
+                )
+                msg["message"] = dict(msg.get("message") or {})
+                msg["message"][msg_type] = normalized
+                try:
+                    self.db.insert_message(remote_jid, msg)
+                except Exception as e:
+                    logging.error(
+                        "[_maybe_enrich_empty_interactive_message] DB re-insert failed for %s: %s",
+                        msg_id_for_log, e,
+                    )
+                wx.CallAfter(
+                    self._on_interactive_message_enriched, remote_jid, msg_id_for_log
+                )
+            except Exception as e:
+                logging.warning(
+                    "[_maybe_enrich_empty_interactive_message] failed for %s: %s",
+                    msg_id_for_log, e,
+                )
+
+        self._msg_bg_executor.submit(_bg_enrich)
+
+    def _on_interactive_message_enriched(self, remote_jid: str, msg_id: str = ""):
+        """Runs on the main thread once a background enrichment fetch (see
+        _maybe_enrich_empty_interactive_message()) found real content —
+        refreshes whatever's on screen the same way an edit does
+        (_apply_possible_edit() follows the same refresh shape).
+
+        refresh_active_conversation_messages() only repaints each row's
+        *text* in the message list — it never re-fires the selection event,
+        so a listMessage/buttonsMessage the user had already selected keeps
+        showing the empty option buttons it was given at selection time (the
+        fetch was still in flight then). Reported live: NVDA reaches the
+        buttons panel via Tab but announces no buttons inside it, even after
+        the row's own text updates. refresh_selected_message_action_controls()
+        re-fires that selection for `msg_id` specifically, so the buttons
+        panel gets rebuilt with the now-populated rows.
+        """
+        panel = getattr(self, "conversations_panel", None)
+        if (panel is not None and panel.conversation
+                and panel.conversation.get("remoteJid") == remote_jid):
+            panel.refresh_active_conversation_messages()
+            panel.refresh_selected_message_action_controls(msg_id)
+        self._recompute_chat_last_message(remote_jid)
+        self._schedule_set_chats()
 
     def delete_message_for_everyone(self, remote_jid: str, msg_key: dict) -> bool:
         """Revoke a message for everyone via POST /api/session/delete-message.

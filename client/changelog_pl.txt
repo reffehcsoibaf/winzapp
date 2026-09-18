@@ -1,3 +1,53 @@
+V1.1.1.1
+
+Ta wersja zbiera to, co powstało od połączenia z wersją 1.1.1.0 oryginalnego twórcy: naklejki opisywane przez AI, wbudowany w program przewodnik użytkownika, kopię zapasową i przywracanie rozmów, narzędzie do czyszczenia multimediów, edycję statusu i zdjęcia profilowego oraz listę poprawek — w tym wiadomości z listą opcji od firm, które docierały do WinZapp puste.
+
+NOWOŚCI
+
+- Transkrypcja naklejek. Ten sam opis przez AI, który już działał dla zdjęć, działa teraz też dla naklejek, z własnym przełącznikiem w Ustawieniach > Rozmowy > Transkrypcje i opisy.
+
+- Przycisk AI (Transkrybuj/Opisz) obok Otwórz i Zapisz. Dźwięk, zdjęcie, naklejka, wideo i PDF zyskują ten przycisk w tym samym miejscu co pozostałe przyciski akcji wiadomości — wcześniej był dostępny tylko z menu kontekstowego, a dźwięk nie miał do tej pory żadnego przycisku akcji.
+
+- Dane wiadomości w grupach, uczestnik po uczestniku. „Dane wiadomości" wiadomości grupowej pokazują teraz, kto ją dostarczył, przeczytał i odtworzył, pogrupowane według najdalej osiągniętego etapu, zamiast tylko sumy zbiorczej.
+
+- Wyszukiwanie w karcie Rozmowy zarchiwizowane, tak samo jak już działało na głównej liście.
+
+- Wbudowany w program przewodnik użytkownika WinZapp, dostępny z menu Pomoc, a także z ekranu parowania.
+
+- Więcej opcji reakcji na wiadomości. Oprócz 12 szybkich reakcji, przycisk „Więcej emoji…" otwiera ten sam pełny selektor z wyszukiwaniem, używany podczas pisania wiadomości.
+
+- Kopia zapasowa i przywracanie rozmów. Jeden plik (.wzbackup) przechowuje wybrane rozmowy, multimedia i ustawienia, z opcjonalnym hasłem; przywracanie zawsze łączy się z tym, co już istnieje, nigdy niczego nie nadpisuje.
+
+- Narzędzie do czyszczenia multimediów w Ustawieniach > Pamięć: filtruje według rozmowy, typu multimediów i minimalnego rozmiaru, pokazuje podsumowanie przed jakimkolwiek usunięciem i usuwa tylko już pobrane pliki — nigdy same wiadomości.
+
+- Edycja statusu i zdjęcia profilowego bezpośrednio z WinZapp, bez konieczności otwierania WhatsApp na telefonie.
+
+- Wiadomości z listą opcji od firm (te menu „wybierz opcję", które wysyła WhatsApp Business) czasami przychodziły puste, bez żadnej opcji do wyboru. WinZapp pobiera teraz treść bezpośrednio z WhatsApp Web, gdy tak się dzieje — zarówno przy odbiorze wiadomości, jak i podczas nawigowania do niej klawiaturą — i ponownie pokazuje opcje normalnie, nawet w wiadomościach, które wcześniej dotarły puste.
+
+ULEPSZENIA
+
+- Ustawienia przeorganizowano w mniej kart: karta Rozmowy grupuje przyciski Zablokowanych rozmów, Transkrypcji i opisów, Odtwarzania dźwięku oraz Połączeń; karta Dźwięki grupuje ustawienia audio i dźwięki zdarzeń.
+
+- „Zobacz dane kontaktu" pokazuje teraz całą wizytówkę — urodziny, firmę, numery telefonów, e-maile i adresy z etykietami, strony internetowe i sieci społecznościowe — nie tylko imię i telefon.
+
+- Pozycja „Wybierz konto…" w menu Konta pojawia się dopiero, gdy masz 10 lub więcej sparowanych kont; przy mniejszej liczbie wystarczają bezpośrednie skróty (Ctrl+Alt+1 do 9).
+
+- Automatyczne aktualizacje sprawdzają teraz podpis instalatora przed jego zastosowaniem.
+
+POPRAWKI
+
+- Wskaźnik pobierania multimediów („przetworzono X z Y") zawyżał sumę na kontach z dużą historią i nigdy nie wyglądał na skończony. Teraz liczy tylko to, co naprawdę zostanie pobrane.
+
+- Rozmowy z zablokowanymi kontaktami są teraz naprawdę ukryte zarówno na liście, jak i w Zarchiwizowanych — wcześniej dostawały tylko dopisek „(zablokowany)" i nadal się pojawiały.
+
+- Połączenie często przestawało działać zaraz po aktualizacji samego WinZapp, prosząc o ponowne parowanie. Aktualizator czeka teraz, aż sesja naprawdę się rozłączy, zanim zamknie program.
+
+- Opisywanie zdjęcia, które miało podpis, ale żadnej własnej nazwy pliku, mogło się nie udać.
+
+- Mówione ostrzeżenie „wysyłanie może nie działać" uruchamiało się przy niepowodzeniach funkcji Statusów, nawet gdy wysyłanie tekstu i multimediów działało normalnie. Teraz ostrzega tylko wtedy, gdy naprawdę zawiedzie to, co najważniejsze (tekst lub multimedia).
+
+- Udostępnione kontakty wyeksportowane z iPhone'a/Maca z więcej niż jednym numerem czasami nie były odczytywane poprawnie.
+
 V1.1.1.0
 
 Ta wersja dotyczy utrzymania połączenia z Twoim kontem. WinZapp zapisuje teraz kopię zapasową profilu przeglądarki — to w nim faktycznie przechowywane jest Twoje połączenie z WhatsApp — i sam ją przywraca, gdy przestaje być akceptowana, informując o tym, co się stało. Razem z nią pojawiają się poprawki sytuacji, które przerywały sesję i zmuszały do ponownego parowania: wyłączenie komputera, wstrzymanie i wznowienie oraz samo ponowne uruchamianie połączenia przez program. Doszły również sprawdzanie pisowni w polu wiadomości i akcje na odnośnikach.

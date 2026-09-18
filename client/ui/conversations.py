@@ -30,6 +30,7 @@ from core.attachment_types import classify_attachment_media_type
 from core.sound_system import load_sound
 from core.link_preview import find_first_url, fetch_link_preview
 from core.gemini_client import (
+    resolve_model as _gemini_resolve_model,
     transcribe_audio as _gemini_transcribe_audio,
     describe_visual_media as _gemini_describe_visual_media,
     ask_about_visual_media as _gemini_ask_about_visual_media,
@@ -4236,7 +4237,12 @@ class ConversationsPanel(wx.Panel):
         """Show / hide action controls when the selection changes in the messages list."""
         if getattr(self, "_suppress_selection_side_effects", False):
             return
-        index = event.GetIndex()
+        self._apply_action_controls_for_index(event.GetIndex())
+
+    def _apply_action_controls_for_index(self, index: int):
+        """Body of on_message_selected(), keyed by row index rather than a
+        wx event — split out so refresh_selected_message_action_controls()
+        can re-run it without having to fabricate a wx.ListEvent."""
         self._hide_all_media_controls()   # also clears links panel
         if index < 0 or index >= len(self._sorted_messages):
             return
@@ -4299,6 +4305,24 @@ class ConversationsPanel(wx.Panel):
             for sec in sections:
                 rows.extend(sec.get("rows", []) if isinstance(sec, dict) else [])
             remote_jid = self.conversation.get("remoteJid", "") if self.conversation else ""
+            if not rows and remote_jid:
+                # A listMessage that arrived with empty content is normally
+                # enriched by _maybe_enrich_empty_interactive_message() (see
+                # main.py), but that call only happens from on_new_message()
+                # and on_historical_message() — the live-socket and
+                # backfill-sync funnels. A message that arrived empty, was
+                # stored empty, and is now simply being loaded back from the
+                # local database when this chat is opened (e.g. after an app
+                # restart) never passes through either funnel again, so it
+                # would otherwise stay empty forever. Confirmed live: three
+                # Urgetrauma list messages kept `listMessage: {}` with no
+                # `_interactive_enrich_attempted` marker at all, even after a
+                # restart and a full F5 resync — selecting the message here
+                # is the one moment guaranteed to happen regardless of how it
+                # reached memory, so it doubles as the fallback trigger. The
+                # method's own attempted-once guard keeps repeated selection
+                # from refetching every time.
+                self.main_window._maybe_enrich_empty_interactive_message(remote_jid, msg)
             self._show_list_rows(rows, remote_jid)
 
         elif msg_type == "contactMessage":
@@ -5937,6 +5961,20 @@ class ConversationsPanel(wx.Panel):
 
         self._update_read_more_button(idx)
         self._update_reactions_button(idx)
+        # Action controls (Open/Save, and the business reply/list-row option
+        # buttons) were only ever refreshed from on_message_selected(), which
+        # EVT_LIST_ITEM_SELECTED backs — reliable for a mouse click, but not
+        # what a screen-reader user's arrow-key/object-navigation actually
+        # fires here. Confirmed live: three Urgetrauma list messages, focused
+        # and re-focused repeatedly via keyboard after a full restart, never
+        # produced a single log line from the background enrichment fetch —
+        # _apply_action_controls_for_index() was simply never being reached
+        # that way. _update_read_more_button()/_update_reactions_button()
+        # just above already update their own row-scoped UI from `idx` on
+        # every focus move, lazy-load rebuild included (their own bounds
+        # checks no-op safely if it invalidated `idx`) — this follows the
+        # same pattern.
+        self._apply_action_controls_for_index(idx)
         event.Skip()
 
     def _update_reactions_button(self, idx: int):
@@ -7012,12 +7050,29 @@ class ConversationsPanel(wx.Panel):
         ).start()
 
     def _on_list_row_selected(self, row: dict, remote_jid: str):
+        # A list row's visible title is not always what should be sent back:
+        # a real captured message showed a row titled "COOTMED" whose rowId
+        # carried {"msgid": "", "reply": "COOTMED 1", "postbackText": ""} —
+        # the business's own automated menu expects that embedded "reply"
+        # text, not the label shown on the button. Prefer it when present;
+        # a plain (non-JSON) rowId, or one with no "reply", falls back to
+        # the visible title exactly as before.
         label = row.get("title", "").strip()
-        if not label or not remote_jid:
+        reply_text = label
+        row_id_raw = row.get("rowId", "")
+        if row_id_raw:
+            import json
+            try:
+                embedded_reply = (json.loads(row_id_raw).get("reply") or "").strip()
+                if embedded_reply:
+                    reply_text = embedded_reply
+            except (ValueError, TypeError, AttributeError):
+                pass
+        if not reply_text or not remote_jid:
             return
         threading.Thread(
             target=self.main_window.send_text_message,
-            args=(remote_jid, label),
+            args=(remote_jid, reply_text),
             daemon=True,
         ).start()
 
@@ -11177,6 +11232,7 @@ class ConversationsPanel(wx.Panel):
             media_path = data_path("media", f"{msg_id}.wzmedia")
 
         api_key = ai_settings.get("gemini_api_key", "")
+        model = _gemini_resolve_model(ai_settings.get("gemini_model"))
         is_video = msg_type == "videoMessage"
 
         self.main_window.output(self.main_window.i18n.t("ai_processing_msg"))
@@ -11216,27 +11272,27 @@ class ConversationsPanel(wx.Panel):
                     fh.write(content)
 
                 if msg_type == "audioMessage":
-                    result_text = _gemini_transcribe_audio(tmp_path, api_key)
+                    result_text = _gemini_transcribe_audio(tmp_path, api_key, model=model)
                     title = self.main_window.i18n.t("ai_result_transcription_title")
                     ask_fn = None
                 elif msg_type in ("imageMessage", "videoMessage", "stickerMessage"):
                     result_text = _gemini_describe_visual_media(
-                        tmp_path, api_key, is_video=is_video
+                        tmp_path, api_key, model=model, is_video=is_video
                     )
                     title = (
                         self.main_window.i18n.t("ai_result_sticker_title")
                         if msg_type == "stickerMessage"
                         else self.main_window.i18n.t("ai_result_description_title")
                     )
-                    # Kept alive by closing over tmp_path/api_key/is_video —
-                    # tmp_dir is only cleaned up when the OS clears the temp
+                    # Kept alive by closing over tmp_path/api_key/model/is_video
+                    # — tmp_dir is only cleaned up when the OS clears the temp
                     # folder, so the file is still there for follow-up
                     # questions asked while this dialog stays open.
-                    ask_fn = lambda q, p=tmp_path, k=api_key, v=is_video: (
-                        _gemini_ask_about_visual_media(p, k, q, is_video=v)
+                    ask_fn = lambda q, p=tmp_path, k=api_key, m=model, v=is_video: (
+                        _gemini_ask_about_visual_media(p, k, q, model=m, is_video=v)
                     )
                 else:  # documentMessage, already confirmed to be a PDF above
-                    result_text = _gemini_pdf_to_accessible_text(tmp_path, api_key)
+                    result_text = _gemini_pdf_to_accessible_text(tmp_path, api_key, model=model)
                     title = self.main_window.i18n.t("ai_result_pdf_title")
                     ask_fn = None
 
@@ -11650,6 +11706,38 @@ class ConversationsPanel(wx.Panel):
             return painted
         finally:
             self.messages_list.Thaw()
+
+    def refresh_selected_message_action_controls(self, msg_id: str = "") -> None:
+        """Re-run the messages-list selection logic for whatever row is
+        currently selected, so its action controls — Open/Save buttons, and
+        especially the business reply/list-row buttons panel — get rebuilt
+        from the message's current content.
+
+        refresh_active_conversation_messages() (just above) only repaints
+        row *text*; it never re-fires on_message_selected()'s side effects.
+        A listMessage/buttonsMessage selected before a background enrichment
+        fetch finished (see _maybe_enrich_empty_interactive_message() in
+        main.py) keeps showing the empty options panel it was built with at
+        selection time, even once the row's own text updates to the real
+        content — reported live as: Tab reaches the buttons panel, but NVDA
+        announces nothing inside it. This rebuilds that panel once the real
+        rows are in.
+
+        `msg_id` narrows the refresh to one specific message: if the
+        selection has since moved elsewhere, this is a no-op — rebuilding
+        the panel for a message the user isn't looking at would only
+        interrupt whatever they've since selected instead.
+        """
+        if not self.conversation or not hasattr(self, "messages_list"):
+            return
+        index = self.messages_list.GetFirstSelected()
+        if index < 0 or index >= len(self._sorted_messages):
+            return
+        if msg_id:
+            selected = self._sorted_messages[index]
+            if (selected.get("key") or {}).get("id", "") != msg_id:
+                return
+        self._apply_action_controls_for_index(index)
 
     def _on_menu_reply_private(self, msg: dict, participant_jid: str):
         """Open a private conversation with the group participant and cite their message."""

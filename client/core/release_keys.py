@@ -29,10 +29,10 @@ reject every release of the other channel.
 """
 
 STABLE_PUBLIC_KEYS: "tuple[str, ...]" = (
-    "yNdwTQyRVL1jhcxVEfgBTF/VJEy6XV6UQHdQBf5TQYs=",
-    "SJSYzWyEEteXtd8tsODFTgqrWOv5yYPd1bBfL+x1Zeo=",
+    "+EAUeYVfPgfeuXh2m0EpS7o2e0IIZg6+fqQJK3KYHms=",
+    "11o4BiKpiikmJI0s/fXFM61ZTDXmI0FXaAEnTtFVVA0=",
 )
 
 ALPHA_PUBLIC_KEYS: "tuple[str, ...]" = (
-    "wHxSl1b+vy66X/JVPUudHbS4q9Z4qhknSNjl/OgtZHQ=",
+    "3rHE3T6cc6dR2d6gNHHmoFXXMbZabz2d1EyWtfYI36g=",
 )

@@ -1,3 +1,53 @@
+V1.1.1.1
+
+Esta versión reúne todo lo hecho desde la fusión con la versión 1.1.1.0 del creador original: pegatinas transcritas por IA, una guía de uso integrada en el propio programa, copia de seguridad y restauración de conversaciones, una herramienta de limpieza de multimedia, edición de estado y foto de perfil, y una lista de correcciones — entre ellas, mensajes de lista de opciones de empresas que llegaban vacíos a WinZapp.
+
+NOVEDADES
+
+- Transcripción de pegatinas. La misma descripción por IA que ya se usaba en imágenes ahora funciona también en pegatinas, con su propio interruptor en Ajustes > Conversaciones > Transcripciones y Descripciones.
+
+- Botón de IA (Transcribir/Describir) junto a Abrir y Guardar. Audio, imagen, pegatina, vídeo y PDF obtienen este botón en el mismo lugar que los demás botones de acción del mensaje — antes solo estaba disponible desde el menú contextual, y el audio no tenía ningún botón de acción hasta ahora.
+
+- Datos de mensaje en grupos, participante por participante. Los "Datos del mensaje" de un mensaje de grupo ahora muestran quién lo entregó, leyó y reprodujo, agrupados por la etapa más avanzada alcanzada, en vez de solo el total agregado.
+
+- Búsqueda en la pestaña Conversaciones Archivadas, igual que ya existía en la lista principal.
+
+- Guía de uso de WinZapp integrada en el programa, accesible desde el menú Ayuda y también desde la pantalla de vinculación.
+
+- Más opciones de reacción a los mensajes. Además de las 12 reacciones rápidas, un botón "Más emojis…" abre el mismo selector completo, con búsqueda, que se usa al escribir un mensaje.
+
+- Copia de seguridad y restauración de conversaciones. Un único archivo (.wzbackup) guarda las conversaciones, multimedia y ajustes que elijas, con contraseña opcional; restaurar siempre fusiona con lo que ya existe, nunca lo sobrescribe.
+
+- Herramienta de limpieza de multimedia en Ajustes > Almacenamiento: filtra por conversación, tipo de multimedia y tamaño mínimo, muestra un resumen antes de borrar nada, y solo elimina los archivos ya descargados — nunca los mensajes.
+
+- Edición del estado y la foto de perfil directamente desde WinZapp, sin necesidad de abrir WhatsApp en el móvil.
+
+- Los mensajes de lista de opciones de empresas (esos menús de "elige una opción" que envía WhatsApp Business) a veces llegaban vacíos, sin ninguna opción para elegir. WinZapp ahora busca el contenido directamente en WhatsApp Web cuando esto ocurre — tanto al recibir el mensaje como al navegar hasta él con el teclado — y vuelve a mostrar las opciones con normalidad, incluso en mensajes que ya habían llegado vacíos antes.
+
+MEJORAS
+
+- Ajustes reorganizados en menos pestañas: una pestaña Conversaciones reúne los botones de Conversaciones bloqueadas con contraseña, Transcripciones y Descripciones, Reproducción de audio y Llamadas; una pestaña Sonidos reúne los ajustes de audio y los sonidos de eventos.
+
+- "Ver datos del contacto" ahora muestra la tarjeta entera — cumpleaños, empresa, teléfonos, correos y direcciones con etiqueta, sitios web y redes sociales — no solo nombre y teléfono.
+
+- El elemento "Elegir cuenta…" del menú Cuentas solo aparece cuando tienes 10 cuentas vinculadas o más; con menos, los atajos directos (Ctrl+Alt+1 a 9) ya bastan.
+
+- Las actualizaciones automáticas ahora verifican la firma del instalador antes de aplicarlo.
+
+CORRECCIONES
+
+- El indicador de descarga de multimedia ("procesadas X de Y") inflaba el total en cuentas con mucho historial y nunca parecía terminar. Ahora solo cuenta lo que realmente se va a descargar.
+
+- Las conversaciones de contactos bloqueados quedan realmente ocultas de la lista y de Archivadas — antes solo recibían un aviso "(bloqueado)" y seguían apareciendo.
+
+- La conexión dejaba de funcionar con frecuencia justo después de que el propio WinZapp se actualizara, pidiendo vincular de nuevo. Ahora la actualización espera a que la sesión se desconecte de verdad antes de cerrar el programa.
+
+- Describir una foto que tenía leyenda pero ningún nombre de archivo propio podía fallar.
+
+- El aviso hablado de que "el envío puede no funcionar" se disparaba por fallos en funciones de Estados, incluso cuando enviar texto y multimedia funcionaba con normalidad. Ahora solo avisa cuando falla de verdad lo esencial (texto o multimedia).
+
+- Los contactos compartidos exportados desde iPhone/Mac con más de un número a veces no se leían correctamente.
+
 V1.1.1.0
 
 Esta versión trata de mantener tu cuenta conectada. WinZapp ahora guarda una copia de seguridad del perfil del navegador — que es donde vive realmente tu conexión con WhatsApp — y la restaura por su cuenta cuando deja de ser aceptada, avisando de lo ocurrido. Junto a ella llegan las correcciones de las situaciones que rompían la sesión y hacían que el programa pidiera vincular de nuevo: apagar el ordenador, suspender y reanudar, y el propio programa reiniciando la conexión. También llegan la corrección ortográfica en el campo de mensaje y las acciones sobre enlaces.

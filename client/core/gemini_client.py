@@ -47,11 +47,43 @@ for _ext, _mime in _EXTRA_MIME_TYPES.items():
     mimetypes.add_type(_mime, _ext)
 
 
-# Modelo padrão. "gemini-2.5-flash" é rápido e de baixo custo, adequado para
-# transcrição/descrição em tempo real. Pode futuramente virar uma opção na
-# aba de configurações, se quiser deixar o usuário escolher entre
-# velocidade/custo (flash) e qualidade máxima (pro).
-DEFAULT_MODEL = "gemini-2.5-flash"
+# Modelo padrão. "gemini-2.5-flash" foi descontinuado pela Google para
+# chaves de API novas e será desligado completamente (inclusive chaves
+# antigas) em 16/10/2026 — troquei para "gemini-3.5-flash", a opção
+# "flash" estável atual (rápida, de baixo custo, e confirmada com suporte
+# a áudio, imagem, vídeo e PDF — os mesmos tipos de mídia usados aqui).
+#
+# Usado como fallback sempre que o usuário deixa o campo "Modelo do
+# Gemini" em Configurações > IA e Acessibilidade em branco (opção
+# "Automático") — ver resolve_model() abaixo. Trocar este valor no
+# futuro (quando a Google aposentar mais um modelo) já atualiza sozinho
+# todo mundo que estiver no automático, sem precisar mexer na tela de
+# Configurações nem pedir pro usuário trocar nada.
+DEFAULT_MODEL = "gemini-3.5-flash"
+
+# Opções oferecidas no seletor de modelo em Configurações, para quem
+# preferir fixar um modelo específico em vez de usar o "Automático"
+# (DEFAULT_MODEL acima). Mantida aqui — não em settings_dialog.py — para
+# ficar num único lugar fácil de achar na próxima vez que a Google lançar
+# ou aposentar um modelo "flash".
+RECOMMENDED_MODELS = [
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.8-flash",
+]
+
+
+def resolve_model(configured_model: Optional[str]) -> str:
+    """
+    Decide qual modelo usar numa chamada: o que o usuário escolheu em
+    Configurações, ou DEFAULT_MODEL se ele deixou em branco ("Automático").
+
+    Centralizado aqui (em vez de repetir "or DEFAULT_MODEL" em cada
+    chamador) para que mudar a regra do automático no futuro não exija
+    caçar todo lugar que lê a configuração.
+    """
+    configured_model = (configured_model or "").strip()
+    return configured_model or DEFAULT_MODEL
 
 # Tamanho a partir do qual preferimos subir o arquivo pela File API do Gemini
 # em vez de enviar os bytes embutidos direto no pedido. Arquivos de áudio e

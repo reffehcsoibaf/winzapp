@@ -62,6 +62,8 @@ CORREÇÕES
 
 - Trocar de conta apaga corretamente as mídias da conta anterior, que antes podiam ficar para trás no computador.
 
+- Mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" que o WhatsApp Business envia) às vezes chegavam vazias, sem nenhuma opção para selecionar. O WinZapp agora busca o conteúdo direto do WhatsApp Web quando isso acontece — tanto ao receber a mensagem quanto ao navegar até ela pelo teclado — e volta a mostrar as opções normalmente, mesmo em mensagens que já tinham chegado vazias antes.
+
 V1.1.0.0
 
 Esta versão traz a aba de mídias, o visualizador de mídia em janela própria, prévias de links, ações em massa e uma aba de Acessibilidade nas configurações. A sincronização de conversas ficou bem mais rápida, e a lista de conversas parou de ser refeita a cada mensagem, o que reduz muito a releitura pelo leitor de tela.

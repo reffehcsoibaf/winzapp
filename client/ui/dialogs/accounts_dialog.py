@@ -10,12 +10,12 @@ Three tabs, reflecting how far each one actually is:
     while wppconnect-team/wa-js's setPrivacyForOneCategory is broken
     upstream, which _on_apply_whatsapp_privacy() already reports per field
     rather than pretending it succeeded.
-  - Perfil: nome exibido, recado, foto — each applied independently via
-    MainWindow.set_profile_name()/set_profile_status()/set_profile_pic(),
-    which go through WPPConnect's own higher-level client methods rather
-    than a direct wa-js internal lookup, so unlike Privacidade this isn't
-    exposed to that same class of bug. A blank field (or no photo chosen)
-    means "leave this one alone", not "clear it".
+  - Perfil: recado and foto, applied independently via
+    MainWindow.set_profile_status()/set_profile_pic(). A blank field (or no
+    photo chosen) means "leave this one alone", not "clear it". Nome turned
+    out not to be safe from Privacidade's class of bug after all, despite
+    going through WPPConnect's own higher-level setProfileName() rather than
+    a direct wa-js internal lookup — see _PROFILE_NAME_FIELD_ENABLED below.
   - Contatos bloqueados: not built yet (a dedicated blocked-contacts screen
     is still on the winzapp.md future-intentions list). Gets a tab now,
     with a plain "ainda não implementado" placeholder, so the window this
@@ -24,6 +24,22 @@ Three tabs, reflecting how far each one actually is:
 """
 
 import wx
+
+# Disabled 2026-09-17: WPPConnect's change-username route (Whatsapp.setProfileName
+# in @wppconnect-team/wppconnect's profile.layer.js) calls wa-js's setMyProfileName(),
+# which throws "TypeError: n.functions.setPushname is not a function" on the
+# WhatsApp Web build currently served — confirmed against wppconnect.log for the
+# active session. Same class of bug as Privacidade's setPrivacyForOneCategory and
+# the message-ack breakdown: an internal minified reference wa-js expects inside
+# WhatsApp Web's own JS, gone/renamed after Meta shipped a newer build. @wppconnect/
+# wa-js is pinned exactly at 4.6.0 (api_patches/package.json), so this isn't an
+# accidental version bump — the WhatsApp Web *HTML build* wa-js has to drive keeps
+# advancing on its own as older catalogue entries expire (see CLAUDE.md's "The
+# WhatsApp Web version pin"). setProfileStatus (recado) and setProfilePic (foto) go
+# through a different internal path and are unaffected — confirmed the same day:
+# saving recado/foto alone works, adding a name always fails. Flip back to True
+# once wa-js fixes the reference upstream.
+_PROFILE_NAME_FIELD_ENABLED = False
 
 
 class AccountsDialog(wx.Dialog):
@@ -177,6 +193,11 @@ class AccountsDialog(wx.Dialog):
                   wx.LEFT | wx.TOP, 8)
         self._profile_name_field = wx.TextCtrl(panel)
         sizer.Add(self._profile_name_field, 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
+        if not _PROFILE_NAME_FIELD_ENABLED:
+            self._profile_name_field.Disable()
+            name_unavailable = wx.StaticText(panel, label=i18n.t("profile_name_unavailable_note"))
+            name_unavailable.Wrap(400)
+            sizer.Add(name_unavailable, 0, wx.LEFT | wx.RIGHT | wx.TOP, 8)
 
         sizer.Add(wx.StaticText(panel, label=i18n.t("profile_status_label")), 0,
                   wx.LEFT | wx.TOP, 8)
@@ -217,7 +238,10 @@ class AccountsDialog(wx.Dialog):
 
     def _on_save_profile(self, event):
         i18n = self._i18n
-        name = self._profile_name_field.GetValue().strip()
+        # Ignored regardless of the field's (disabled, should stay empty)
+        # content while the upstream wa-js bug is unfixed — see
+        # _PROFILE_NAME_FIELD_ENABLED at the top of this file.
+        name = self._profile_name_field.GetValue().strip() if _PROFILE_NAME_FIELD_ENABLED else ""
         status = self._profile_status_field.GetValue().strip()
         photo = self._profile_photo_path
 

@@ -11,6 +11,7 @@ from core.audio_devices import (
     enumerate_output_devices, enumerate_input_devices, test_input_device,
 )
 from core.spell_checker import SPELL_CHECK_MODES, spell_check_mode
+from core.gemini_client import RECOMMENDED_MODELS
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -1175,6 +1176,33 @@ class SettingsDialog(wx.Dialog):
         )
         ai_sizer.Add(self._ai_api_key_help_label, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
 
+        # Model picker. "" (the first entry) means "Automatic": always follow
+        # core.gemini_client.DEFAULT_MODEL, which is what a code update
+        # changes the next time Google retires a model — this is how someone
+        # who never opens this combo again still stops breaking when that
+        # happens. Read-only (like _lang_combo above) so NVDA/JAWS announce a
+        # clean list instead of a free-text field that accepts typos in a
+        # model id. self._ai_model_values is the parallel array of real
+        # stored values — index-matched to the combo's displayed choices,
+        # same pattern as self._lang_codes/self._lang_combo.
+        self._ai_model_values = ["", *RECOMMENDED_MODELS]
+        self._ai_model_label = wx.StaticText(
+            self._ai_page, label=i18n.t("gemini_model_label")
+        )
+        ai_sizer.Add(self._ai_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._ai_model_combo = wx.ComboBox(
+            self._ai_page,
+            style=wx.CB_READONLY,
+            choices=[i18n.t("gemini_model_automatic_option"), *RECOMMENDED_MODELS],
+        )
+        bind_incremental_search(self._ai_model_combo)
+        ai_sizer.Add(self._ai_model_combo, 0, wx.EXPAND | wx.ALL, 8)
+
+        self._ai_model_help_label = wx.StaticText(
+            self._ai_page, label=i18n.t("gemini_model_help_label")
+        )
+        ai_sizer.Add(self._ai_model_help_label, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
+
         self._ai_transcribe_audio_check = wx.CheckBox(
             self._ai_page, label=i18n.t("ai_transcribe_audio_label")
         )
@@ -1646,6 +1674,15 @@ class SettingsDialog(wx.Dialog):
         ai_settings = self.main_window.settings.get("ai_accessibility", {})
         self._ai_enabled_check.SetValue(ai_settings.get("enabled", False))
         self._ai_api_key_field.SetValue(ai_settings.get("gemini_api_key", ""))
+
+        model_value = (ai_settings.get("gemini_model") or "").strip()
+        if model_value not in self._ai_model_values:
+            # A model saved by a newer WinZapp version, or typed by hand into
+            # settings.json — keep it visible and selected instead of
+            # silently discarding it the next time Apply is pressed.
+            self._ai_model_combo.Append(model_value)
+            self._ai_model_values.append(model_value)
+        self._ai_model_combo.SetSelection(self._ai_model_values.index(model_value))
 
         # Privacy — deliberately do NOT prefill the code fields (write-only,
         # see the tab's build-time comment); only the checkbox reflects a
@@ -2798,9 +2835,16 @@ class SettingsDialog(wx.Dialog):
         ] = self._mark_audio_played_check.GetValue()
 
         # AI / Accessibility
+        _ai_model_sel = self._ai_model_combo.GetSelection()
+        _ai_model = (
+            self._ai_model_values[_ai_model_sel]
+            if 0 <= _ai_model_sel < len(self._ai_model_values)
+            else ""
+        )
         self.main_window.settings["ai_accessibility"] = {
             "enabled": self._ai_enabled_check.GetValue(),
             "gemini_api_key": self._ai_api_key_field.GetValue().strip(),
+            "gemini_model": _ai_model,
             "transcribe_audio": self._ai_transcribe_audio_check.GetValue(),
             "describe_images": self._ai_describe_images_check.GetValue(),
             "describe_videos": self._ai_describe_videos_check.GetValue(),
@@ -3057,6 +3101,12 @@ class SettingsDialog(wx.Dialog):
         self._ai_enabled_check.SetLabel(i18n.t("ai_accessibility_enabled_label"))
         self._ai_api_key_label.SetLabel(i18n.t("gemini_api_key_label"))
         self._ai_api_key_help_label.SetLabel(i18n.t("gemini_api_key_help_label"))
+        self._ai_model_label.SetLabel(i18n.t("gemini_model_label"))
+        # Only index 0 ("Automatic") has translated text — the rest are raw
+        # model ids and stay as-is. SetString() rewrites the entry without
+        # touching GetSelection(), same as every other combo refreshed here.
+        self._ai_model_combo.SetString(0, i18n.t("gemini_model_automatic_option"))
+        self._ai_model_help_label.SetLabel(i18n.t("gemini_model_help_label"))
         self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))

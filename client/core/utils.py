@@ -957,6 +957,7 @@ DEFAULT_SETTINGS = {
     "ai_accessibility": {
         "enabled": False,
         "gemini_api_key": "",
+        "gemini_model": "",
         "transcribe_audio": True,
         "describe_images": True,
         "describe_videos": True,
