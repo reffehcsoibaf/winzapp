@@ -1,0 +1,5 @@
+gh version 2.101.0 (2026-09-15)
+https://github.com/cli/cli/releases/tag/v2.101.0
+
+! One-time code (A1A5-265E) copied to clipboard
+Open this URL to continue in your web browser: https://github.com/login/device

@@ -1284,6 +1284,373 @@ export async function setPrivacySetting(req: Request, res: Response) {
   }
 }
 
+export async function debugFindPrivacyModule(req: Request, res: Response) {
+  /**
+   * #swagger.tags = ["Privacy"]
+     #swagger.autoBody=false
+     #swagger.security = [{
+            "bearerAuth": []
+     }]
+     #swagger.parameters["session"] = {
+      schema: 'NERDWHATS_AMERICA'
+     }
+   *
+   * TEMPORARY diagnostic route — same spirit as the raw-message-JSON and
+   * WPP.privacy-functions debuggers added and later removed for the
+   * listMessage/message-ack investigations (see winzapp area notes).
+   * Remove once the real privacy fix is in place.
+   *
+   * setPrivacyForOneCategory is the WhatsApp Web internal wa-js's public
+   * WPP.privacy.set* wrappers all call — every one of them currently
+   * throws "setPrivacyForOneCategory is not a function" (issue reported
+   * upstream: wppconnect-team/wa-js#3658). wa-js locates that internal
+   * function at load time by scanning WhatsApp Web's own module registry
+   * for an export literally named "setPrivacyForOneCategory" — see
+   * https://github.com/pedroslopez/whatsapp-web.js/pull/2816: WhatsApp
+   * dropped its old Webpack bundler for one internally called "Comet"
+   * (WhatsApp Web 2.3000.x+), which broke module discovery techniques
+   * built around the old `webpackChunkwhatsapp_web_client` array. wa-js
+   * 4.6.0 still assumes the old shape; if it silently found nothing, the
+   * privacy setters (and other reverse-engineered internals) end up
+   * calling `undefined`.
+   *
+   * The current, documented replacement is `window.require('__debug')
+   * .modulesMap` — a name -> module map WhatsApp Web itself exposes. This
+   * route does NOT change any privacy setting. It only searches that map,
+   * from inside the live page (same context wa-js already runs in), two
+   * ways:
+   *   1. By MODULE NAME containing "privacy" (case-insensitive) — lists
+   *      every function-valued export on each match.
+   *   2. By FUNCTION SOURCE containing "contact_blacklist" — a string
+   *      literal that appeared in every one of the six working privacy
+   *      setters in the last wa-js build where they worked (see the
+   *      decompiled bundle referenced in winzapp area notes: dhash/
+   *      idsFormatted/allUsers/PrivacyDisallowedListType all sit next to
+   *      it). If the real implementation just got exported under a new
+   *      name, this should still catch it by what the code actually does
+   *      rather than by what it happens to be called.
+   *
+   * Goal: find the (module name, export key) pair that now holds the real
+   * implementation, so a follow-up patch can call it directly via
+   * page.evaluate — the same move that fixed the empty-listMessage bug by
+   * going straight to the live Store instead of the broken convenience
+   * wrapper.
+   */
+  try {
+    const result = await req.client.page.evaluate(() => {
+      const out: any = {
+        debugApiFound: false,
+        totalModules: 0,
+        candidateModules: [],
+        byFingerprint: [],
+        error: null,
+      };
+      try {
+        const req2: any = (window as any).require;
+        if (typeof req2 !== 'function') {
+          out.error = 'window.require is not a function';
+          return out;
+        }
+        const dbg = req2('__debug');
+        const modulesMap = dbg && dbg.modulesMap;
+        if (!modulesMap || typeof modulesMap !== 'object') {
+          out.error = "require('__debug').modulesMap not found";
+          return out;
+        }
+        out.debugApiFound = true;
+        const names = Object.keys(modulesMap);
+        out.totalModules = names.length;
+
+        // v2 — v1 found 100+ real privacy-named modules (confirming names
+        // ARE still stable, e.g. WAWebStatusSetAndSyncPrivacy,
+        // WAWebPrivacyBridgeApi) but every one came back with zero
+        // function-valued exports: the entry.defaultExport /
+        // publicModule.exports / exports guess was the wrong field, not the
+        // module list. So this pass (a) dumps the RAW shape of a few
+        // privacy-named entries instead of guessing a field, and (b) widens
+        // the fingerprint search to every function reachable from an entry
+        // — including the entry object's own fields (e.g. a raw
+        // `factory`/module-init function, whose serialized source has the
+        // real code even when we can't unwrap its return value) — and to
+        // several distinctive tokens, not just one, in case that literal
+        // also got renamed in this build.
+        const candidateFunctions = (entry: any): Array<[string, Function]> => {
+          const found: Array<[string, Function]> = [];
+          if (!entry) return found;
+          const tryAdd = (label: string, v: any) => {
+            try {
+              if (typeof v === 'function') found.push([label, v]);
+            } catch (e) {
+              /* ignore */
+            }
+          };
+          // 1) fields directly on the entry itself (whatever they're called)
+          try {
+            for (const k of Object.keys(entry)) {
+              tryAdd(`entry.${k}`, entry[k]);
+            }
+          } catch (e) {
+            /* ignore */
+          }
+          // 2) one level into each of the usual "exports-ish" fields,
+          //    whether that field is itself a function or an object of
+          //    functions
+          const containers: Array<[string, any]> = [
+            ['defaultExport', entry.defaultExport],
+            ['exports', entry.exports],
+            ['publicModule.exports', entry.publicModule && entry.publicModule.exports],
+          ];
+          for (const [label, v] of containers) {
+            tryAdd(label, v);
+            if (v && typeof v === 'object') {
+              try {
+                for (const k of Object.keys(v)) {
+                  tryAdd(`${label}.${k}`, v[k]);
+                }
+              } catch (e) {
+                /* ignore */
+              }
+            }
+          }
+          return found;
+        };
+
+        const describeEntry = (entry: any): any => {
+          const desc: any = { topLevelKeys: [], fieldTypes: {} };
+          if (!entry) return desc;
+          try {
+            desc.topLevelKeys = Object.keys(entry);
+          } catch (e) {
+            /* ignore */
+          }
+          for (const k of ['defaultExport', 'exports', 'publicModule', 'factory', 'func', 'module']) {
+            try {
+              desc.fieldTypes[k] = typeof entry[k];
+            } catch (e) {
+              desc.fieldTypes[k] = '<threw>';
+            }
+          }
+          return desc;
+        };
+
+        // v3 — v2's fingerprint scan (kept below) found 15 hits for
+        // "dhash"/"PrivacyDisallowedListType", almost all in a SIBLING
+        // feature (WASmax*Blocklists* — blocking contacts, not the privacy
+        // categories WinZapp needs) because "dhash" turned out to be a
+        // generic XMPP list-hash field, not privacy-specific. The one
+        // strong lead was WAWebApiPrivacyDisallowedList, whose name matches
+        // the six PRIVACY_SETTERS categories exactly (about/groupadd/last/
+        // profile) and which references PrivacyDisallowedListType directly.
+        // Rather than keep scanning all 13k+ modules blind, dump every
+        // export of that module and its closest neighbors by NAME (found
+        // in v1's full module list) — these are the modules most likely to
+        // hold the real get/set implementation now that "privacy" names are
+        // confirmed stable across the Comet migration.
+        const CANDIDATE_MODULE_NAMES = [
+          'WAWebApiPrivacyDisallowedList',
+          'WAWebSyncPrivacyDisallowedLists',
+          'WAWebQueryPrivacyDisallowedListUtil',
+          'WAWebQueryPrivacyDisallowedListJob',
+          'WAWebQueryPrivacyDisallowedListMexJob',
+          'WAWebQueryPrivacyDisallowedListLidJob',
+          'WAWebQueryPrivacyDisallowedListPnJob',
+          'WAWebQueryPrivacySettingsJob',
+          'WAWebMexGetPrivacySetting',
+          'WAWebPrivacyBridgeApi',
+          'WAWebStatusSetAndSyncPrivacy',
+          'WAWebHandlePrivacySettingsNotification',
+          'WAWebSchemaPrivacyDisallowedList',
+          // v5 — updateUserDisclosures/triggerAccountSyncForPrivacyFromBridge
+          // (both found on PrivacyBridgeApi above) turned out to be about
+          // legal-disclosure acceptance and a resync trigger, not a setter.
+          // triggerAccountSyncForPrivacyFromBridge calls WAWebCmd.Cmd, the
+          // central action dispatcher — so the real setter is likely a
+          // Cmd.* action rather than its own module. Also trying the "Mex"
+          // (WhatsApp's GraphQL-ish layer) naming pattern by analogy with
+          // WAWebMexGetPrivacySetting (already confirmed a real, working
+          // getter module) — a mirrored Set/Update module on the same
+          // pattern is a reasonable next guess.
+          'WAWebCmd',
+          'WAWebMexSetPrivacySetting',
+          'WAWebMexUpdatePrivacySetting',
+          'WAWebSetPrivacySettingsJob',
+          'WAWebUpdatePrivacySettingsJob',
+          'WAWebMexPrivacySettingsMutation',
+        ];
+        // For WAWebCmd specifically (a huge dispatcher object with hundreds
+        // of unrelated actions), only keys worth reporting in full are ones
+        // that could plausibly be the real privacy setter — everything else
+        // would just be noise pushing the real match out of what's
+        // practical to read. v5 filtered on "privacy" alone and only found
+        // two *inbound sync* handlers (receiving a change made elsewhere),
+        // not a setter. v6 widens this: wa-js's own (broken) setter names
+        // never contained the word "privacy" at all (setLastSeen, setOnline,
+        // setAbout, setProfilePic, setReadReceipts, setAddGroup), so if the
+        // internal Cmd action kept a similar name, "privacy" alone would
+        // hide it. This filter now also matches those six setting names,
+        // plus the disallowed-list / blocklist vocabulary confirmed present
+        // elsewhere in this module map (WAWebApiPrivacyDisallowedList,
+        // WASmaxInPrivacyGetContactBlacklistResponseSuccess).
+        const CMD_KEY_FILTER =
+          /privacy|lastseen|online|about|profilepic|readreceipt|addgroup|disallow|blocklist|blacklist/i;
+        for (const name of CANDIDATE_MODULE_NAMES) {
+          let entry: any;
+          try {
+            entry = modulesMap[name];
+          } catch (e) {
+            continue;
+          }
+          if (!entry) {
+            out.candidateModules.push({ moduleName: name, found: false });
+            continue;
+          }
+          // v4 — WAWebPrivacyBridgeApi.PrivacyBridgeApi came back typeof
+          // "object", not a bare function: likely a class instance or
+          // namespace whose own methods (get/set) sit one level deeper, on
+          // itself or on its prototype (a singleton instance keeps its
+          // methods on the prototype, not as own properties). describeValue
+          // covers exactly one such extra level so a class like that isn't
+          // reported as an empty object.
+          const describeValue = (v: any, depth: number, keyFilter?: RegExp): any => {
+            const type = typeof v;
+            const item: any = { type };
+            if (type === 'function') {
+              try {
+                item.paramCount = v.length;
+              } catch (e) {
+                /* ignore */
+              }
+              try {
+                item.sourceSnippet = String(v).slice(0, 400);
+              } catch (e) {
+                /* ignore */
+              }
+            }
+            if (depth > 0 && v && (type === 'object' || type === 'function')) {
+              const ownKeys: any[] = [];
+              try {
+                for (const k of Object.keys(v)) {
+                  if (keyFilter && !keyFilter.test(k)) continue;
+                  try {
+                    ownKeys.push({ key: k, ...describeValue(v[k], depth - 1, keyFilter) });
+                  } catch (e) {
+                    /* ignore */
+                  }
+                }
+              } catch (e) {
+                /* ignore */
+              }
+              if (ownKeys.length) item.ownKeys = ownKeys;
+
+              // Instance methods usually live on the prototype, not as own
+              // properties of the instance itself.
+              try {
+                const proto = Object.getPrototypeOf(v);
+                if (proto && proto !== Object.prototype && proto !== Function.prototype) {
+                  const protoKeys: any[] = [];
+                  for (const k of Object.getOwnPropertyNames(proto)) {
+                    if (k === 'constructor') continue;
+                    if (keyFilter && !keyFilter.test(k)) continue;
+                    try {
+                      protoKeys.push({ key: k, ...describeValue(proto[k], 0, keyFilter) });
+                    } catch (e) {
+                      /* ignore */
+                    }
+                  }
+                  if (protoKeys.length) item.prototypeKeys = protoKeys;
+                }
+              } catch (e) {
+                /* ignore */
+              }
+            }
+            return item;
+          };
+
+          const exp = entry.exports;
+          const exportEntries: any[] = [];
+          if (exp && typeof exp === 'object') {
+            for (const key of Object.keys(exp)) {
+              let v: any;
+              try {
+                v = exp[key];
+              } catch (e) {
+                continue;
+              }
+              // WAWebCmd is the app-wide action dispatcher — even a single
+              // matching key (e.g. the "Cmd" object itself) can hold
+              // hundreds of unrelated actions one level down, so cap that
+              // one module's own-key recursion at name-filtered keys too
+              // (handled inside describeValue via a second, narrower pass
+              // below) rather than depth alone.
+              exportEntries.push({ key, ...describeValue(v, name === 'WAWebCmd' ? 2 : 1, name === 'WAWebCmd' ? CMD_KEY_FILTER : undefined) });
+            }
+          }
+          out.candidateModules.push({
+            moduleName: name,
+            found: true,
+            exportsType: typeof exp,
+            exportEntries,
+          });
+        }
+
+        const fingerprints = [
+          'contact_blacklist',
+          'setPrivacyForOneCategory',
+          'PrivacyDisallowedListType',
+          'dhash',
+          'idsFormatted',
+        ];
+        for (const name of names) {
+          let entry: any;
+          try {
+            entry = modulesMap[name];
+          } catch (e) {
+            continue;
+          }
+          if (!entry) continue;
+
+          let fns: Array<[string, Function]> = [];
+          try {
+            fns = candidateFunctions(entry);
+          } catch (e) {
+            continue;
+          }
+          for (const [label, fn] of fns) {
+            let src = '';
+            try {
+              src = String(fn);
+            } catch (e) {
+              continue;
+            }
+            for (const fingerprint of fingerprints) {
+              if (src.indexOf(fingerprint) !== -1) {
+                out.byFingerprint.push({
+                  moduleName: name,
+                  functionLabel: label,
+                  matchedFingerprint: fingerprint,
+                  sourceSnippet: src.slice(0, 800),
+                });
+                break;
+              }
+            }
+          }
+        }
+      } catch (e: any) {
+        out.error = String((e && e.message) || e);
+      }
+      return out;
+    });
+    return res.status(200).json({ status: 'success', response: result });
+  } catch (e) {
+    req.logger.error(e);
+    res.status(500).json({
+      status: 'error',
+      message: 'Error on debug find privacy module',
+      error: String((e as any)?.message || e),
+    });
+  }
+}
+
 export async function reactMessage(req: Request, res: Response) {
   /**
    * #swagger.tags = ["Messages"]

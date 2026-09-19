@@ -621,6 +621,15 @@ routes.post(
   statusConnection,
   DeviceController.setPrivacySetting
 );
+// TEMPORARY — diagnostic route for the setPrivacyForOneCategory investigation
+// (see DeviceController.debugFindPrivacyModule's docstring). Remove once the
+// real fix is wired up.
+routes.post(
+  '/api/:session/privacy/debug-find-module',
+  verifyToken,
+  statusConnection,
+  DeviceController.debugFindPrivacyModule
+);
 routes.post(
   '/api/:session/react-message',
   verifyToken,

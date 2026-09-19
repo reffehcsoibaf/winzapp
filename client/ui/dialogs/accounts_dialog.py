@@ -128,6 +128,16 @@ class AccountsDialog(wx.Dialog):
         sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
+        # TEMPORARY — investigation for wppconnect-team/wa-js#3658 (every
+        # WPP.privacy.set* wrapper broken). Searches WhatsApp Web's own
+        # current module registry for whatever now implements the setter,
+        # since wa-js's own lookup by the old name comes up empty. Remove
+        # this button (and MainWindow.debug_find_privacy_module) once the
+        # real fix is wired up — see that method's docstring.
+        self._wa_privacy_debug_btn = wx.Button(panel, label=i18n.t("wa_privacy_debug_find_button"))
+        sizer.Add(self._wa_privacy_debug_btn, 0, wx.ALL, 8)
+        self._wa_privacy_debug_btn.Bind(wx.EVT_BUTTON, self._on_debug_find_privacy_module)
+
         panel.SetSizer(sizer)
         self._notebook.AddPage(panel, i18n.t("wa_settings_tab_privacy"))
 
@@ -180,6 +190,65 @@ class AccountsDialog(wx.Dialog):
             )
         else:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
+
+    def _on_debug_find_privacy_module(self, event):
+        """TEMPORARY debug action — see the button's comment above. Runs the
+        search in a background thread (it's a network call to the WPPConnect
+        server), writes the full result as JSON to debug_dumps/ under this
+        account's data folder, and reports just the counts here (accessible,
+        short) — the file itself is what gets inspected afterward."""
+        i18n = self._i18n
+        self._wa_privacy_debug_btn.Disable()
+        self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_debug_running"))
+
+        def _work():
+            import json
+            import os
+            import app_paths
+
+            result = self.main_window.debug_find_privacy_module()
+            dump_path = app_paths.data_path("debug_dumps", "privacy_module_search.txt")
+            error_msg = None
+            try:
+                os.makedirs(os.path.dirname(dump_path), exist_ok=True)
+                with open(dump_path, "w", encoding="utf-8") as f:
+                    json.dump(result, f, indent=2, ensure_ascii=False)
+            except Exception as exc:
+                error_msg = str(exc)
+            wx.CallAfter(self._on_debug_find_privacy_module_done, result, dump_path, error_msg)
+
+        import threading
+        threading.Thread(target=_work, daemon=True).start()
+
+    def _on_debug_find_privacy_module_done(self, result, dump_path, save_error):
+        i18n = self._i18n
+        self._wa_privacy_debug_btn.Enable()
+        self._wa_privacy_status_label.SetLabel("")
+        if not isinstance(result, dict):
+            wx.MessageBox(
+                i18n.t("wa_privacy_debug_failed"),
+                i18n.t("error").format(app_name=self.main_window.app_name),
+                wx.OK | wx.ICON_ERROR, self,
+            )
+            return
+        by_name_count = len(result.get("byName") or [])
+        by_fingerprint_count = len(result.get("byFingerprint") or [])
+        summary = i18n.t("wa_privacy_debug_result_summary").format(
+            total=result.get("totalModules", 0),
+            by_name=by_name_count,
+            by_fingerprint=by_fingerprint_count,
+            path=dump_path,
+        )
+        if result.get("error"):
+            summary += "\n\n" + i18n.t("wa_privacy_debug_result_error").format(
+                error=result.get("error")
+            )
+        if save_error:
+            summary += "\n\n" + i18n.t("wa_privacy_debug_save_failed").format(error=save_error)
+        wx.MessageBox(
+            summary,
+            i18n.t("wa_settings_tab_privacy"), wx.OK | wx.ICON_INFORMATION, self,
+        )
 
     # ── Perfil ────────────────────────────────────────────────────────────
 
