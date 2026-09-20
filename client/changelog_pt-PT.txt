@@ -1,3 +1,13 @@
+V1.1.2.2
+
+Esta versão ajusta a ordem de dois botões e corrige a ordem das versões no ecrã "O que há de novo?".
+
+CORREÇÕES
+
+- Ao dar Tab numa mensagem de imagem, vídeo ou PDF, o primeiro botão passa a ser o de Descrever/Transcrever (IA) — antes vinha depois de Abrir, Guardar e Transferir. O áudio já funcionava assim, por ser o único botão desse tipo de mensagem.
+
+- O ecrã "O que há de novo?" sempre mostrou as versões da mais recente para a mais antiga, exceto por um trecho antigo do changelog (das versões 1.1.0.0 a 1.1.0.3) que ficou gravado na ordem contrária — quem atualizasse cruzando essas versões via as novidades fora de ordem. Corrigido.
+
 V1.1.2.1
 
 Esta versão deixa o guia de utilização dentro do próprio WinZapp, faz o ecrã de atualização mostrar o que há de novo na versão que vai instalar, e corrige uma falha de segurança no ecrã de Conversas trancadas.
@@ -130,6 +140,57 @@ CORREÇÕES
 
 - As mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" que o WhatsApp Business envia) por vezes chegavam vazias, sem nenhuma opção para selecionar. O WinZapp passa agora a ir buscar o conteúdo diretamente ao WhatsApp Web quando isso acontece — tanto ao receber a mensagem como ao navegar até ela pelo teclado — voltando a mostrar as opções normalmente, mesmo em mensagens que já tinham chegado vazias anteriormente.
 
+V1.1.0.3
+
+Esta versão traz conversas trancadas e confirmação de leitura em tempo real.
+
+NOVIDADES
+
+- Trancar conversa: esconde uma conversa da lista principal. Indique o código configurado no campo de busca para a revelar de novo — mesmo comportamento do WhatsApp oficial. Nova aba "Privacidade" nas configurações para definir ou alterar esse código.
+
+- Conversas trancadas pelo próprio telemóvel também são reconhecidas e escondidas pelo WinZapp, embora só o telemóvel as possa destrancar.
+
+- Notificações e o contador de não lidas não revelam remetente ou texto de conversas trancadas.
+
+- Ao abrir os detalhes de uma mensagem enviada, o WinZapp consulta agora o WhatsApp diretamente para mostrar quando foi entregue, lida ou ouvida.
+V1.1.0.2
+
+Esta versão corrige um erro ao descrever vídeos e adiciona um aviso falado de progresso durante os pedidos de IA.
+
+CORREÇÕES
+
+- Descrever vídeos (e outros ficheiros maiores) por vezes dava erro "ficheiro não está em estado ativo". O Gemini precisa de tempo para processar ficheiros enviados antes de os poder analisar, e o WinZapp agora espera esse processamento terminar antes de continuar.
+
+MELHORIAS
+
+- Aviso falado a cada 8 segundos ("Ainda a processar com o Gemini...") enquanto uma transcrição, descrição ou conversão de PDF está em curso, incluindo as perguntas de acompanhamento em imagem e vídeo. Antes, a espera podia ficar em silêncio total.
+
+V1.1.0.1
+
+Esta versão traz funcionalidades de IA para acessibilidade (transcrição de áudio, descrição de imagem/vídeo e conversão de PDF em texto acessível, via Gemini), além de ajustes para tornar a primeira execução mais simples e a sincronização mais tranquila.
+
+NOVIDADES
+
+- Aba "Transcrições e Descrições" nas configurações: ativa as funcionalidades de IA, guarda a sua chave de API do Gemini, e liga ou desliga separadamente a transcrição de áudio, a descrição de imagens, a descrição de vídeos e a conversão de PDF em texto acessível.
+
+- Menu de contexto das mensagens: "Transcrever" em mensagens de voz, "Descrever" em imagens e vídeos, e "Converter em texto acessível" em documentos PDF. O resultado abre numa janela navegável pelas setas, com botão para copiar tudo.
+
+- Em imagens e vídeos, é possível fazer uma pergunta de acompanhamento sobre um detalhe específico que a descrição geral não tenha coberto, como o preço de um produto num folheto ou um valor numa fatura.
+
+MELHORIAS
+
+- Transferência automática de multimédia: prazo padrão reduzido de 30 para 1 dia.
+
+- Progresso falado a cada 5 segundos durante a sincronização de conversas e a transferência de multimédia, informando quantas já foram processadas do total.
+
+- Instalações novas vêm com atualizações automáticas desligadas por padrão, e sem as três perguntas da primeira utilização (API personalizada, início automático com o Windows, atalho de teclado global) — tudo continua disponível manualmente nas configurações.
+
+CORREÇÕES
+
+- Transcrever mensagens de voz dava erro de "não foi possível transferir a multimédia": ficam guardadas numa pasta e formato diferentes do resto das multimédias, e o código de transcrição usava o caminho errado.
+
+- Ficheiros de áudio em formato .m4a (e outros menos comuns, como .amr e .aac) eram rejeitados pelo Gemini por não serem reconhecidos como áudio pelo Python.
+
 V1.1.0.0
 
 Esta versão traz o separador de multimédia, o visualizador de multimédia em janela própria, pré-visualizações de ligações, ações em massa e um separador de Acessibilidade nas definições. A sincronização de conversas ficou bastante mais rápida, e a lista de conversas deixou de ser refeita a cada mensagem, o que reduz muito a releitura pelo leitor de ecrã.
@@ -246,54 +307,3 @@ CORREÇÕES
 
 - O registo de instalação de atualizações passa a ficar dentro da pasta de registos da conta (junto com log.log e shutdown_audit.log), em vez de solto na pasta do programa.
 
-V1.1.0.1
-
-Esta versão traz funcionalidades de IA para acessibilidade (transcrição de áudio, descrição de imagem/vídeo e conversão de PDF em texto acessível, via Gemini), além de ajustes para tornar a primeira execução mais simples e a sincronização mais tranquila.
-
-NOVIDADES
-
-- Aba "Transcrições e Descrições" nas configurações: ativa as funcionalidades de IA, guarda a sua chave de API do Gemini, e liga ou desliga separadamente a transcrição de áudio, a descrição de imagens, a descrição de vídeos e a conversão de PDF em texto acessível.
-
-- Menu de contexto das mensagens: "Transcrever" em mensagens de voz, "Descrever" em imagens e vídeos, e "Converter em texto acessível" em documentos PDF. O resultado abre numa janela navegável pelas setas, com botão para copiar tudo.
-
-- Em imagens e vídeos, é possível fazer uma pergunta de acompanhamento sobre um detalhe específico que a descrição geral não tenha coberto, como o preço de um produto num folheto ou um valor numa fatura.
-
-MELHORIAS
-
-- Transferência automática de multimédia: prazo padrão reduzido de 30 para 1 dia.
-
-- Progresso falado a cada 5 segundos durante a sincronização de conversas e a transferência de multimédia, informando quantas já foram processadas do total.
-
-- Instalações novas vêm com atualizações automáticas desligadas por padrão, e sem as três perguntas da primeira utilização (API personalizada, início automático com o Windows, atalho de teclado global) — tudo continua disponível manualmente nas configurações.
-
-CORREÇÕES
-
-- Transcrever mensagens de voz dava erro de "não foi possível transferir a multimédia": ficam guardadas numa pasta e formato diferentes do resto das multimédias, e o código de transcrição usava o caminho errado.
-
-- Ficheiros de áudio em formato .m4a (e outros menos comuns, como .amr e .aac) eram rejeitados pelo Gemini por não serem reconhecidos como áudio pelo Python.
-
-V1.1.0.2
-
-Esta versão corrige um erro ao descrever vídeos e adiciona um aviso falado de progresso durante os pedidos de IA.
-
-CORREÇÕES
-
-- Descrever vídeos (e outros ficheiros maiores) por vezes dava erro "ficheiro não está em estado ativo". O Gemini precisa de tempo para processar ficheiros enviados antes de os poder analisar, e o WinZapp agora espera esse processamento terminar antes de continuar.
-
-MELHORIAS
-
-- Aviso falado a cada 8 segundos ("Ainda a processar com o Gemini...") enquanto uma transcrição, descrição ou conversão de PDF está em curso, incluindo as perguntas de acompanhamento em imagem e vídeo. Antes, a espera podia ficar em silêncio total.
-
-V1.1.0.3
-
-Esta versão traz conversas trancadas e confirmação de leitura em tempo real.
-
-NOVIDADES
-
-- Trancar conversa: esconde uma conversa da lista principal. Indique o código configurado no campo de busca para a revelar de novo — mesmo comportamento do WhatsApp oficial. Nova aba "Privacidade" nas configurações para definir ou alterar esse código.
-
-- Conversas trancadas pelo próprio telemóvel também são reconhecidas e escondidas pelo WinZapp, embora só o telemóvel as possa destrancar.
-
-- Notificações e o contador de não lidas não revelam remetente ou texto de conversas trancadas.
-
-- Ao abrir os detalhes de uma mensagem enviada, o WinZapp consulta agora o WhatsApp diretamente para mostrar quando foi entregue, lida ou ouvida.

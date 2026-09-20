@@ -429,19 +429,6 @@ def resolve_changelog(local_version: str, remote_version: str, lang_code: str,
     return (release_body or "").strip()
 
 
-def _wrap_changelog_text(text: str, width: int = 100) -> str:
-    """Word-wrap *text* to *width* columns per line for display in the
-    What's New TextCtrl, never breaking a word mid-way. Blank lines
-    (paragraph/section breaks) are preserved as-is."""
-    import textwrap
-    out_lines = []
-    for line in text.splitlines():
-        if not line.strip():
-            out_lines.append("")
-            continue
-        wrapped = textwrap.wrap(line, width=width, break_long_words=False, break_on_hyphens=False)
-        out_lines.extend(wrapped if wrapped else [""])
-    return "\n".join(out_lines)
 
 
 # ── Install helpers ───────────────────────────────────────────────────────────
@@ -751,10 +738,17 @@ class WhatsNewDialog(wx.Dialog):
     def _build(self, parent, changelog, i18n):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        # Plain wx.TE_MULTILINE (no TE_DONTWRAP) so the control wraps each
+        # line to its own current width and reflows when the dialog is
+        # resized. The previous version pre-wrapped the text to a fixed 100
+        # columns and then set TE_DONTWRAP with no horizontal scrollbar —
+        # at the dialog's actual ~520px width that is much narrower than
+        # 100 columns, so most of each line was simply clipped off-screen
+        # and unreachable, which is what made this look "bagunçado".
         text_ctrl = wx.TextCtrl(
             self,
-            value=_wrap_changelog_text(changelog),
-            style=wx.TE_MULTILINE | wx.TE_READONLY | wx.TE_DONTWRAP,
+            value=changelog,
+            style=wx.TE_MULTILINE | wx.TE_READONLY,
         )
         sizer.Add(text_ctrl, 1, wx.EXPAND | wx.ALL, 8)
 

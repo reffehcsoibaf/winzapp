@@ -1,3 +1,13 @@
+V1.1.2.2
+
+Ta wersja zmienia kolejność dwóch przycisków i naprawia kolejność wersji w oknie "Co nowego?".
+
+POPRAWKI
+
+- Naciśnięcie Tab na wiadomości ze zdjęciem, filmem lub PDF-em przenosi teraz najpierw na przycisk Opisz/Transkrybuj (AI) — wcześniej pojawiał się po Otwórz, Zapisz i Pobierz. W przypadku audio działało to już tak, bo to jedyny przycisk tego typu przy wiadomości audio.
+
+- Okno "Co nowego?" zawsze pokazywało wersje od najnowszej do najstarszej, poza jednym starym fragmentem dziennika zmian (wersje od 1.1.0.0 do 1.1.0.3), który został zapisany w odwrotnej kolejności — aktualizacja obejmująca te wersje pokazywała nowości w złej kolejności. Naprawione.
+
 V1.1.2.1
 
 Ta wersja przenosi przewodnik użytkownika do wnętrza WinZappa, sprawia, że okno aktualizacji pokazuje, co nowego jest w wersji, którą zaraz zainstalujesz, oraz naprawia lukę bezpieczeństwa w oknie Zablokowanych rozmów.
@@ -128,6 +138,57 @@ POPRAWKI
 
 - Przełączanie kont poprawnie usuwa teraz multimedia poprzedniego konta, które wcześniej mogły zostać na komputerze.
 
+V1.1.0.3
+
+Ta wersja wprowadza zablokowane czaty i potwierdzenia odczytu w czasie rzeczywistym.
+
+NOWOŚCI
+
+- Zablokuj czat: ukrywa czat z głównej listy. Wpisz skonfigurowany kod w polu wyszukiwania, aby go ponownie odsłonić — takie samo zachowanie jak w oficjalnym WhatsApp. Nowa karta "Prywatność" w ustawieniach do ustawienia lub zmiany tego kodu.
+
+- Czaty zablokowane bezpośrednio z telefonu są również rozpoznawane i ukrywane przez WinZapp, chociaż tylko telefon może je odblokować.
+
+- Powiadomienia i licznik nieprzeczytanych nie ujawniają już nadawcy ani treści zablokowanych czatów.
+
+- Otwarcie szczegółów wysłanej wiadomości teraz odpytuje WhatsApp bezpośrednio, aby pokazać, kiedy została dostarczona, przeczytana lub odtworzona.
+V1.1.0.2
+
+Ta wersja naprawia błąd przy opisywaniu wideo i dodaje mówione powiadomienie o postępie podczas żądań AI.
+
+POPRAWKI
+
+- Opisywanie wideo (i innych większych plików) czasami kończyło się błędem "plik nie jest w stanie aktywnym". Gemini potrzebuje czasu na przetworzenie przesłanych plików, zanim będzie mógł je przeanalizować, a WinZapp teraz czeka na zakończenie tego przetwarzania przed kontynuowaniem.
+
+ULEPSZENIA
+
+- Mówione przypomnienie co 8 sekund ("Nadal przetwarzanie przez Gemini...") podczas trwania transkrypcji, opisu lub konwersji PDF, w tym pytań uzupełniających dla obrazów i wideo. Wcześniej oczekiwanie mogło przebiegać w całkowitej ciszy.
+
+V1.1.0.1
+
+Ta wersja wprowadza funkcje AI dla dostępności (transkrypcja audio, opis obrazu/wideo i konwersja PDF na dostępny tekst, za pomocą Gemini), a także zmiany upraszczające pierwsze uruchomienie i synchronizację.
+
+NOWOŚCI
+
+- Nowa karta "Transkrypcje i opisy" w ustawieniach: włącza funkcje AI, przechowuje klucz API Gemini, oraz osobno przełącza transkrypcję audio, opis obrazów, opis wideo i konwersję PDF na dostępny tekst.
+
+- Menu kontekstowe wiadomości: "Transkrybuj" dla wiadomości głosowych, "Opisz" dla obrazów i wideo, oraz "Konwertuj na dostępny tekst" dla dokumentów PDF. Wynik otwiera się w oknie nawigowalnym strzałkami, z przyciskiem kopiowania wszystkiego.
+
+- Dla obrazów i wideo można zadać dodatkowe pytanie o konkretny szczegół, którego ogólny opis nie uwzględnił, np. cenę produktu na ulotce lub kwotę na fakturze.
+
+ULEPSZENIA
+
+- Automatyczne pobieranie multimediów: domyślny okres skrócony z 30 do 1 dnia.
+
+- Mówiony postęp co 5 sekund podczas synchronizacji czatów i pobierania multimediów, informujący ile już przetworzono z całości.
+
+- Nowe instalacje domyślnie mają wyłączone automatyczne aktualizacje i pomijają trzy pytania z pierwszego uruchomienia (niestandardowe API, automatyczne uruchamianie z Windows, globalny skrót klawiszowy) — wszystko nadal dostępne ręcznie w ustawieniach.
+
+POPRAWKI
+
+- Transkrypcja wiadomości głosowych kończyła się błędem "nie udało się pobrać multimediów": są one przechowywane w innym folderze/formacie niż pozostałe multimedia, a kod transkrypcji używał złej ścieżki.
+
+- Pliki audio w formacie .m4a (oraz inne mniej popularne, jak .amr i .aac) były odrzucane przez Gemini jako nierozpoznane jako audio przez Pythona.
+
 V1.1.0.0
 
 Ta wersja wprowadza kartę multimediów, odtwarzacz multimediów w osobnym oknie, podglądy linków, operacje zbiorcze oraz kartę Dostępność w ustawieniach. Synchronizacja rozmów jest znacznie szybsza, a lista rozmów nie jest już przebudowywana przy każdej wiadomości, co bardzo ogranicza ponowne odczytywanie przez czytnik ekranu.
@@ -244,54 +305,3 @@ POPRAWKI
 
 - Dziennik instalacji aktualizacji jest teraz zapisywany w folderze dzienników konta (razem z log.log i shutdown_audit.log), zamiast osobno w folderze programu.
 
-V1.1.0.1
-
-Ta wersja wprowadza funkcje AI dla dostępności (transkrypcja audio, opis obrazu/wideo i konwersja PDF na dostępny tekst, za pomocą Gemini), a także zmiany upraszczające pierwsze uruchomienie i synchronizację.
-
-NOWOŚCI
-
-- Nowa karta "Transkrypcje i opisy" w ustawieniach: włącza funkcje AI, przechowuje klucz API Gemini, oraz osobno przełącza transkrypcję audio, opis obrazów, opis wideo i konwersję PDF na dostępny tekst.
-
-- Menu kontekstowe wiadomości: "Transkrybuj" dla wiadomości głosowych, "Opisz" dla obrazów i wideo, oraz "Konwertuj na dostępny tekst" dla dokumentów PDF. Wynik otwiera się w oknie nawigowalnym strzałkami, z przyciskiem kopiowania wszystkiego.
-
-- Dla obrazów i wideo można zadać dodatkowe pytanie o konkretny szczegół, którego ogólny opis nie uwzględnił, np. cenę produktu na ulotce lub kwotę na fakturze.
-
-ULEPSZENIA
-
-- Automatyczne pobieranie multimediów: domyślny okres skrócony z 30 do 1 dnia.
-
-- Mówiony postęp co 5 sekund podczas synchronizacji czatów i pobierania multimediów, informujący ile już przetworzono z całości.
-
-- Nowe instalacje domyślnie mają wyłączone automatyczne aktualizacje i pomijają trzy pytania z pierwszego uruchomienia (niestandardowe API, automatyczne uruchamianie z Windows, globalny skrót klawiszowy) — wszystko nadal dostępne ręcznie w ustawieniach.
-
-POPRAWKI
-
-- Transkrypcja wiadomości głosowych kończyła się błędem "nie udało się pobrać multimediów": są one przechowywane w innym folderze/formacie niż pozostałe multimedia, a kod transkrypcji używał złej ścieżki.
-
-- Pliki audio w formacie .m4a (oraz inne mniej popularne, jak .amr i .aac) były odrzucane przez Gemini jako nierozpoznane jako audio przez Pythona.
-
-V1.1.0.2
-
-Ta wersja naprawia błąd przy opisywaniu wideo i dodaje mówione powiadomienie o postępie podczas żądań AI.
-
-POPRAWKI
-
-- Opisywanie wideo (i innych większych plików) czasami kończyło się błędem "plik nie jest w stanie aktywnym". Gemini potrzebuje czasu na przetworzenie przesłanych plików, zanim będzie mógł je przeanalizować, a WinZapp teraz czeka na zakończenie tego przetwarzania przed kontynuowaniem.
-
-ULEPSZENIA
-
-- Mówione przypomnienie co 8 sekund ("Nadal przetwarzanie przez Gemini...") podczas trwania transkrypcji, opisu lub konwersji PDF, w tym pytań uzupełniających dla obrazów i wideo. Wcześniej oczekiwanie mogło przebiegać w całkowitej ciszy.
-
-V1.1.0.3
-
-Ta wersja wprowadza zablokowane czaty i potwierdzenia odczytu w czasie rzeczywistym.
-
-NOWOŚCI
-
-- Zablokuj czat: ukrywa czat z głównej listy. Wpisz skonfigurowany kod w polu wyszukiwania, aby go ponownie odsłonić — takie samo zachowanie jak w oficjalnym WhatsApp. Nowa karta "Prywatność" w ustawieniach do ustawienia lub zmiany tego kodu.
-
-- Czaty zablokowane bezpośrednio z telefonu są również rozpoznawane i ukrywane przez WinZapp, chociaż tylko telefon może je odblokować.
-
-- Powiadomienia i licznik nieprzeczytanych nie ujawniają już nadawcy ani treści zablokowanych czatów.
-
-- Otwarcie szczegółów wysłanej wiadomości teraz odpytuje WhatsApp bezpośrednio, aby pokazać, kiedy została dostarczona, przeczytana lub odtworzona.

@@ -854,6 +854,17 @@ class ConversationsPanel(wx.Panel):
         if gauge:
             gauge.Hide()
 
+        # ── AI transcribe/describe button ────────────────────────────────────
+        # Same action as the context menu's AI item (_on_menu_ai_process).
+        # Created and added to the sizer first, ahead of Open/Save/Download,
+        # so it is both the first button shown and the first one Tab reaches
+        # for image/video/sticker/PDF messages — matching audio, where this
+        # is already the only (and therefore first) button in this slot.
+        self._action_ai_btn = wx.Button(self._media_action_slot, label="")
+        self._action_ai_btn.Bind(wx.EVT_BUTTON, self._on_action_ai_process)
+        self._media_action_sizer.Add(self._action_ai_btn, 0, wx.TOP, 2)
+        self._action_ai_btn.Hide()
+
         # ── Action buttons (document / image / video) ───────────────────────
         self._action_open_btn = wx.Button(
             self._media_action_slot, label=i18n.t("open")
@@ -879,16 +890,6 @@ class ConversationsPanel(wx.Panel):
         self._action_download_btn.Hide()
         self._hide_media_transfer_gauge()
         self._media_action_slot.Hide()
-
-        # ── AI transcribe/describe button ────────────────────────────────────
-        # Same action as the context menu's AI item (_on_menu_ai_process) —
-        # this just gives it a Tab-reachable button right next to Open/Save,
-        # matching the pattern those two already set, instead of making it
-        # context-menu-only like it was before.
-        self._action_ai_btn = wx.Button(self._media_action_slot, label="")
-        self._action_ai_btn.Bind(wx.EVT_BUTTON, self._on_action_ai_process)
-        self._media_action_sizer.Add(self._action_ai_btn, 0, wx.TOP, 2)
-        self._action_ai_btn.Hide()
 
         # ── Business reply buttons container ───────────────────────────────
         self._buttons_container = wx.Panel(self.conversation_panel)

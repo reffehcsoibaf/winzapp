@@ -1,3 +1,13 @@
+V1.1.2.2
+
+This release reorders two buttons and fixes the version order shown in "What's new?".
+
+FIXES
+
+- Tabbing into an image, video or PDF message now lands on the Describe/Transcribe (AI) button first — it used to come after Open, Save and Download. Audio already worked this way, since it's the only button of that kind on an audio message.
+
+- "What's new?" always listed versions newest first, except for an old stretch of the changelog (versions 1.1.0.0 through 1.1.0.3) that had been saved in the opposite order — updating across those versions showed the news out of order. Fixed.
+
 V1.1.2.1
 
 This release moves the usage guide inside WinZapp itself, makes the update screen show what is new in the version you are about to install, and fixes a security issue in the Locked chats screen.
@@ -130,6 +140,57 @@ FIXES
 
 - Business list/option messages (the "choose an option" menus WhatsApp Business sends) sometimes arrived empty, with no options to pick from. WinZapp now fetches the content directly from WhatsApp Web when this happens — both when the message arrives and when you navigate to it with the keyboard — and shows the options normally again, even for messages that had already arrived empty before.
 
+V1.1.0.3
+
+This version brings locked chats and real-time read receipts.
+
+WHAT'S NEW
+
+- Lock chat: hides a chat from the main list. Type the configured code into the search field to reveal it again — same behaviour as official WhatsApp. New "Privacy" settings tab to set or change this code.
+
+- Chats locked from the phone itself are also recognised and hidden by WinZapp, though only the phone can unlock them.
+
+- Notifications and the unread counter no longer reveal the sender or text of locked chats.
+
+- Opening a sent message's details now queries WhatsApp directly to show when it was delivered, read, or played.
+V1.1.0.2
+
+This version fixes an error when describing videos and adds a spoken progress notice during AI requests.
+
+FIXES
+
+- Describing videos (and other larger files) sometimes failed with a "file is not in an active state" error. Gemini needs time to process uploaded files before it can analyse them, and WinZapp now waits for that processing to finish before continuing.
+
+IMPROVEMENTS
+
+- Spoken reminder every 8 seconds ("Still processing with Gemini...") while a transcription, description or PDF conversion is in progress, including follow-up questions on images and videos. Previously the wait could be completely silent.
+
+V1.1.0.1
+
+This version brings AI accessibility features (audio transcription, image/video description, and PDF-to-accessible-text conversion, via Gemini), plus changes to make first launch simpler and syncing less taxing.
+
+WHAT'S NEW
+
+- New "Transcriptions & Descriptions" settings tab: turns AI features on, stores your Gemini API key, and separately toggles audio transcription, image description, video description, and PDF-to-accessible-text conversion.
+
+- Message context menu: "Transcribe" on voice messages, "Describe" on images and videos, and "Convert to accessible text" on PDF documents. The result opens in an arrow-key navigable window, with a copy-all button.
+
+- For images and videos, you can ask a follow-up question about a specific detail the general description missed, like a product's price in a flyer or a figure on an invoice.
+
+IMPROVEMENTS
+
+- Automatic media download: default window reduced from 30 to 1 day.
+
+- Spoken progress every 5 seconds during chat sync and media download, announcing how many have been processed out of the total.
+
+- Fresh installs now ship with automatic updates off by default, and skip the three first-run prompts (custom API, Windows autostart, global hotkey) — all still available manually in Settings.
+
+FIXES
+
+- Transcribing voice messages failed with "couldn't download the media": voice notes are stored in a different folder/format from other media, and the transcription code was using the wrong path.
+
+- .m4a audio files (and a few less common formats, like .amr and .aac) were rejected by Gemini for not being recognised as audio by Python.
+
 V1.1.0.0
 
 This release adds the Media tab, a media viewer in its own window, link previews, bulk actions and an Accessibility tab in settings. Conversation syncing is much faster, and the conversation list is no longer rebuilt on every message, which cuts down a great deal of screen-reader re-reading.
@@ -246,54 +307,3 @@ FIXES
 
 - The update installer's log now lives inside the account's own logs folder (alongside log.log and shutdown_audit.log), instead of loose in the program folder.
 
-V1.1.0.1
-
-This version brings AI accessibility features (audio transcription, image/video description, and PDF-to-accessible-text conversion, via Gemini), plus changes to make first launch simpler and syncing less taxing.
-
-WHAT'S NEW
-
-- New "Transcriptions & Descriptions" settings tab: turns AI features on, stores your Gemini API key, and separately toggles audio transcription, image description, video description, and PDF-to-accessible-text conversion.
-
-- Message context menu: "Transcribe" on voice messages, "Describe" on images and videos, and "Convert to accessible text" on PDF documents. The result opens in an arrow-key navigable window, with a copy-all button.
-
-- For images and videos, you can ask a follow-up question about a specific detail the general description missed, like a product's price in a flyer or a figure on an invoice.
-
-IMPROVEMENTS
-
-- Automatic media download: default window reduced from 30 to 1 day.
-
-- Spoken progress every 5 seconds during chat sync and media download, announcing how many have been processed out of the total.
-
-- Fresh installs now ship with automatic updates off by default, and skip the three first-run prompts (custom API, Windows autostart, global hotkey) — all still available manually in Settings.
-
-FIXES
-
-- Transcribing voice messages failed with "couldn't download the media": voice notes are stored in a different folder/format from other media, and the transcription code was using the wrong path.
-
-- .m4a audio files (and a few less common formats, like .amr and .aac) were rejected by Gemini for not being recognised as audio by Python.
-
-V1.1.0.2
-
-This version fixes an error when describing videos and adds a spoken progress notice during AI requests.
-
-FIXES
-
-- Describing videos (and other larger files) sometimes failed with a "file is not in an active state" error. Gemini needs time to process uploaded files before it can analyse them, and WinZapp now waits for that processing to finish before continuing.
-
-IMPROVEMENTS
-
-- Spoken reminder every 8 seconds ("Still processing with Gemini...") while a transcription, description or PDF conversion is in progress, including follow-up questions on images and videos. Previously the wait could be completely silent.
-
-V1.1.0.3
-
-This version brings locked chats and real-time read receipts.
-
-WHAT'S NEW
-
-- Lock chat: hides a chat from the main list. Type the configured code into the search field to reveal it again — same behaviour as official WhatsApp. New "Privacy" settings tab to set or change this code.
-
-- Chats locked from the phone itself are also recognised and hidden by WinZapp, though only the phone can unlock them.
-
-- Notifications and the unread counter no longer reveal the sender or text of locked chats.
-
-- Opening a sent message's details now queries WhatsApp directly to show when it was delivered, read, or played.
