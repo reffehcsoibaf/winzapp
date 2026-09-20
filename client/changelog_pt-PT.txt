@@ -1,3 +1,69 @@
+V1.1.2.1
+
+Esta versão deixa o guia de utilização dentro do próprio WinZapp, faz o ecrã de atualização mostrar o que há de novo na versão que vai instalar, e corrige uma falha de segurança no ecrã de Conversas trancadas.
+
+MELHORIAS
+
+- O guia de utilização passa a abrir numa janela do próprio WinZapp, em vez do navegador. Continua a ser a mesma página, com menu lateral, pesquisa e modo escuro, e o leitor de ecrã lê-a como qualquer página da web. Esc ou o botão Fechar levam-no de volta ao sítio onde estava. Se o Windows não tiver o componente de páginas web necessário (WebView2), o guia abre no navegador, como antes.
+
+- No ecrã de atualização disponível, o botão "O que há de novo?" passa a aparecer sempre e mostra as novidades da versão que vai instalar. Antes o texto vinha da versão que já tem, por isso podia mostrar novidades antigas ou nenhuma. Quando não há nada para mostrar, o botão avisa disso em vez de desaparecer.
+
+CORREÇÕES
+
+- Trocar o código de conversas trancadas (Configurações > Conversas > Conversas trancadas) passa a exigir o código atual antes de aceitar um novo. Antes bastava abrir Configurações e escrever um código novo, sem ser preciso saber o anterior — o que permitia a qualquer pessoa com acesso ao computador assumir o controlo das conversas trancadas de outra pessoa.
+
+- Esqueceu-se do código? A única forma de recuperar o acesso é desconectar a conta (menu Ficheiro > Desconectar) e parear novamente — isso apaga permanentemente as mensagens e multimédia do WinZapp desta conta e liberta a definição de um código novo. Conversas trancadas pelo próprio telemóvel não são afetadas por isto.
+
+V1.1.2.0
+
+Esta versão reúne tudo o que foi feito desde a fusão com a versão 1.1.1.0 do criador original: figurinhas transcritas por IA, um guia de utilização dentro do próprio programa, cópia de segurança e restauro de conversas, uma ferramenta de limpeza de multimédia, edição de estado e foto de perfil, e uma lista de correções — entre elas, as mensagens de lista de opções de empresas que chegavam vazias ao WinZapp.
+
+NOVIDADES
+
+- Transcrição de figurinhas. A mesma descrição por IA que já existia para imagens passa a funcionar também em figurinhas, com um interruptor próprio em Configurações > Conversas > Transcrições e Descrições.
+
+- Botão de IA (Transcrever/Descrever) ao lado de Abrir e Guardar. Áudio, imagem, figurinha, vídeo e PDF ganham este botão no mesmo sítio dos restantes botões de ação da mensagem — antes só existia no menu de contexto, e o áudio não tinha nenhum botão de ação até agora.
+
+- Dados da mensagem em grupos, participante a participante. Os "Dados da mensagem" de uma mensagem de grupo passam a mostrar quem a recebeu, leu e reproduziu, agrupados pela etapa mais avançada alcançada, em vez de apenas o total agregado.
+
+- Pesquisa no separador Conversas Arquivadas, igual à que já existia na lista principal.
+
+- Guia de utilização do WinZapp dentro do programa, acessível pelo menu Ajuda e também pelo ecrã de emparelhamento.
+
+- Mais opções de reação às mensagens. Além das 12 reações rápidas, um botão "Mais emojis…" abre o mesmo seletor completo, com pesquisa, usado ao escrever uma mensagem.
+
+- Cópia de segurança e restauro de conversas. Um único ficheiro (.wzbackup) guarda as conversas, multimédia e definições que escolher, com palavra-passe opcional; restaurar junta sempre ao que já existe, nunca sobrescreve.
+
+- Ferramenta de limpeza de multimédia em Configurações > Armazenamento: filtra por conversa, tipo de multimédia e tamanho mínimo, mostra um resumo antes de apagar o que quer que seja, e só remove ficheiros já transferidos — nunca as mensagens.
+
+- Edição do estado e da foto de perfil diretamente no WinZapp, sem precisar de abrir o WhatsApp no telemóvel.
+
+- As mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" enviados pelo WhatsApp Business) por vezes chegavam vazias, sem nenhuma opção para escolher. O WinZapp passa agora a ir buscar o conteúdo diretamente ao WhatsApp Web quando isso acontece — tanto ao receber a mensagem como ao navegar até ela pelo teclado — e volta a mostrar as opções normalmente, inclusive em mensagens que já tinham chegado vazias antes.
+
+MELHORIAS
+
+- Configurações reorganizadas em menos separadores: um separador Conversas reúne os botões de Conversas bloqueadas por palavra-passe, Transcrições e Descrições, Reprodução de áudio e Chamadas; um separador Sons reúne as definições de áudio e os sons de eventos.
+
+- "Ver dados do contacto" passa a mostrar o cartão inteiro — aniversário, empresa, telefones, e-mails e moradas com etiqueta, sítios web e redes sociais — e não apenas nome e telefone.
+
+- O item "Escolher conta…" do menu Contas só aparece quando há 10 ou mais contas emparelhadas; com menos, os atalhos diretos (Ctrl+Alt+1 a 9) chegam.
+
+- As atualizações automáticas passam a verificar a assinatura do instalador antes de o aplicar.
+
+CORREÇÕES
+
+- O indicador de transferência de multimédia ("processadas X de Y") inflacionava o total em contas com muito histórico e nunca parecia terminar. Agora conta apenas o que realmente vai ser transferido.
+
+- As conversas de contactos bloqueados ficam realmente ocultas da lista e de Arquivadas — antes só recebiam um aviso "(bloqueado)" e continuavam a aparecer.
+
+- A ligação deixava de funcionar com frequência logo depois de o próprio WinZapp se atualizar, pedindo para emparelhar de novo. Agora a atualização espera que a sessão se desligue mesmo antes de fechar o programa.
+
+- Descrever uma foto que tinha legenda mas nenhum nome de ficheiro próprio podia falhar.
+
+- O aviso falado de que "o envio pode não funcionar" disparava por falhas em funcionalidades de Estado, mesmo quando enviar texto e multimédia funcionava normalmente. Agora só avisa quando o essencial (texto ou multimédia) falha mesmo.
+
+- Os contactos partilhados exportados de iPhone/Mac com mais de um número por vezes não eram lidos corretamente.
+
 V1.1.1.0
 
 Esta versão é sobre manter a sua conta ligada. O WinZapp passou a guardar uma cópia de segurança do perfil do navegador — que é onde a sua ligação ao WhatsApp fica realmente guardada — e a restaurá-la sozinho quando ela deixa de ser aceite, avisando o que aconteceu. Com ela vieram as correções das situações que quebravam a sessão e faziam o programa pedir para emparelhar de novo: desligar o computador, suspender e retomar, e o próprio programa a reiniciar a ligação. Chegaram também a verificação ortográfica no campo de mensagem e as ações sobre ligações.

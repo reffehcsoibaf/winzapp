@@ -3584,6 +3584,9 @@ class MainWindow(wx.Frame):
                 i18n.t("about_community_thanks"),
                 i18n.t("about_translation_thanks_pl"),
                 "",
+                i18n.t("about_contributors_up_to"),
+                i18n.t("about_current_dev"),
+                "",
                 i18n.t("about_current_version").format(version=__version__),
                 i18n.t("about_license"),
             )
@@ -3655,6 +3658,29 @@ class MainWindow(wx.Frame):
         # it, delete nothing" branch and lets the two accounts merge.
         self.messages_set_completed = False
         self.token = ""
+        # A stuck-sync nudge or auto-resync (_arm_stuck_sync_watchdog())
+        # firing after the account has disconnected would announce or wipe
+        # against a session that no longer applies.
+        wx.CallAfter(self._cancel_stuck_sync_watchdog)
+        self._auto_stuck_sync_resync_fired = False
+        if wipe:
+            # Security/UX fix paired with the "current code required to
+            # change the code" gate in settings_dialog.py: that gate means
+            # a forgotten locked-chats code can no longer be silently
+            # replaced from within the app. The recovery path is this one —
+            # a *confirmed* logout, same as WhatsApp's own "forgot the
+            # secret code? reset by unlinking/relinking" behavior — and it
+            # is consistent with what clear_local_data() below already does
+            # to everything else this account's data touched: no code
+            # survives to gate the account that receives the fresh pairing,
+            # exactly as if this were a brand-new install. The messages and
+            # media that code was protecting are gone in the same wipe, so
+            # nothing is disclosed — only access to the (now content-less)
+            # feature is restored.
+            _priv = self.settings.get("privacy", {})
+            _priv.pop("locked_chats_code_hash", None)
+            _priv.pop("locked_chats_code_salt", None)
+            _priv.pop("locked_chats_require_code_to_open", None)
         self.save_settings()
         if wipe:
             self.clear_local_data()
@@ -5053,6 +5079,87 @@ class MainWindow(wx.Frame):
             # crash here doesn't permanently block every future sync attempt.
             logging.exception("[_resync_all_worker] Unhandled error before sync could start")
             self._initial_sync_running = False
+
+    #: Safety net for a full (cold) sync that never finishes — a fresh
+    #: pairing (or F5) whose message list stays empty for minutes, whatever
+    #: the underlying cause. Two one-shot timers, in seconds from when the
+    #: FIRST attempt of a stuck episode started (see _arm_stuck_sync_watchdog()
+    #: for why re-armed attempts do not reset this clock).
+    _STUCK_SYNC_NUDGE_SECONDS = 120
+    _STUCK_SYNC_AUTO_RESYNC_SECONDS = 180
+
+    def _arm_stuck_sync_watchdog(self):
+        """Start (or leave running) the two stuck-full-sync timers.
+
+        Deliberately does NOT reset a timer that is already ticking. A full
+        sync whose RECENT history-sync wait keeps aborting and restarting
+        (see wait_for_restarted_history_sync()) calls this again on every
+        attempt — sometimes less than two minutes apart, per a captured
+        session — and restarting the clock each time would mean the 2/3
+        minute safety net measures nothing but never actually fires, which
+        is exactly the failure mode it exists to catch. Only arm a timer
+        that isn't already running, so the deadline is measured from the
+        first attempt of this stuck episode, no matter how many times the
+        sync restarts underneath it.
+
+        Cancelled by _cancel_stuck_sync_watchdog() the moment a sync
+        actually completes (_run_sync()) or the account disconnects
+        (_on_disconnect()). Created via wx.CallAfter because start_sync()
+        runs on a background thread and wx.CallLater must be created on the
+        main thread.
+        """
+        def _arm():
+            nudge = getattr(self, "_stuck_sync_nudge_timer", None)
+            if nudge is None or not nudge.IsRunning():
+                self._stuck_sync_nudge_timer = wx.CallLater(
+                    self._STUCK_SYNC_NUDGE_SECONDS * 1000, self._on_stuck_sync_nudge)
+            auto = getattr(self, "_stuck_sync_auto_resync_timer", None)
+            if auto is None or not auto.IsRunning():
+                self._stuck_sync_auto_resync_timer = wx.CallLater(
+                    self._STUCK_SYNC_AUTO_RESYNC_SECONDS * 1000,
+                    self._on_stuck_sync_auto_resync)
+        wx.CallAfter(_arm)
+
+    def _cancel_stuck_sync_watchdog(self):
+        """Stop both stuck-sync timers. Must run on the main thread."""
+        for attr in ("_stuck_sync_nudge_timer", "_stuck_sync_auto_resync_timer"):
+            timer = getattr(self, attr, None)
+            if timer is not None and timer.IsRunning():
+                timer.Stop()
+
+    def _on_stuck_sync_nudge(self):
+        """~2 minutes into a full sync that has not finished: a spoken-only
+        reminder that F5 refreshes the message list manually, in case the
+        user has no way to tell anything is wrong beyond the repeating
+        'Sincronizando' announcement. No-ops if the sync already finished,
+        the account is offline (F5 could not help anyway), or the master
+        sync-announcement mute (Configurações > Geral) is on."""
+        if getattr(self, "_sync_completed", False):
+            return
+        if not getattr(self, "_wa_connected", False) or getattr(self, "offline_mode", False):
+            return
+        if self._announce_sync_events_enabled():
+            self.output(self.i18n.t("stuck_sync_nudge"), interrupt=False)
+
+    def _on_stuck_sync_auto_resync(self):
+        """~1 minute after the nudge above, still stuck: do the F5 for the
+        user instead of just asking them to.
+
+        Fires at most once per stuck episode: _auto_stuck_sync_resync_fired
+        is only cleared when a sync actually completes (_run_sync()), so if
+        this very resync also gets stuck, the watchdog re-arms (a fresh
+        nudge can fire again) but this method returns immediately instead of
+        wiping the local database on a loop."""
+        if getattr(self, "_sync_completed", False):
+            return
+        if getattr(self, "_auto_stuck_sync_resync_fired", False):
+            return
+        if not getattr(self, "_wa_connected", False) or getattr(self, "offline_mode", False):
+            return
+        self._auto_stuck_sync_resync_fired = True
+        if self._announce_sync_events_enabled():
+            self.output(self.i18n.t("stuck_sync_auto_resync_announcement"), interrupt=True)
+        threading.Thread(target=self._resync_all_worker, daemon=True).start()
 
     def _on_force_update(self, event):
         if self._update_checker is None:
@@ -10417,22 +10524,26 @@ class MainWindow(wx.Frame):
     def _on_open_help_guide(self, event):
         self._open_help_guide_html()
 
-    def _open_help_guide_html(self):
-        """Opens the usage guide (client/data/help_guide/<lang>.html) in the
-        system's default browser — not an in-app dialog. It's a full styled
-        HTML page (sidebar nav, search, dark mode via prefers-color-scheme),
-        same visual approach as the user's own Banca Pro wiki.html, and a
-        real browser's own accessibility tree is more robust than
-        reimplementing navigation/search inside a wx dialog. Falls back to
-        pt-BR if the current language has no guide file yet."""
-        from app_paths import resource_path
+    def _open_help_guide_html(self, parent=None):
+        """Opens the usage guide (client/data/help_guide/<lang>.html) in an
+        in-app window (Edge/WebView2, see ui/dialogs/help_guide_dialog.py).
+        It's a full styled HTML page (sidebar nav, search, dark mode via
+        prefers-color-scheme), so the page itself is unchanged — only where it
+        is shown. When WebView2 is missing or the window can't be built, it
+        opens in the system's default browser instead, as it always used to.
+        `parent` is the window the guide should sit on top of: the connection
+        dialog when opened from there, since a modal dialog can't be answered
+        from behind another. Falls back to pt-BR if the current language has
+        no guide file yet."""
+        from ui.dialogs.help_guide_dialog import find_help_guide_path, show_help_guide
         lang = self.i18n.language
-        for candidate in (lang, "pt-BR"):
-            path = resource_path("data", "help_guide", f"{candidate}.html")
-            if os.path.isfile(path):
-                os.startfile(path)
-                return
-        logging.warning("[help_guide] No guide HTML found for %s or pt-BR fallback.", lang)
+        path = find_help_guide_path(lang)
+        if path is None:
+            logging.warning("[help_guide] No guide HTML found for %s or pt-BR fallback.", lang)
+            return
+        if show_help_guide(parent or self, self.i18n, path):
+            return
+        os.startfile(path)
 
     def apply_language_changes(self):
         """Refresh all visible translatable text after a language change."""
@@ -14152,6 +14263,13 @@ class MainWindow(wx.Frame):
                         self.output(self.i18n.t("conversations_update_started"), interrupt=False)
         wx.CallAfter(_announce_sync_stage)
 
+        if force_full:
+            # Only the heavy cold-sync path (first pairing, F5, or an
+            # empty local cache) gets the stuck-sync safety net — a warm
+            # incremental round is quick and never blocks on the RECENT
+            # history-sync wait this exists to catch.
+            self._arm_stuck_sync_watchdog()
+
         # After first pairing the API may need a few seconds to populate chats.
         # Retry only when starting cold (no local cache); if we already have
         # local chats just refresh once and move on — the API is ready.
@@ -14902,6 +15020,15 @@ class MainWindow(wx.Frame):
             self._sync_completed = True
             self._sync_retry_count = 0
             self._force_full_sync = False
+            # The stuck-sync safety net (_arm_stuck_sync_watchdog()) no
+            # longer applies to a round that just finished — cancel it here
+            # rather than leaving it to fire a pointless nudge or a
+            # redundant auto-resync a minute later, and clear the
+            # once-per-episode auto-resync latch so a genuinely separate
+            # stuck episode later in the same session (e.g. a later F5)
+            # gets its own chance at the automatic fix.
+            wx.CallAfter(self._cancel_stuck_sync_watchdog)
+            self._auto_stuck_sync_resync_fired = False
             self._persist_successful_sync_state(
                 "full" if effective_full else "incremental",
                 full_target_count, incremental_target_count, skipped_target_count,
@@ -19962,6 +20089,23 @@ class MainWindow(wx.Frame):
         (_history_session_is_gone()) ends the wait early now; anything else
         keeps polling until the deadline, which is what bounds this at all.
 
+        _history_session_is_gone() itself can be a false positive, not just
+        an unreadable read: it also trips on ``_wa_connected`` being briefly
+        False, and a live capture showed exactly that during a fresh
+        pairing — WPPConnect reported "Disconnected" for one poll (the same
+        wa-js/WhatsApp-Web-build hiccup already seen elsewhere in this
+        codebase, e.g. the privacy-settings and message-ACK bugs) and was
+        back to CONNECTED a few seconds later. Treating that single reading
+        as fatal ended the wait, deferred the whole message phase (see
+        _run_sync()'s "session_gone" branch), and left
+        trigger_sync_if_needed() to retry the entire RECENT restart from a
+        fresh 600s budget every ~30-120s — which is indistinguishable from
+        "never syncs" to the user even though each individual read failure
+        was transient. So "gone" now requires the SAME verdict on two
+        consecutive polls (~2s apart) before the wait actually ends; a
+        single blip just logs and keeps going, same as an unreadable status
+        already did.
+
         Sets ``self._history_wait_outcome`` to why it stopped, because the two
         False cases are not the same thing to the caller:
 
@@ -19970,30 +20114,48 @@ class MainWindow(wx.Frame):
             making progress. The phone still has history to push; that is a
             reason to expect short chats, NOT a reason to skip the message
             phase (see _run_sync()).
-          * ``"session_gone"`` — offline, or the session is really gone. There
-            is nothing to query and the caller should stop.
+          * ``"session_gone"`` — offline, or the session is really gone (on
+            two consecutive reads). There is nothing to query and the
+            caller should stop.
         """
         self._history_wait_outcome = ""
         deadline = time.monotonic() + timeout
         last_progress_log = 0.0
+        consecutive_gone_reads = 0
         while time.monotonic() < deadline:
             if self._should_abort_sync_for_offline():
+                # A deliberate offline transition (menu toggle, or the app's
+                # own auto-offline) is not a transient read — act on it
+                # immediately, same as before.
                 self._history_wait_outcome = "session_gone"
                 return False
             status = self.fetch_history_sync_status(timeout=10)
             if not isinstance(status, dict):
                 if self._history_session_is_gone():
+                    consecutive_gone_reads += 1
+                    if consecutive_gone_reads < 2:
+                        logging.warning(
+                            "[history-sync] Restarted RECENT wait: session looked "
+                            "gone (reading %d) — confirming once more before "
+                            "giving up, %.0fs of budget left.",
+                            consecutive_gone_reads,
+                            max(0.0, deadline - time.monotonic()))
+                        time.sleep(2)
+                        continue
                     logging.warning(
-                        "[history-sync] Restarted RECENT wait: session is gone; "
-                        "stopping the wait.")
+                        "[history-sync] Restarted RECENT wait: session is gone "
+                        "(confirmed on %d consecutive reads); stopping the wait.",
+                        consecutive_gone_reads)
                     self._history_wait_outcome = "session_gone"
                     return False
+                consecutive_gone_reads = 0
                 logging.warning(
                     "[history-sync] Restarted RECENT wait: status unreadable but "
                     "the session is still up — treating it as transient, %.0fs of "
                     "budget left.", max(0.0, deadline - time.monotonic()))
                 time.sleep(2)
                 continue
+            consecutive_gone_reads = 0
             counts = status.get("storeCounts") or {}
             message_count = counts.get("message")
             queue_empty = status.get("unprocessedChunks") == 0

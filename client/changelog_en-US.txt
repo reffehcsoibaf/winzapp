@@ -1,3 +1,69 @@
+V1.1.2.1
+
+This release moves the usage guide inside WinZapp itself, makes the update screen show what is new in the version you are about to install, and fixes a security issue in the Locked chats screen.
+
+IMPROVEMENTS
+
+- The usage guide now opens in a WinZapp window instead of your browser. It is the same page — side menu, search and dark mode included — and your screen reader reads it like any web page. Esc or the Close button takes you back to where you were. If Windows lacks the web component it needs (WebView2), the guide opens in your browser, as before.
+
+- On the update-available screen, the "What's new?" button now always appears and shows what is new in the version you are about to install. Before, the text came from the version you already have, so it could show old news or none at all. When there is nothing to show, the button says so instead of disappearing.
+
+FIXES
+
+- Changing the locked-chats code (Settings > Conversations > Locked chats) now requires entering the current code before a new one is accepted. Before, opening Settings and typing a new code twice was enough — you never had to know the previous one — which let anyone with access to the computer take over someone else's locked chats.
+
+- Forgot the code? The only way to recover access is to disconnect the account (File > Disconnect menu) and pair again — this permanently deletes this account's WinZapp messages and media and clears the way to set a new code. Chats locked from the phone itself are not affected by this.
+
+V1.1.2.0
+
+This release gathers everything done since the merge with the original creator's version 1.1.1.0: stickers transcribed by AI, a usage guide inside the program itself, conversation backup and restore, a media cleanup tool, status and profile photo editing, and a list of fixes — among them, business option-list messages that used to reach WinZapp empty.
+
+WHAT'S NEW
+
+- Sticker transcription. The same AI description already used for images now works on stickers too, with its own switch in Settings > Conversations > Transcriptions & Descriptions.
+
+- AI button (Transcribe/Describe) next to Open and Save. Audio, image, sticker, video and PDF get this button in the same place as the message's other action buttons — before, it was only in the context menu, and audio had no action button at all.
+
+- Message info in groups, participant by participant. A group message's "Message info" now shows who received, read and played it, grouped by the furthest stage reached, instead of just the aggregate total.
+
+- Search in the Archived Conversations tab, just like the main list already had.
+
+- The WinZapp usage guide, inside the program, reachable from the Help menu and from the pairing screen.
+
+- More ways to react to messages. Besides the 12 quick reactions, a "More emojis…" button opens the same full picker, with search, that is used when writing a message.
+
+- Conversation backup and restore. A single file (.wzbackup) holds the conversations, media and settings you choose, with an optional password; restoring always merges with what already exists and never overwrites it.
+
+- Media cleanup tool in Settings > Storage: filter by conversation, media type and minimum size, see a summary before anything is deleted, and only already-downloaded files are removed — never the messages.
+
+- Editing your status and profile photo directly from WinZapp, without opening WhatsApp on your phone.
+
+- Business option-list messages (the "choose an option" menus WhatsApp Business sends) sometimes reached WinZapp empty, with nothing to choose from. WinZapp now fetches the content straight from WhatsApp Web when that happens — both on receiving the message and on reaching it with the keyboard — and shows the options normally again, even for messages that had already arrived empty before.
+
+IMPROVEMENTS
+
+- Settings reorganized into fewer tabs: a Conversations tab gathers the password-locked Blocked conversations, Transcriptions & Descriptions, Audio playback and Calls buttons; a Sounds tab gathers the audio settings and the event sounds.
+
+- "View contact info" now shows the whole card — birthday, company, phones, emails and addresses with their labels, websites and social networks — not just name and phone.
+
+- The "Choose account…" item in the Accounts menu only appears when you have 10 or more paired accounts; with fewer, the direct shortcuts (Ctrl+Alt+1 to 9) are enough.
+
+- Automatic updates now verify the installer's signature before applying it.
+
+FIXES
+
+- The media download indicator ("processed X of Y") inflated the total on accounts with a lot of history and never seemed to finish. It now counts only what will really be downloaded.
+
+- Conversations with blocked contacts are now really hidden from the list and from Archived — before, they only got a "(blocked)" note and kept showing up.
+
+- The connection often stopped working right after WinZapp updated itself, asking you to pair again. The update now waits for the session to truly disconnect before closing the program.
+
+- Describing a photo that had a caption but no file name of its own could fail.
+
+- The spoken warning that "sending may not work" fired for failures in Status features, even when sending text and media worked normally. It now warns only when the essentials (text or media) really fail.
+
+- Shared contacts exported from iPhone/Mac with more than one number were sometimes not read correctly.
+
 V1.1.1.0
 
 This release is about keeping your account connected. WinZapp now keeps a backup copy of the browser profile — which is where your WhatsApp connection actually lives — and restores it on its own when it stops being accepted, telling you what happened. Alongside it come fixes for the situations that broke the session and left the app asking you to pair again: shutting the computer down, suspending and resuming, and the app restarting the connection by itself. Spell checking in the message field and link actions arrived too.

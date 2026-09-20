@@ -857,7 +857,130 @@ const whatsappVersion = resolveWhatsappVersion();
 const WA_WEB_URL = 'https://web.whatsapp.com/';
 const WA_CHECK_UPDATE = 'https://web.whatsapp.com/check-update';
 
+// Flight recorder for the moment WhatsApp Web decides to log this session out.
+//
+// A paired install can be answered `post_logout=1` seconds after the page loads
+// while the phone still lists the linked device and the profile on disk is
+// byte-identical to one that connected hours earlier. The URL carries no
+// reason (`logout_reason=unknown`), and nothing else in wppconnect.log says why
+// the page gave up, so the difference between "the server refused us", "a
+// second connection replaced this one" and "the page could not decrypt its own
+// store" is invisible after the fact — and wppconnect.log is replaced on the
+// next launch, which is usually the one the user opens to look.
+//
+// So keep the last few dozen page events in memory, and when the logout
+// navigation arrives write them out — to wppconnect.log and to a file that
+// survives the next launch. Read-only by construction: console messages,
+// failed/erroring requests and WebSocket lifecycle events only, never a request
+// body, a WebSocket payload or anything from the page's storage. A separate CDP
+// session carries the Network domain; enabling it pauses nothing, so it cannot
+// touch the document-only Fetch interception below (which must stay exactly as
+// narrow as it is — see its own comment). Every entry point swallows its own
+// errors: a diagnostic must never be the reason a session fails to start.
+const LOGOUT_DIAG_MAX_EVENTS = 100;
+const LOGOUT_DIAG_SETTLE_MS = 4000;
+const LOGOUT_DIAG_FILE_MAX_BYTES = 512 * 1024;
+
+function logoutDiagnosticsFile() {
+  const dir = process.env.WINZAPP_USER_DATA_DIR;
+  if (!dir) return null;
+  return path.resolve(dir, '..', 'logout_diagnostics.log');
+}
+
+function appendLogoutDiagnostics(file, text) {
+  if (!file) return;
+  try {
+    let size = 0;
+    try { size = fs.statSync(file).size; } catch (e) {}
+    if (size > LOGOUT_DIAG_FILE_MAX_BYTES) {
+      try { fs.renameSync(file, file + '.1'); } catch (e) {}
+    }
+    fs.appendFileSync(file, text + '\n');
+  } catch (e) {}
+}
+
+function createLogoutDiagnostics(page) {
+  const events = [];
+  const startedAt = Date.now();
+  let flushTimer = null;
+  const record = (kind, text) => {
+    try {
+      const at = ((Date.now() - startedAt) / 1000).toFixed(2);
+      events.push(`+${at}s ${kind} ${String(text).slice(0, 400)}`);
+      if (events.length > LOGOUT_DIAG_MAX_EVENTS) events.shift();
+    } catch (e) {}
+  };
+  const flush = (trigger) => {
+    try {
+      const header =
+        `[WinZapp][logout-diagnostics] ${new Date().toISOString()} pid=${process.pid} ` +
+        `userDataDir=${process.env.WINZAPP_USER_DATA_DIR || '-'} trigger=${trigger}`;
+      const dump = [header, ...events.map((e) => '  ' + e)].join('\n');
+      console.warn(dump);
+      appendLogoutDiagnostics(logoutDiagnosticsFile(), dump);
+    } catch (e) {}
+  };
+  const attach = async () => {
+    try {
+      page.on('console', (m) => record(`console.${m.type()}`, m.text()));
+      page.on('pageerror', (e) => record('pageerror', e && e.message));
+      page.on('requestfailed', (r) => {
+        const f = r.failure && r.failure();
+        record('requestfailed', `${r.url()} ${(f && f.errorText) || ''}`);
+      });
+      page.on('response', (r) => {
+        if (r.status() >= 400) record(`http.${r.status()}`, r.url());
+      });
+    } catch (e) {}
+    try {
+      const net = await page.createCDPSession();
+      await net.send('Network.enable');
+      const sockets = new Map();
+      net.on('Network.webSocketCreated', (ev) => {
+        sockets.set(ev.requestId, ev.url);
+        record('ws.created', ev.url);
+      });
+      net.on('Network.webSocketHandshakeResponseReceived', (ev) => {
+        const status = ev.response && ev.response.status;
+        record('ws.handshake', `${sockets.get(ev.requestId) || ev.requestId} status=${status}`);
+      });
+      net.on('Network.webSocketClosed', (ev) => {
+        record('ws.closed', sockets.get(ev.requestId) || ev.requestId);
+        sockets.delete(ev.requestId);
+      });
+      net.on('Network.webSocketFrameError', (ev) => {
+        record('ws.frameError', ev.errorMessage);
+      });
+      // A close frame (opcode 8) carries the status code and reason the server
+      // gave; every other frame is opaque encrypted traffic and is not read.
+      net.on('Network.webSocketFrameReceived', (ev) => {
+        if (ev.response && ev.response.opcode === 8) {
+          record('ws.closeFrame', String(ev.response.payloadData || '').slice(0, 120));
+        }
+      });
+    } catch (e) {}
+  };
+  return {
+    attach,
+    record,
+    // Called from the framenavigated hook: dumps once the events that follow
+    // the logout navigation (the close frame usually lands just after it) have
+    // had a moment to arrive.
+    onLogoutNavigation(url) {
+      record('post_logout', url);
+      if (flushTimer) return;
+      flushTimer = setTimeout(() => {
+        flushTimer = null;
+        flush('post_logout');
+      }, LOGOUT_DIAG_SETTLE_MS);
+      if (flushTimer.unref) flushTimer.unref();
+    },
+  };
+}
+
 async function installPinnedPageInterception(page, body, log) {
+  const diagnostics = createLogoutDiagnostics(page);
+  await diagnostics.attach();
   const cdp = await page.createCDPSession();
   // Breadcrumbs for the reload loop reported live (both pairing routes show
   // nothing on screen, wppconnect.log shows "Execution context was destroyed,
@@ -872,6 +995,7 @@ async function installPinnedPageInterception(page, body, log) {
     if (frame === page.mainFrame()) {
       const url = frame.url();
       console.log(`[WinZapp] main frame navigated -> ${url}`);
+      diagnostics.record('navigated', url);
       // A forced `post_logout=1` this early — before the first pinned
       // document has even been served once — means WhatsApp evicted the
       // session before WPPConnect had a chance to log in at all, which is a
@@ -884,6 +1008,7 @@ async function installPinnedPageInterception(page, body, log) {
       // identifiable from log.log alone instead of requiring a fresh
       // wppconnect.log grep session — this line changes no behavior.
       if (/[?&]post_logout=1/.test(url)) {
+        diagnostics.onLogoutNavigation(url);
         const reasonMatch = url.match(/[?&]logout_reason=(\d+)/);
         const reason = reasonMatch ? reasonMatch[1] : 'unknown';
         const elapsedS = ((Date.now() - interceptionInstalledAt) / 1000).toFixed(1);

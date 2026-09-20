@@ -875,14 +875,21 @@ def compile_installer_stub():
         "-o", INSTALLER_RES,
         "--include-dir", INSTALLER_DIR,
     ])
+    # installer.c's register_uninstall() writes this into DisplayVersion
+    # (the version Windows shows in "Add or Remove Programs" / "Apps &
+    # features"). Without -DWINZAPP_VERSION here it falls back to the
+    # placeholder baked into installer.c ("0.0.0"), which is what was
+    # showing up as a permanently stale version in the installed-apps list.
+    display_version, _ = _app_version_tuple()
     run([
         GCC_CMD, "-finput-charset=UTF-8", "-fwide-exec-charset=UTF-16LE",
+        f'-DWINZAPP_VERSION=L"{display_version}"',
         os.path.join(INSTALLER_DIR, "installer.c"),
         INSTALLER_RES, "-o", INSTALLER_STUB, "-mwindows",
         "-I", INSTALLER_DIR,
         "-lole32", "-lshell32", "-lcomctl32", "-lshlwapi", "-ladvapi32", "-luuid",
     ])
-    print(f"  -> {INSTALLER_STUB}")
+    print(f"  -> {INSTALLER_STUB}  (version {display_version})")
 
 def append_zip_to_stub():
     step("7/8  Appending payload to installer stub")

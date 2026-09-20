@@ -4,6 +4,52 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
+## v1.1.2.1 — correção de segurança: troca do código de conversas trancadas
+
+### Correções
+- **Falha de segurança corrigida**: a aba Privacidade (Configurações >
+  Conversas > Conversas trancadas) permitia definir um novo código de
+  conversas trancadas sem nunca precisar informar o código atual —
+  bastava abrir Configurações (nada protege esse acesso) e digitar um
+  código novo duas vezes para assumir o controle das conversas trancadas
+  de outra pessoa, sem nunca ter sabido o código original.
+- Agora, sempre que já existir um código configurado, trocar o código
+  exige informar o código atual primeiro (verificado contra o hash salvo,
+  nunca em texto puro). A primeira configuração (nenhum código definido
+  ainda) continua sem exigir nada, como antes.
+- **Recuperação de código esquecido**: como consequência do fechamento
+  dessa brecha, esqueceu o código não é mais um "sem saída, mas também
+  não é reversível às escondidas": desconectar a conta (Arquivo >
+  Desconectar) e parear novamente — a única forma de recuperar a
+  funcionalidade — apaga permanentemente todas as mensagens e mídias do
+  WinZapp desta conta (a wipe que esse fluxo já fazia continua igual),
+  e agora também limpa o código salvo, deixando a conta pronta para
+  configurar um código novo. Conversas trancadas pelo próprio celular
+  (`isLocked`) não são afetadas por nada disso — seguem controladas só
+  pelo celular, e voltam a aparecer como trancadas no WinZapp assim que
+  a conta ressincronizar, exatamente como chegam do WhatsApp.
+
+### Correções (sincronização)
+- **"Fica sincronizando pra sempre" num pareamento novo**: investigando um
+  caso real, achamos que uma única leitura de "sessão desconectada" durante
+  a espera do histórico recente (`wait_for_restarted_history_sync`) —
+  causada por uma instabilidade passageira de conexão do lado do
+  WhatsApp Web/wa-js, a mesma classe de bug já vista em Privacidade e
+  Dados da mensagem — bastava pra abortar aquela rodada de sincronização
+  inteira; o verificador de conexão então tentava tudo de novo do zero
+  segundos depois, reiniciando o prazo de 10 minutos indefinidamente. Só
+  mensagens novas chegando ao vivo davam a impressão de progresso; o
+  histórico nunca era buscado. Agora é preciso confirmar "sessão foi
+  embora" em duas leituras seguidas antes de desistir — uma instabilidade
+  passageira já não derruba a rodada inteira.
+- **Rede de segurança**: independente da causa, se uma sincronização
+  completa (pareamento novo, ou F5) não terminar em cerca de 2 minutos, o
+  WinZapp agora avisa por voz (só falado, sem alterar nada visualmente)
+  que dá pra pressionar F5 pra atualizar a lista manualmente; se mesmo
+  assim não terminar em mais um minuto, o próprio WinZapp faz isso
+  automaticamente, uma única vez por travamento. Some sozinha assim que a
+  sincronização realmente termina.
+
 ## v1.1.0.0 — base original (upstream, sem modificações)
 
 Ponto de partida: o WinZapp original, clonado direto do repositório

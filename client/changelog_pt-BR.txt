@@ -1,3 +1,69 @@
+V1.1.2.1
+
+Esta versão deixa o guia de uso dentro do próprio WinZapp, faz a tela de atualização mostrar o que há de novo na versão que você vai instalar, e corrige uma falha de segurança na tela de Conversas trancadas.
+
+MELHORIAS
+
+- O guia de uso agora abre numa janela do próprio WinZapp, em vez do navegador. Continua sendo a mesma página, com menu lateral, busca e modo escuro, e o leitor de tela a lê como qualquer página da web. Esc ou o botão Fechar levam de volta para onde você estava. Se o Windows não tiver o componente de páginas web necessário (WebView2), o guia abre no navegador, como antes.
+
+- Na tela de atualização disponível, o botão "Quais as novidades?" agora aparece sempre e mostra as novidades da versão que você vai instalar. Antes o texto vinha da versão que você já tem, então podia mostrar novidades antigas ou nenhuma. Quando não há nada para mostrar, o botão avisa isso em vez de sumir.
+
+CORREÇÕES
+
+- Trocar o código de conversas trancadas (Configurações > Conversas > Conversas trancadas) agora exige informar o código atual antes de aceitar um novo. Antes bastava abrir Configurações e digitar um código novo, sem precisar saber o anterior — o que permitia a qualquer pessoa com acesso ao computador assumir o controle das conversas trancadas de outra pessoa.
+
+- Esqueceu o código? A única forma de recuperar o acesso é desconectar a conta (menu Arquivo > Desconectar) e parear novamente — isso apaga permanentemente as mensagens e mídias do WinZapp desta conta e libera a definição de um código novo. Conversas trancadas pelo próprio celular não são afetadas por isso.
+
+V1.1.2.0
+
+Esta versão reúne tudo o que foi feito desde a fusão com a versão 1.1.1.0 do criador original: figurinhas transcritas por IA, um guia de uso dentro do próprio programa, backup e restauração de conversas, uma ferramenta de limpeza de mídia, edição de recado e foto de perfil, e uma lista de correções — entre elas, as mensagens de lista de opções de empresas que chegavam vazias ao WinZapp.
+
+NOVIDADES
+
+- Transcrição de figurinhas. A mesma descrição por IA que já existia para imagens agora também funciona em figurinhas, com um interruptor próprio em Configurações > Conversas > Transcrições e Descrições.
+
+- Botão de IA (Transcrever/Descrever) ao lado de Abrir e Salvar. Áudio, imagem, figurinha, vídeo e PDF ganham esse botão no mesmo lugar dos demais botões de ação da mensagem — antes ele só existia no menu de contexto, e o áudio não tinha nenhum botão de ação até agora.
+
+- Dados da mensagem em grupos, participante por participante. Os "Dados da mensagem" de uma mensagem de grupo agora mostram quem recebeu, leu e reproduziu, agrupados pela etapa mais avançada alcançada, em vez de só o total agregado.
+
+- Busca na aba Conversas Arquivadas, igual à que já existia na lista principal.
+
+- Guia de uso do WinZapp dentro do programa, acessível pelo menu Ajuda e também pela tela de pareamento.
+
+- Mais opções de reação às mensagens. Além das 12 reações rápidas, um botão "Mais emojis…" abre o mesmo seletor completo, com busca, usado ao escrever uma mensagem.
+
+- Backup e restauração de conversas. Um único arquivo (.wzbackup) guarda as conversas, mídias e configurações que você escolher, com senha opcional; restaurar sempre mescla com o que já existe, nunca sobrescreve.
+
+- Ferramenta de limpeza de mídia em Configurações > Armazenamento: filtra por conversa, tipo de mídia e tamanho mínimo, mostra um resumo antes de apagar qualquer coisa, e só remove arquivos já baixados — nunca as mensagens.
+
+- Edição do recado e da foto de perfil direto no WinZapp, sem precisar abrir o WhatsApp no celular.
+
+- As mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" enviados pelo WhatsApp Business) às vezes chegavam vazias, sem nenhuma opção para escolher. O WinZapp agora busca o conteúdo direto no WhatsApp Web quando isso acontece — tanto ao receber a mensagem quanto ao navegar até ela pelo teclado — e volta a mostrar as opções normalmente, inclusive em mensagens que já tinham chegado vazias antes.
+
+MELHORIAS
+
+- Configurações reorganizadas em menos abas: uma aba Conversas reúne os botões de Conversas bloqueadas por senha, Transcrições e Descrições, Reprodução de áudio e Chamadas; uma aba Sons reúne os ajustes de áudio e os sons de eventos.
+
+- "Ver dados do contato" agora mostra o cartão inteiro — aniversário, empresa, telefones, e-mails e endereços com rótulo, sites e redes sociais — e não só nome e telefone.
+
+- O item "Escolher conta…" do menu Contas só aparece quando há 10 ou mais contas pareadas; com menos, os atalhos diretos (Ctrl+Alt+1 a 9) já bastam.
+
+- As atualizações automáticas agora verificam a assinatura do instalador antes de aplicá-lo.
+
+CORREÇÕES
+
+- O indicador de download de mídia ("processadas X de Y") inflava o total em contas com muito histórico e nunca parecia terminar. Agora conta só o que realmente vai ser baixado.
+
+- As conversas de contatos bloqueados ficam realmente ocultas da lista e de Arquivadas — antes só recebiam um aviso "(bloqueado)" e continuavam aparecendo.
+
+- A conexão parava de funcionar com frequência logo depois de o próprio WinZapp se atualizar, pedindo para parear de novo. Agora a atualização espera a sessão se desconectar de verdade antes de fechar o programa.
+
+- Descrever uma foto que tinha legenda mas nenhum nome de arquivo próprio podia falhar.
+
+- O aviso falado de que "o envio pode não funcionar" disparava por falhas em recursos de Status, mesmo quando enviar texto e mídia funcionava normalmente. Agora só avisa quando o essencial (texto ou mídia) falha de verdade.
+
+- Contatos compartilhados exportados de iPhone/Mac com mais de um número às vezes não eram lidos corretamente.
+
 V1.1.1.0
 
 Esta versão é sobre manter a sua conta conectada. O WinZapp passou a guardar uma cópia de segurança do perfil do navegador — que é onde a sua conexão com o WhatsApp realmente fica guardada — e a restaurá-la sozinho quando ela deixa de ser aceita, avisando o que aconteceu. Junto vieram as correções das situações que quebravam a sessão e faziam o programa pedir para parear de novo: desligar o computador, suspender e retomar, e o próprio programa reiniciando a conexão. Também chegaram a verificação ortográfica no campo de mensagem e as ações sobre links.

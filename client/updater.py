@@ -28,7 +28,7 @@ from app_paths import _outer_exe_dir, _is_frozen, resource_path, log_path
 from core import release_keys
 from core.release_signature import SIGNATURE_ASSET_NAME, check_release_manifest
 from core.wpp_runtime import homologated_wpp_tag
-from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE
+from config import GITHUB_API_LATEST_RELEASE, GITHUB_API_LATEST_STABLE_RELEASE, GITHUB_REPO
 from version import __version__
 
 
@@ -361,27 +361,71 @@ def load_changelog_text(lang_code: str) -> str:
     return ""
 
 
-def resolve_changelog(local_version: str, remote_version: str, lang_code: str, release_body: str = "") -> str:
+def fetch_release_changelog(tag: str, lang_code: str, get_text=None) -> str:
+    """
+    Download changelog_<lang_code>.txt as it stands at the release's tag.
+
+    The changelog shipped inside the installed app describes the version the
+    user already has, never the one on offer, so the entries for an update can
+    only come from the update itself. The tag's own copy of the file is that:
+    a stable tag is cut from a commit that carries its changelog, and every
+    alpha is built from the commit it is tagged on.
+
+    Falls back to en-US when the language has no file at that tag, and returns
+    "" on ANY failure — this runs on the update check's thread while the
+    per-machine prompt claim is held, so an exception escaping here would
+    leave every account unable to be offered the update.
+    """
+    from urllib.parse import quote
+    if get_text is None:
+        def get_text(url):
+            resp = requests.get(url, headers={"User-Agent": f"WinZapp/{__version__}"}, timeout=15)
+            resp.raise_for_status()
+            resp.encoding = "utf-8"
+            return resp.text
+
+    languages = [lang_code] if lang_code == "en-US" else [lang_code, "en-US"]
+    for lang in languages:
+        url = (
+            f"https://raw.githubusercontent.com/{GITHUB_REPO}/"
+            f"{quote(tag, safe='')}/client/changelog_{quote(lang, safe='')}.txt"
+        )
+        try:
+            text = get_text(url)
+        except Exception as exc:
+            logging.info("Auto-updater: no changelog at %s (%s)", url, exc)
+            continue
+        if text and text.strip():
+            return text
+    return ""
+
+
+def resolve_changelog(local_version: str, remote_version: str, lang_code: str,
+                      release_body: str = "", remote_text: str = "") -> str:
     """
     Resolve the text to show in the "What's new" dialog for an update from
     *local_version* to *remote_version*.
 
-    Preference order:
-      1. changelog_<lang_code>.txt (or changelog_en-US.txt as fallback),
-         filtered down to just the entries between local_version (exclusive)
-         and remote_version (inclusive) via get_changelog_for_update(). If a
-         file was found but has no version-tagged entries in that range
-         (e.g. it predates the "V1.2.3.4" header convention), its raw
-         content is shown as-is rather than being silently discarded.
-      2. The raw GitHub release body — used only when neither changelog
-         file exists at all, since it's written per-release rather than
-         per-version and isn't guaranteed to describe every version in the
-         jump when several were skipped between checks.
+    Preference order, each one filtered down to the entries between
+    local_version (exclusive) and remote_version (inclusive) by
+    get_changelog_for_update():
+      1. *remote_text* — the changelog at the release's own tag
+         (see fetch_release_changelog()). The only source that can contain
+         the entries for the version being offered.
+      2. The changelog file shipped with this install, for when the download
+         failed (offline, rate-limited) but the entries happen to be there.
+      3. The raw GitHub release body — written per-release rather than
+         per-version, so it may not describe every version in the jump when
+         several were skipped between checks.
+
+    A changelog with nothing in that range is NOT shown whole: it would be
+    the notes of versions the user already has, presented as news.
     """
-    raw = load_changelog_text(lang_code)
-    if raw:
-        filtered = get_changelog_for_update(raw, local_version, remote_version)
-        return filtered if filtered else raw.strip()
+    for raw in (remote_text, load_changelog_text(lang_code)):
+        if raw:
+            filtered = get_changelog_for_update(raw, local_version, remote_version)
+            if filtered:
+                return filtered
     return (release_body or "").strip()
 
 
@@ -895,7 +939,7 @@ class UpdateProgressDialog(wx.Dialog):
 class UpdateDialog(wx.Dialog):
     """
     Prompts the user to install an available update.
-    Buttons: Sim | Nao | Quais as novidades? (hidden when no changelog)
+    Buttons: Sim | Nao | Quais as novidades?
     """
 
     def __init__(self, parent, new_version: str, changelog: str):
@@ -928,12 +972,12 @@ class UpdateDialog(wx.Dialog):
         btn_sizer.Add(self._yes_btn, 0, wx.RIGHT, 4)
         btn_sizer.Add(self._no_btn,  0, wx.RIGHT, 4)
 
-        if self._changelog:
-            self._news_btn = wx.Button(self, wx.ID_MORE, label=i18n.t("whats_new_btn"))
-            btn_sizer.Add(self._news_btn, 0)
-            self._news_btn.Bind(wx.EVT_BUTTON, self._on_whats_new)
-        else:
-            self._news_btn = None
+        # Always offered: a button that appears only sometimes is one a screen
+        # reader user cannot know to look for. When there is nothing to show,
+        # pressing it says so (see _on_whats_new).
+        self._news_btn = wx.Button(self, wx.ID_MORE, label=i18n.t("whats_new_btn"))
+        btn_sizer.Add(self._news_btn, 0)
+        self._news_btn.Bind(wx.EVT_BUTTON, self._on_whats_new)
 
         sizer.Add(btn_sizer, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT | wx.BOTTOM, 12)
         self.SetSizer(sizer)
@@ -954,6 +998,15 @@ class UpdateDialog(wx.Dialog):
         self.EndModal(wx.ID_NO)
 
     def _on_whats_new(self, event):
+        if not self._changelog.strip():
+            i18n = self._main_window.i18n
+            wx.MessageBox(
+                i18n.t("whats_new_none_message"),
+                i18n.t("whats_new_none_title"),
+                wx.OK | wx.ICON_INFORMATION,
+                self,
+            )
+            return
         dlg = WhatsNewDialog(self, self._changelog)
         dlg.ShowModal()
         dlg.Destroy()
@@ -1207,11 +1260,6 @@ class UpdateChecker:
         was_forced = self._force
         self._force = False
 
-        # Prefer a local, per-version changelog file (see resolve_changelog())
-        # over the GitHub release body — only used as a last resort.
-        lang_code = self._mw.i18n.get_language() if hasattr(self._mw, "i18n") else "pt-BR"
-        changelog = resolve_changelog(local_version, remote_version, lang_code, data.get("body", ""))
-
         if not self._claim_prompt(remote_version):
             # Another account is already asking. Do NOT install behind its back
             # and do not stack a second dialog — just come back later, by which
@@ -1226,6 +1274,15 @@ class UpdateChecker:
             else:
                 self._schedule_retry()
             return
+
+        # Only after the claim: an account that lost it shows nothing, so it
+        # has no use for a download. The changelog is fetched from the release's
+        # own tag, since the one installed here predates the version on offer.
+        lang_code = self._mw.i18n.get_language() if hasattr(self._mw, "i18n") else "pt-BR"
+        changelog = resolve_changelog(
+            local_version, remote_version, lang_code, data.get("body", ""),
+            remote_text=fetch_release_changelog(tag_name, lang_code),
+        )
 
         wx.CallAfter(
             self._show_update_dialog, remote_version, changelog, zip_url, sha256sums_url,

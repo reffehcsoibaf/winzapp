@@ -29,7 +29,14 @@ class _Stub:
 
     _MEDIA_SYNC_TIMEOUT = 60
     _MEDIA_SYNC_WORKERS = 2
+    # sync_media_for_all_chats() filters its candidate list through
+    # _media_sync_candidate() before counting anything (see that method's
+    # own docstring in main.py), so this stub needs everything that method
+    # reads off self — the same attributes _SyncIfMediaStub below already
+    # carries, since _media_sync_candidate() was split out of sync_if_media().
+    _MEDIA_MAX_AGE_SECONDS = MainWindow._MEDIA_MAX_AGE_SECONDS
     sync_media_for_all_chats = MainWindow.sync_media_for_all_chats
+    _media_sync_candidate = MainWindow._media_sync_candidate
 
     def __init__(self, chats=None, downloads=None):
         self.chats = chats or {}
@@ -37,6 +44,10 @@ class _Stub:
         self._downloads = downloads or {}
         self.seen = []
         self._saved = False
+        self._media_failed_ids = {}
+        # No key at all means every media category is allowed — same
+        # default _SyncIfMediaStub uses below.
+        self.settings = {}
 
     def sync_if_media(self, msg, timeout=60):
         self.seen.append(msg.get("key", {}).get("id"))
@@ -44,6 +55,12 @@ class _Stub:
 
     def _save_media_failed_ids(self):
         self._saved = True
+
+    def _media_max_download_days(self):
+        return 0
+
+    def _media_max_download_bytes(self):
+        return 0
 
 
 def _chat(*msgs):
@@ -124,7 +141,7 @@ class _SyncIfMediaStub:
         # automaticamente". No key at all means every category is allowed,
         # which is what a settings.json predating the option looks like.
         self.settings = ({"storage": {"auto_download_media_types": list(allowed_types)}}
-                         if allowed_types is not None else {})
+                          if allowed_types is not None else {})
 
     def _media_max_download_days(self):
         return 0

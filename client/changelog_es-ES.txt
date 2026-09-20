@@ -1,4 +1,20 @@
-V1.1.1.1
+V1.1.2.1
+
+Esta versión deja la guía de uso dentro del propio WinZapp, hace que la pantalla de actualización muestre las novedades de la versión que vas a instalar, y corrige un fallo de seguridad en la pantalla de Conversaciones bloqueadas.
+
+MEJORAS
+
+- La guía de uso ahora se abre en una ventana del propio WinZapp, en lugar del navegador. Sigue siendo la misma página, con menú lateral, búsqueda y modo oscuro, y el lector de pantalla la lee como cualquier página web. Esc o el botón Cerrar te devuelven a donde estabas. Si Windows no tiene el componente de páginas web necesario (WebView2), la guía se abre en el navegador, como antes.
+
+- En la pantalla de actualización disponible, el botón "¿Qué hay de nuevo?" ahora aparece siempre y muestra las novedades de la versión que vas a instalar. Antes el texto venía de la versión que ya tienes, así que podía mostrar novedades antiguas o ninguna. Cuando no hay nada que mostrar, el botón lo avisa en lugar de desaparecer.
+
+CORRECCIONES
+
+- Cambiar el código de conversaciones bloqueadas (Configuración > Conversaciones > Conversaciones bloqueadas) ahora exige indicar el código actual antes de aceptar uno nuevo. Antes bastaba con abrir Configuración y escribir un código nuevo dos veces, sin necesidad de saber el anterior — lo que permitía que cualquiera con acceso al ordenador se apoderase de las conversaciones bloqueadas de otra persona.
+
+- ¿Olvidaste el código? La única forma de recuperar el acceso es desconectar la cuenta (menú Archivo > Desconectar) y vincularla de nuevo — esto elimina permanentemente los mensajes y archivos multimedia de WinZapp de esta cuenta y permite definir un código nuevo. Las conversaciones bloqueadas desde el propio teléfono no se ven afectadas por esto.
+
+V1.1.2.0
 
 Esta versión reúne todo lo hecho desde la fusión con la versión 1.1.1.0 del creador original: pegatinas transcritas por IA, una guía de uso integrada en el propio programa, copia de seguridad y restauración de conversaciones, una herramienta de limpieza de multimedia, edición de estado y foto de perfil, y una lista de correcciones — entre ellas, mensajes de lista de opciones de empresas que llegaban vacíos a WinZapp.
 

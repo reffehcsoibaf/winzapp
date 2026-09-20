@@ -1247,6 +1247,25 @@ class SettingsDialog(wx.Dialog):
         )
         privacy_sizer.Add(self._privacy_hint_label, 0, wx.ALL, 8)
 
+        # Security fix: changing an ALREADY-configured code used to require
+        # nothing but typing a new one twice — anyone who opened Settings
+        # (no gate to get here at all) could silently take over someone
+        # else's locked chats without ever knowing the original code. This
+        # field closes that hole the same way a real password-change form
+        # would: prove you know the current code before a new one is
+        # accepted. It's created unconditionally (this dialog's widgets are
+        # built once and reparented, never rebuilt — see
+        # _wrap_pages_in_dialog()'s docstring) but only shown/required when
+        # main_window.has_locked_chats_code_configured() is True — see
+        # _load_values(). First-time setup (no code yet) has nothing to
+        # prove, so it stays hidden then, exactly like today.
+        self._privacy_current_code_label = wx.StaticText(
+            self._privacy_page, label=i18n.t("locked_chats_current_code_label")
+        )
+        privacy_sizer.Add(self._privacy_current_code_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+        self._privacy_current_code_field = wx.TextCtrl(self._privacy_page, style=wx.TE_PASSWORD)
+        privacy_sizer.Add(self._privacy_current_code_field, 0, wx.EXPAND | wx.ALL, 8)
+
         self._privacy_new_code_label = wx.StaticText(
             self._privacy_page, label=i18n.t("locked_chats_new_code_label")
         )
@@ -1688,6 +1707,15 @@ class SettingsDialog(wx.Dialog):
         # see the tab's build-time comment); only the checkbox reflects a
         # stored value.
         priv_settings = self.main_window.settings.get("privacy", {})
+        self._privacy_current_code_field.SetValue("")
+        # Only ask for the current code when one is actually configured —
+        # first-time setup has nothing to prove yet. Re-evaluated every time
+        # the dialog opens (not just once at construction) since a code can
+        # be set, or cleared by a re-pair, while the dialog is closed.
+        _code_exists = self.main_window.has_locked_chats_code_configured()
+        self._privacy_current_code_label.Show(_code_exists)
+        self._privacy_current_code_field.Show(_code_exists)
+        self._privacy_page.Layout()
         self._privacy_new_code_field.SetValue("")
         self._privacy_confirm_code_field.SetValue("")
         self._privacy_require_code_check.SetValue(
@@ -2424,6 +2452,25 @@ class SettingsDialog(wx.Dialog):
             self._locked_chats_dialog.ShowModal()
             return False
 
+        # Security fix: setting a NEW code over an already-configured one
+        # must prove the current code first — otherwise anyone who opens
+        # Settings (nothing gates that) can silently take over someone
+        # else's locked chats. First-time setup (no code configured yet)
+        # skips this: there's nothing to prove, and the field is hidden in
+        # that case (see _load_values()).
+        if _new_code and self.main_window.has_locked_chats_code_configured():
+            _current_code = self._privacy_current_code_field.GetValue()
+            if not self.main_window.verify_locked_chats_code(_current_code):
+                wx.MessageBox(
+                    self.main_window.i18n.t("locked_chats_current_code_error"),
+                    self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
+                    wx.OK | wx.ICON_ERROR,
+                    self,
+                )
+                self._privacy_current_code_field.SetFocus()
+                self._locked_chats_dialog.ShowModal()
+                return False
+
         return True
 
     def _on_group_media_type_activated(self, event):
@@ -3115,6 +3162,7 @@ class SettingsDialog(wx.Dialog):
 
         # Privacy tab
         self._privacy_hint_label.SetLabel(i18n.t("locked_chats_hint_label"))
+        self._privacy_current_code_label.SetLabel(i18n.t("locked_chats_current_code_label"))
         self._privacy_new_code_label.SetLabel(i18n.t("locked_chats_new_code_label"))
         self._privacy_confirm_code_label.SetLabel(i18n.t("locked_chats_confirm_code_label"))
         self._privacy_require_code_check.SetLabel(i18n.t("locked_chats_require_code_checkbox"))

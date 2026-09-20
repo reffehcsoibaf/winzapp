@@ -47,6 +47,15 @@ class _Panel:
     _is_separator = ConversationsPanel._is_separator
     _jid_from_vcard = ConversationsPanel._jid_from_vcard
     _contact_display_name = ConversationsPanel._contact_display_name
+    # _contact_display_name() now delegates to _contact_dict_name(), which
+    # in turn reads every vCard through the _effective_vcard() staticmethod
+    # (some senders' clients put the vCard text into displayName instead of
+    # vcard — see that method's docstring in ui/conversations.py). Both were
+    # split out after this stub was written, so it needs to carry them too.
+    # staticmethod() re-wraps it so self._effective_vcard(contact) doesn't
+    # try to pass self as the contact argument.
+    _effective_vcard = staticmethod(ConversationsPanel._effective_vcard)
+    _contact_dict_name = ConversationsPanel._contact_dict_name
     _on_contact_converse = ConversationsPanel._on_contact_converse
     _on_save_contact_message = ConversationsPanel._on_save_contact_message
     _on_action_save_as = ConversationsPanel._on_action_save_as

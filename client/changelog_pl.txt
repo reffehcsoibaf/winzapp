@@ -1,4 +1,20 @@
-V1.1.1.1
+V1.1.2.1
+
+Ta wersja przenosi przewodnik użytkownika do wnętrza WinZappa, sprawia, że okno aktualizacji pokazuje, co nowego jest w wersji, którą zaraz zainstalujesz, oraz naprawia lukę bezpieczeństwa w oknie Zablokowanych rozmów.
+
+ULEPSZENIA
+
+- Przewodnik użytkownika otwiera się teraz w oknie samego WinZappa, a nie w przeglądarce. To ta sama strona — z menu bocznym, wyszukiwarką i trybem ciemnym — czytana przez czytnik ekranu jak każda strona internetowa. Esc lub przycisk Zamknij wraca tam, gdzie byłeś. Jeśli w systemie brakuje wymaganego składnika stron internetowych (WebView2), przewodnik otwiera się w przeglądarce, jak dotychczas.
+
+- W oknie dostępnej aktualizacji przycisk "Co nowego?" jest teraz zawsze widoczny i pokazuje nowości wersji, którą zainstalujesz. Wcześniej tekst pochodził z wersji, którą już masz, więc mógł pokazywać stare nowości albo nic. Gdy nie ma czego pokazać, przycisk to mówi, zamiast znikać.
+
+POPRAWKI
+
+- Zmiana kodu zablokowanych rozmów (Ustawienia > Rozmowy > Zablokowane rozmowy) wymaga teraz podania obecnego kodu, zanim nowy zostanie zaakceptowany. Wcześniej wystarczyło otworzyć Ustawienia i dwukrotnie wpisać nowy kod, bez konieczności znajomości poprzedniego — co pozwalało każdemu z dostępem do komputera przejąć zablokowane rozmowy innej osoby.
+
+- Zapomniałeś kodu? Jedynym sposobem na odzyskanie dostępu jest rozłączenie konta (menu Plik > Rozłącz) i ponowne sparowanie — trwale usuwa to wiadomości i pliki multimedialne WinZappa tego konta i pozwala ustawić nowy kod. Rozmowy zablokowane z poziomu samego telefonu nie są tym objęte.
+
+V1.1.2.0
 
 Ta wersja zbiera to, co powstało od połączenia z wersją 1.1.1.0 oryginalnego twórcy: naklejki opisywane przez AI, wbudowany w program przewodnik użytkownika, kopię zapasową i przywracanie rozmów, narzędzie do czyszczenia multimediów, edycję statusu i zdjęcia profilowego oraz listę poprawek — w tym wiadomości z listą opcji od firm, które docierały do WinZapp puste.
 
