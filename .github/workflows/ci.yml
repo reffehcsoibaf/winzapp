@@ -52,5 +52,8 @@ jobs:
       # WPPConnect), então os testes que comparam as duas cópias dos patches se
       # pulam sozinhos — vide test_api_patches_in_sync.py. Isso é esperado: a
       # deriva que eles pegam só é detectável numa máquina de dev.
+      # Run as two separate pytest processes, not one: the wxgui-marked tests
+      # create real native windows by the hundreds, and Windows' GDI/USER
+      # handle quota is per-process — see scripts/run_pytest_in_batches.py.
       - name: Run pytest
-        run: pytest --run-wx-gui
+        run: python scripts/run_pytest_in_batches.py --run-wx-gui

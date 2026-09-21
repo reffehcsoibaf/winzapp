@@ -58,6 +58,10 @@ def _make_dialog(wx_app, general=None):
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()
     frame.refresh_sound_packs = lambda: None
+    # The Privacy tab now checks whether a locked-chats code is configured,
+    # to decide whether to show the "current code" field — added after this
+    # stub was written. No code configured, same as a fresh install.
+    frame.has_locked_chats_code_configured = lambda: False
 
     return SettingsDialog(frame)
 

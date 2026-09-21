@@ -25,6 +25,12 @@ class _MainWindowStub:
     def is_chat_archived(self, jid):
         return jid in self._archived_jids
 
+    def is_chat_locked(self, jid):
+        # _get_unread_info() now also excludes locked chats from the tray
+        # tooltip, the same way it already excludes archived ones — added
+        # after this stub was written. No test here exercises a locked chat.
+        return False
+
     def _resolve_contact_name(self, chat):
         return ""
 

@@ -1444,6 +1444,11 @@ class TestANonWipingDisconnectLeavesTheCheckArmed:
 
     class _DisconnectStub:
         _on_disconnect = MainWindow._on_disconnect
+        # _on_disconnect() now also cancels the stuck-sync watchdog timers on
+        # its way out — added after this stub was written. Safe as a bare
+        # borrow: it only touches timers via getattr(self, attr, None), and
+        # this stub never sets any, so it's a no-op here.
+        _cancel_stuck_sync_watchdog = MainWindow._cancel_stuck_sync_watchdog
 
         def __init__(self):
             self.settings = {"privateinfo": {

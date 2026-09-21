@@ -85,6 +85,13 @@ class _Stub:
     _vcard_phone_numbers = staticmethod(ConversationsPanel._vcard_phone_numbers)
     _contact_message_numbers = ConversationsPanel._contact_message_numbers
     _jid_from_vcard = ConversationsPanel._jid_from_vcard
+    # _contact_message_numbers() now delegates to _contact_dict_numbers(),
+    # which in turn reads the vCard through the _effective_vcard()
+    # staticmethod (some senders' clients put the vCard text into
+    # displayName instead of vcard) — both were split out after this stub
+    # was written, so it needs to carry them too.
+    _contact_dict_numbers = ConversationsPanel._contact_dict_numbers
+    _effective_vcard = staticmethod(ConversationsPanel._effective_vcard)
 
 
 def _msg(mid="m1"):

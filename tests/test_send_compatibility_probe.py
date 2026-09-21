@@ -214,7 +214,10 @@ class TestAnUnansweredProbeIsAskedAgain:
         _answer(monkeypatch, 404, {"response": None, "status": "Disconnected"})
         stub._check_send_capabilities()
 
-        _answer(monkeypatch, 409, {"response": {"compatible": False}})
+        # "missing" has to include text/media — only those are critical
+        # enough to speak (see _check_send_capabilities' docstring: a
+        # Status-only gap logs but stays silent).
+        _answer(monkeypatch, 409, {"response": {"compatible": False, "missing": ["text"]}})
         stub._check_send_capabilities()
         stub._send_capabilities_checked = False
         stub._check_send_capabilities()
@@ -266,7 +269,10 @@ class TestTheRetryInsideOneConnection:
         calls = self._answers(
             monkeypatch,
             _Response(404, {"response": None, "status": "Disconnected"}),
-            _Response(409, {"response": {"compatible": False, "missing": ["x"]}}),
+            # "text" (not an arbitrary capability name) — only text/media are
+            # critical enough to speak; see the docstring on
+            # _check_send_capabilities.
+            _Response(409, {"response": {"compatible": False, "missing": ["text"]}}),
         )
 
         stub._check_send_capabilities()
@@ -324,10 +330,13 @@ class TestOnlyARealVerdictIsAnnounced:
         assert stub.spoken == []
 
     def test_an_incompatible_answer_is_announced(self, stub, monkeypatch):
+        # "text" alongside statusReaction: a Status-only gap alone would stay
+        # silent (see _check_send_capabilities' docstring) — this is the
+        # case where regular sending is actually affected too.
         _answer(
             monkeypatch,
             409,
-            {"response": {"compatible": False, "missing": ["statusReaction"]}},
+            {"response": {"compatible": False, "missing": ["statusReaction", "text"]}},
         )
 
         stub._check_send_capabilities()
@@ -336,13 +345,26 @@ class TestOnlyARealVerdictIsAnnounced:
             "<send_capabilities_incompatible>"
         ]
 
+    def test_a_status_only_gap_is_logged_but_not_spoken(self, stub, monkeypatch):
+        """Reported live as firing on every single connection with no
+        text/media problem ever actually observed — see the docstring."""
+        _answer(
+            monkeypatch,
+            409,
+            {"response": {"compatible": False, "missing": ["statusReaction"]}},
+        )
+
+        stub._check_send_capabilities()
+
+        assert stub.spoken == []
+
     def test_it_does_not_interrupt_the_warning_queued_before_it(
         self, stub, monkeypatch
     ):
         """On the one path where both fire — an unpinned WhatsApp Web build,
         the documented cause of silent send failure — interrupting cut the
         first warning off mid-sentence and the user heard neither."""
-        _answer(monkeypatch, 409, {"response": {"compatible": False}})
+        _answer(monkeypatch, 409, {"response": {"compatible": False, "missing": ["media"]}})
 
         stub._check_send_capabilities()
 
@@ -351,7 +373,7 @@ class TestOnlyARealVerdictIsAnnounced:
         assert kwargs == {}
 
     def test_the_same_verdict_is_only_announced_once(self, stub, monkeypatch):
-        _answer(monkeypatch, 409, {"response": {"compatible": False}})
+        _answer(monkeypatch, 409, {"response": {"compatible": False, "missing": ["text"]}})
 
         stub._check_send_capabilities()
         stub._check_send_capabilities()

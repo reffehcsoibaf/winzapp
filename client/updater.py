@@ -1598,6 +1598,22 @@ class WppUpdateChecker:
             return homologated
         return latest
 
+    def _manual_check_tag(self) -> str:
+        """The tag a *manual* check (Ajuda > Buscar atualizações) compares
+        against — genuinely the latest GitHub release, floored at the
+        homologated tag so it can still never suggest going backwards. It's
+        the same tag Ajuda > Forçar reinstalação would fetch; this just adds
+        the "is it actually newer" check in front of it that force-reinstall
+        intentionally skips.
+
+        The user explicitly asked "is there something new" here, and
+        answering "no" while a real release sits unmentioned because nobody
+        has gotten around to raising wpp_minimum_version.txt yet is not an
+        answer, it's the question dodged — unlike the periodic check (see
+        _check_once()), which deliberately does NOT do this.
+        """
+        return self._newest_available_tag()
+
     def _check_once(self, manual: bool = False):
         logging.info("[WppUpdateChecker] Checking for wppconnect-server updates...")
         installed = self._mw._get_installed_wpp_version()
@@ -1610,22 +1626,17 @@ class WppUpdateChecker:
             self._schedule_retry()
             return
 
-        # Manual (Ajuda > Buscar atualizações) and periodic checks deliberately
-        # compare against different targets. The periodic one stays pinned to
-        # _homologated_or_latest_tag() — see that method's own docstring on
-        # why: popping up a prompt the moment upstream publishes anything is
-        # how a patch set that no longer matches (client/api_patches/) reaches
-        # people who never asked to be first. A manual check is the opposite
-        # case — the user explicitly asked "is there something new", and
-        # answering "no" while a real release sits unmentioned because nobody
-        # has gotten around to raising wpp_minimum_version.txt yet is not an
-        # answer, it's the question dodged. So it uses
-        # _newest_available_tag() instead — genuinely the latest GitHub
-        # release, floored at the homologated tag so it can still never
-        # suggest going backwards. It's the same tag Ajuda > Forçar
-        # reinstalação would fetch; this just adds the "is it actually newer"
-        # check in front of it that force-reinstall intentionally skips.
-        tag = self._newest_available_tag() if manual else self._homologated_or_latest_tag()
+        # Manual and periodic checks deliberately compare against different
+        # targets — see _manual_check_tag()'s docstring for the manual side.
+        # The periodic one stays pinned to _homologated_or_latest_tag(): see
+        # that method's own docstring on why — popping up a prompt the
+        # moment upstream publishes anything is how a patch set that no
+        # longer matches (client/api_patches/) reaches people who never
+        # asked to be first. That pin is deliberately unchanged here (see
+        # test_the_periodic_check_still_compares_against_the_homologated_release)
+        # so a future edit to the manual path can't accidentally swap what
+        # the periodic path is pinned to.
+        tag = self._manual_check_tag() if manual else self._homologated_or_latest_tag()
         if not tag:
             if manual:
                 wx.CallAfter(self._notify_check_failed)
