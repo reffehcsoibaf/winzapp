@@ -229,6 +229,14 @@ class SettingsDialog(wx.Dialog):
         self.Bind(wx.EVT_RADIOBUTTON, self._mark_dirty)
         self.Bind(wx.EVT_COMBOBOX, self._mark_dirty)
         self.Bind(wx.EVT_TEXT, self._mark_dirty)
+        # Controls reparented into a _wrap_pages_in_dialog() dialog live under
+        # a separate top-level window, so their events stop there and never
+        # reach the binds above — bind the same handler on each of them.
+        for sub in self._sub_dialogs:
+            sub.Bind(wx.EVT_CHECKBOX, self._mark_dirty)
+            sub.Bind(wx.EVT_RADIOBUTTON, self._mark_dirty)
+            sub.Bind(wx.EVT_COMBOBOX, self._mark_dirty)
+            sub.Bind(wx.EVT_TEXT, self._mark_dirty)
         self.Fit()
         self.SetMinSize((360, -1))
         self.Centre()
@@ -1322,6 +1330,14 @@ class SettingsDialog(wx.Dialog):
         self._ui_dialog = _wrap_pages_in_dialog(
             self, i18n, i18n.t("btn_interface"), [self._ui_page]
         )
+        # wx never propagates command events past a top-level window, so
+        # __init__ has to bind _mark_dirty() on each of these too.
+        self._sub_dialogs = [
+            self._locked_chats_dialog, self._transcriptions_dialog,
+            self._audio_playback_dialog, self._calls_dialog,
+            self._audio_settings_dialog, self._sound_events_dialog,
+            self._speech_dialog, self._ui_dialog,
+        ]
 
         # "Conteudo falado" button lives inside Acessibilidade now (was its
         # own tab).

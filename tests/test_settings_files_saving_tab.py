@@ -54,6 +54,10 @@ def _make_frame(settings):
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()
     frame.refresh_sound_packs = lambda: None
+    # The Privacy tab now checks whether a locked-chats code is configured,
+    # to decide whether to show the "current code" field — added after this
+    # stub was written. No code configured, same as a fresh install.
+    frame.has_locked_chats_code_configured = lambda: False
     return frame
 
 
@@ -77,31 +81,38 @@ class TestTheTabIsWhereTheIndicesSayItIs:
     every tab below it, so the position is worth asserting rather than
     trusting."""
 
-    def test_it_sits_right_after_storage(self, make_dialog):
+    def test_it_lives_inside_the_storage_tab(self, make_dialog):
+        """The Files section is a panel of the Armazenamento tab, not a
+        notebook page of its own, so the notebook cannot find it."""
         dialog = make_dialog()
-        assert dialog._notebook.FindPage(dialog._files_page) == 9
+        assert dialog._files_page.GetParent() is dialog._storage_page
+        assert dialog._notebook.FindPage(dialog._files_page) == wx.NOT_FOUND
+        assert dialog._notebook.FindPage(dialog._storage_page) != wx.NOT_FOUND
 
-    def test_the_tabs_below_it_moved_with_it(self, make_dialog):
+    def test_audio_and_calls_are_opened_from_hub_buttons_not_tabs(self, make_dialog):
         dialog = make_dialog()
-        assert dialog._notebook.FindPage(dialog._audio_page) == 10
-        assert dialog._notebook.FindPage(dialog._calls_page) == 11
+        assert dialog._notebook.FindPage(dialog._audio_page) == wx.NOT_FOUND
+        assert dialog._notebook.FindPage(dialog._calls_page) == wx.NOT_FOUND
+        assert dialog._calls_page.GetParent() is dialog._calls_dialog
 
-    def test_the_tabs_that_are_opened_by_number_did_not_move(self, make_dialog):
-        """main.py's custom-API first-run flow does SetSelection(4), and this
-        file has SetSelection() calls up to 8. The new tab is below all of
-        them, which is the whole reason it went here."""
+    def test_the_tabs_that_are_opened_by_page_are_found_by_page(self, make_dialog):
+        """main.py's custom-API first-run flow selects the Connection tab via
+        FindPage(); nothing may depend on a hardcoded index."""
         dialog = make_dialog()
-        assert dialog._notebook.FindPage(dialog._conn_page) == 4
-        assert dialog._notebook.FindPage(dialog._storage_page) == 8
+        assert dialog._notebook.FindPage(dialog._conn_page) != wx.NOT_FOUND
+        assert dialog._notebook.FindPage(dialog._storage_page) != wx.NOT_FOUND
 
     def test_every_page_has_a_translated_title(self, make_dialog):
-        """SetPageText() is driven by index; an off-by-one shows up as a tab
-        labelled with another tab's name, which nothing else would catch."""
+        """A tab labelled with another tab's name is invisible to everything
+        else, so check each notebook page against its own key."""
         dialog = make_dialog()
         i18n = dialog.main_window.i18n
-        assert dialog._notebook.GetPageText(9) == i18n.t("tab_files_saving")
-        assert dialog._notebook.GetPageText(10) == i18n.t("tab_audio_playback")
-        assert dialog._notebook.GetPageText(11) == i18n.t("tab_calls")
+        nb = dialog._notebook
+        for page, key in (
+            (dialog._conn_page, "tab_connection"),
+            (dialog._storage_page, "tab_storage"),
+        ):
+            assert nb.GetPageText(nb.FindPage(page)) == i18n.t(key)
 
 
 class TestLoadingTheCurrentSetting:
@@ -214,7 +225,7 @@ class TestValidation:
         dialog._save_folder_custom_field.SetValue("")
         dialog._apply_values()
         assert dialog._notebook.GetSelection() == \
-            dialog._notebook.FindPage(dialog._files_page)
+            dialog._notebook.FindPage(dialog._storage_page)
 
     def test_a_missing_folder_is_ignored_when_that_mode_is_not_selected(
             self, make_dialog, tmp_path, monkeypatch):

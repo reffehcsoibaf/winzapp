@@ -67,6 +67,10 @@ def dialog(wx_app):
     frame.apply_language_changes = lambda: None
     frame.sound_system = _FakeSoundSystem()
     frame.refresh_sound_packs = lambda: None
+    # SettingsDialog._load_values() reads this off main_window to prefill the
+    # "Mensagens trancadas" section (privacy tab) — see the same fix in
+    # test_settings_files_saving_tab.py's _make_frame().
+    frame.has_locked_chats_code_configured = lambda: False
 
     dlg = SettingsDialog(frame)
     yield dlg
