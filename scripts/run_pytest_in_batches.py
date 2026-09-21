@@ -47,12 +47,17 @@ sub-dialogs, easily the most native windows any one test in this suite
 creates) still landing late enough in its batch to hit the ceiling. If the
 number below stops being enough (the same flaky wx failures come back —
 see the list above), raise it again before reaching for anything fancier.
+
+8 -> 12 when the Settings > Transcricoes e Descricoes page moved each AI provider
+into its own dialog: five more real top-level windows per SettingsDialog, and
+tests/test_settings_files_saving_tab.py went from all-pass to its last 11 tests
+failing with 'Failed to create dialog' at 8 batches.
 """
 import glob
 import subprocess
 import sys
 
-BATCH_COUNT = 8
+BATCH_COUNT = 12
 
 
 def main(argv):
