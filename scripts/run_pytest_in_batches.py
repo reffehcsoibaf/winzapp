@@ -61,10 +61,15 @@ def main(argv):
         print("run_pytest_in_batches: no tests/test_*.py files found", file=sys.stderr)
         return 1
 
-    batch_size = -(-len(files) // BATCH_COUNT)  # ceil division
-    batches = [
-        files[i : i + batch_size] for i in range(0, len(files), batch_size)
-    ]
+    # Round-robin, not contiguous chunks. The dialog-heavy files are neighbours
+    # in the alphabet (settings_dialog_*, settings_files_*, settings_sync), so
+    # cutting the sorted list into blocks parks them in the same process, and
+    # adding or renaming ANY test file moves the cut points and can bring
+    # them together: five new test files did exactly that and made
+    # test_settings_files_saving_tab fail with "Failed to create dialog" while
+    # nothing in it had changed. Dealing files out one at a time separates
+    # neighbours by construction, whatever the file list is.
+    batches = [b for b in (files[i::BATCH_COUNT] for i in range(BATCH_COUNT)) if b]
 
     for index, batch in enumerate(batches, start=1):
         print(
