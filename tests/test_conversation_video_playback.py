@@ -93,6 +93,10 @@ class _Stub:
         self._action_open_btn      = _FakeWidget()
         self._action_save_as_btn   = _FakeWidget()
         self._action_download_btn  = _FakeWidget()
+        # _hide_all_media_controls() also hides the AI-process button
+        # alongside Open/Save As/Download — added after this stub was
+        # written.
+        self._action_ai_btn        = _FakeWidget()
         self._buttons_container    = _FakeWidget()
         self._contact_converse_btn = _FakeWidget()
         self._contact_save_btn     = _FakeWidget()

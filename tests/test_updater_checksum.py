@@ -67,10 +67,20 @@ class TestFindSha256sumsAsset:
 
 
 class TestVerifySha256sums:
+    # Real release keys are compiled into this build now (core/release_keys.py
+    # — signing went live after these tests were first written), and
+    # _verify_sha256sums() intentionally fails CLOSED once keys exist: an
+    # unsigned/no-manifest release is what a forged one looks like (see its
+    # docstring). These tests are about the checksum logic on its own, not
+    # about signature verification, so they pass empty key lists explicitly
+    # — exactly what the docstring says tests are for ("tests pass their
+    # own") — to get the pre-signing behaviour they're actually exercising.
+
     def test_no_manifest_url_fails_open(self, tmp_file):
         """Older releases published before this feature existed have no
         manifest at all — must not permanently block updating from them."""
-        ok, detail = updater._verify_sha256sums(tmp_file, "WinZapp.zip", "")
+        ok, detail = updater._verify_sha256sums(
+            tmp_file, "WinZapp.zip", "", stable_keys=[], alpha_keys=[])
         assert ok is True
         assert detail == ""
 
@@ -79,7 +89,9 @@ class TestVerifySha256sums:
         manifest = f"{expected}  WinZapp.zip\nsomeotherhash  WinZappInstaller.exe\n"
         monkeypatch.setattr(updater.requests, "get", lambda *a, **kw: _FakeResponse(manifest))
 
-        ok, detail = updater._verify_sha256sums(tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt")
+        ok, detail = updater._verify_sha256sums(
+            tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt",
+            stable_keys=[], alpha_keys=[])
 
         assert ok is True
         assert detail == ""
@@ -88,7 +100,9 @@ class TestVerifySha256sums:
         manifest = "0000000000000000000000000000000000000000000000000000000000000000  WinZapp.zip\n"
         monkeypatch.setattr(updater.requests, "get", lambda *a, **kw: _FakeResponse(manifest))
 
-        ok, detail = updater._verify_sha256sums(tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt")
+        ok, detail = updater._verify_sha256sums(
+            tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt",
+            stable_keys=[], alpha_keys=[])
 
         assert ok is False
         assert "mismatch" in detail.lower()
@@ -100,7 +114,9 @@ class TestVerifySha256sums:
         manifest = "abc123  SomeOtherFile.zip\n"
         monkeypatch.setattr(updater.requests, "get", lambda *a, **kw: _FakeResponse(manifest))
 
-        ok, detail = updater._verify_sha256sums(tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt")
+        ok, detail = updater._verify_sha256sums(
+            tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt",
+            stable_keys=[], alpha_keys=[])
 
         assert ok is False
         assert "no checksum entry" in detail.lower()
@@ -122,6 +138,8 @@ class TestVerifySha256sums:
         manifest = f"{expected} *WinZapp.zip\n"
         monkeypatch.setattr(updater.requests, "get", lambda *a, **kw: _FakeResponse(manifest))
 
-        ok, _ = updater._verify_sha256sums(tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt")
+        ok, _ = updater._verify_sha256sums(
+            tmp_file, "WinZapp.zip", "https://x/SHA256SUMS.txt",
+            stable_keys=[], alpha_keys=[])
 
         assert ok is True

@@ -48,8 +48,11 @@ jobs:
       # describes the code accurately. Useful on a PR, but this job's
       # reject-on-test-failure below DELETES the release and its tag, and a
       # stale sentence in a Markdown file must never be able to do that.
+      # Run as two separate pytest processes, not one: the wxgui-marked tests
+      # create real native windows by the hundreds, and Windows' GDI/USER
+      # handle quota is per-process — see scripts/run_pytest_in_batches.py.
       - name: Run pytest
-        run: pytest --run-wx-gui -m "not docs"
+        run: python scripts/run_pytest_in_batches.py --run-wx-gui -m "not docs"
 
       # Alpha builds (alpha-release.yml) are versioned as
       # <major>.<minor>.<patch>.<commit count>alpha off the CURRENT stable

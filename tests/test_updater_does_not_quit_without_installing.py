@@ -48,6 +48,14 @@ class _MainWindow:
     def real_exit(self):
         self.exits += 1
 
+    def _raw_session_status(self):
+        # _do_install() now gates on the session actually being connected
+        # before installing — added after this stub was written. Report
+        # "connected" so these tests keep exercising the exit/retry logic
+        # they were written for, not the new not-connected confirmation
+        # prompt (which would also need a real wx.MessageBox).
+        return "CONNECTED"
+
 
 def _checker(monkeypatch, result, install_ok):
     """UpdateChecker with _do_install() bound, and its dialog replaced."""

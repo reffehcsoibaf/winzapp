@@ -160,27 +160,31 @@ jobs:
 
       # ensure_wpp_version() (client/main.py) compares an *installed*
       # api/package.json's version against the minimum baked into
-      # client/wpp_minimum_version.txt at build time, and prompts the user
-      # to update WPPConnect Server when the installed copy is older than
-      # what this WinZapp build was actually built/tested against. Without
-      # this step the file never exists at all, so that gate is silently a
-      # no-op on every shipped release. Reading it back out of
-      # client/api/package.json (rather than hardcoding a version string
-      # here) keeps it in sync with whatever setup_api.py just checked out
-      # above, tag pin or not. A dedicated plain-text file rather than a
-      # bundled .env — see _read_wpp_minimum_version()'s docstring for why
-      # WinZapp no longer ships a .env from the build at all.
-      - name: Write the minimum WPPConnect version WinZapp requires
+      # client/wpp_minimum_version.txt, and prompts the user to update
+      # WPPConnect Server when the installed copy is older than what this
+      # WinZapp build was actually built/tested against. That file is a
+      # committed input (see its own value in the repo), not an output of
+      # the build — a previous version of this step regenerated it here
+      # from client/api/package.json every run, which made it agree with
+      # itself by construction and unable to ever catch a build that shipped
+      # against a wppconnect-server release nobody had actually raised the
+      # floor for. This step verifies the two still agree instead of
+      # silently overwriting the committed one.
+      - name: Verify the minimum WPPConnect version WinZapp requires
         shell: pwsh
         run: |
           $pkg = Get-Content "client\api\package.json" -Raw | ConvertFrom-Json
-          $version = $pkg.version
-          if ([string]::IsNullOrWhiteSpace($version)) {
+          $builtVersion = $pkg.version
+          if ([string]::IsNullOrWhiteSpace($builtVersion)) {
             Write-Error "Could not read a version from client/api/package.json"
             exit 1
           }
-          Set-Content -Path "client\wpp_minimum_version.txt" -Value $version -Encoding utf8 -NoNewline
-          Write-Output "[INFO] client/wpp_minimum_version.txt: $version"
+          $committed = (Get-Content "client\wpp_minimum_version.txt" -Raw).Trim()
+          if ($committed -ne $builtVersion) {
+            Write-Error "client/wpp_minimum_version.txt ($committed) does not match the wppconnect-server release this build actually installed ($builtVersion). Update client/wpp_minimum_version.txt and commit it before releasing."
+            exit 1
+          }
+          Write-Output "[INFO] client/wpp_minimum_version.txt ($committed) matches the installed wppconnect-server release."
 
       # Install JS dependencies and compile TypeScript → dist/server.js.
       # PUPPETEER_SKIP_DOWNLOAD skips the ~680 MB Chrome download — the app

@@ -119,6 +119,19 @@ class _StubMainWindow:
     _is_self_jid = MainWindow._is_self_jid
     _phone_digits_equivalent = staticmethod(MainWindow._phone_digits_equivalent)
     _is_reply_or_mention_of_me = MainWindow._is_reply_or_mention_of_me
+    # on_new_message() now also runs empty-interactive-message enrichment on
+    # every message — added after this stub was written. _msg_bg_executor is
+    # already a MagicMock below, so .submit(_bg_enrich) just records the call
+    # instead of actually running it.
+    _maybe_enrich_empty_interactive_message = MainWindow._maybe_enrich_empty_interactive_message
+    _ENRICHABLE_EMPTY_MESSAGE_TYPES = MainWindow._ENRICHABLE_EMPTY_MESSAGE_TYPES
+    # format_notification_title() (called from _maybe_notify_reaction() via
+    # notification_manager) now also checks whether the chat is locked —
+    # added after this stub was written. None of these tests exercise a
+    # locked chat.
+    is_chat_locked = MainWindow.is_chat_locked
+    _chat_phone_locked = MainWindow._chat_phone_locked
+    _chat_isLocked_flag = staticmethod(MainWindow._chat_isLocked_flag)
 
     def __init__(self, *, open_jid="", archived_jids=None, muted_jids=None, window_active=True):
         self.my_jid = "5511999998888@s.whatsapp.net"
@@ -134,6 +147,7 @@ class _StubMainWindow:
         self._archived_chats = set(archived_jids or [])
         self._muted_chats = set(muted_jids or [])
         self._deleted_chats = set()
+        self._phone_locked_chats = set()
         self._window_active = window_active
         self._window_hidden = not window_active
         self.settings = {

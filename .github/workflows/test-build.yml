@@ -71,8 +71,11 @@ jobs:
           pip install -r requirements.txt --quiet
           pip install -r requirements-dev.txt --quiet
 
+      # Run as two separate pytest processes, not one: the wxgui-marked tests
+      # create real native windows by the hundreds, and Windows' GDI/USER
+      # handle quota is per-process — see scripts/run_pytest_in_batches.py.
       - name: Run pytest
-        run: pytest --run-wx-gui
+        run: python scripts/run_pytest_in_batches.py --run-wx-gui
 
   build:
     # always() so the build still runs when `test` was skipped by run_tests

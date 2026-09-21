@@ -199,6 +199,13 @@ class TestFormatNotificationTitleGroupName:
             def _group_name_from_chat_dict(chat):
                 return ""  # should not even be needed here
 
+            # format_notification_title() now also checks whether the chat
+            # is locked, before resolving its name — added after this stub
+            # was written.
+            @staticmethod
+            def is_chat_locked(jid):
+                return False
+
         msg = _msg("conversation", key={"remoteJid": "g@g.us"})
         title = format_notification_title(msg, _MW(), _FakeI18n())
         assert "Família" in title
@@ -213,6 +220,10 @@ class TestFormatNotificationTitleGroupName:
             def _group_name_from_chat_dict(chat):
                 return (chat.get("groupMetadata") or {}).get("subject", "")
 
+            @staticmethod
+            def is_chat_locked(jid):
+                return False
+
         msg = _msg("conversation", key={"remoteJid": "g@g.us"})
         title = format_notification_title(msg, _MW(), _FakeI18n())
         assert "Turma 2026" in title
@@ -224,6 +235,10 @@ class TestFormatNotificationTitleGroupName:
             @staticmethod
             def _group_name_from_chat_dict(chat):
                 return ""
+
+            @staticmethod
+            def is_chat_locked(jid):
+                return False
 
         msg = _msg("conversation", key={"remoteJid": "g@g.us"})
         title = format_notification_title(msg, _MW(), _FakeI18n())

@@ -130,6 +130,11 @@ class _SyncIfMediaStub:
 
     _MEDIA_MAX_AGE_SECONDS = MainWindow._MEDIA_MAX_AGE_SECONDS
     sync_if_media = MainWindow.sync_if_media
+    # sync_if_media() now delegates its eligibility checks to
+    # _media_sync_candidate() (split out — see that method's own docstring
+    # in main.py); this stub already carries every attribute it reads off
+    # self (settings, _media_failed_ids, the two limit methods below).
+    _media_sync_candidate = MainWindow._media_sync_candidate
 
     def __init__(self, connected=True, offline=False, allowed_types=None):
         self._wa_connected = connected

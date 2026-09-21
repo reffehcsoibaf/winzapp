@@ -372,6 +372,15 @@ class _FocusStub(_Stub):
     def _update_reactions_button(self, idx):
         pass
 
+    def _apply_action_controls_for_index(self, idx):
+        # _on_message_focused() now also refreshes the Open/Save/etc. action
+        # controls on every focus move — added after this stub was written.
+        # That refresh touches a full set of real wx widgets this
+        # unread-separator-focused stub doesn't carry (and doesn't need to:
+        # none of these tests assert anything about action controls), so it
+        # is stubbed out the same way _update_reactions_button() already is.
+        pass
+
 
 class TestFocusOnlyArmsTheResetWhenItStepsPast:
     """Bloqueante do review: sob a semântica nova o flag é a ÚNICA coisa que

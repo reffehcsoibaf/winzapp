@@ -166,6 +166,12 @@ class _HistoricalStub:
     _redirect_self_chat_artifact = MainWindow._redirect_self_chat_artifact
     _phone_digits_equivalent = staticmethod(MainWindow._phone_digits_equivalent)
     _is_self_jid = MainWindow._is_self_jid
+    # on_historical_message() now also runs empty-interactive-message
+    # enrichment on every message — added after this stub was written.
+    # _msg_bg_executor here is the local _Executor above, whose submit()
+    # just records/discards the call instead of actually running it.
+    _maybe_enrich_empty_interactive_message = MainWindow._maybe_enrich_empty_interactive_message
+    _ENRICHABLE_EMPTY_MESSAGE_TYPES = MainWindow._ENRICHABLE_EMPTY_MESSAGE_TYPES
 
     def __init__(self, my_jid=""):
         self.my_jid = my_jid

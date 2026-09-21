@@ -80,6 +80,11 @@
         "extended_sr_compat_enabled": true,
         "sapi_fallback_enabled": true
     },
+    "privacy": {
+        "locked_chats_code_hash": "",
+        "locked_chats_code_salt": "",
+        "locked_chats_require_code_to_open": true
+    },
     "files": {
         "save_dialog_folder_mode": "last",
         "save_dialog_custom_folder": "",
@@ -124,7 +129,6 @@
         "transcribe_audio": true,
         "describe_images": true,
         "describe_videos": true,
-        "transcribe_stickers": true,
         "pdf_to_accessible_text": true
     }
 }
