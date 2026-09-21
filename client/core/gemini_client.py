@@ -194,6 +194,62 @@ def _is_retryable(exc: APIError) -> bool:
     return "UNAVAILABLE" in text or "OVERLOADED" in text
 
 
+# Link oficial do Google para gerenciar cota/crédito/faturamento de uma chave
+# de API do Gemini. Citado nas mensagens amigáveis abaixo — centralizado aqui
+# para não ficar espalhado em cada string.
+_BILLING_URL = "https://ai.studio/projects"
+
+
+def _classify_client_error(exc: ClientError) -> str:
+    """
+    Traduz um ClientError do Gemini numa mensagem amigável e específica.
+
+    O SDK devolve, para causas bem diferentes (chave inválida, cota por
+    minuto esgotada, crédito pré-pago zerado...), o mesmo tipo de exceção
+    com um "status" textual (`exc.status`, ex.: "RESOURCE_EXHAUSTED",
+    "PERMISSION_DENIED") e uma mensagem legível em `exc.message`. Sem essa
+    distinção, todas essas situações caíam na mesma frase genérica
+    ("verifique a chave e a cota"), que não ajuda quem está ouvindo pelo
+    leitor de tela a entender o que fazer a seguir.
+    """
+    status = (getattr(exc, "status", None) or "").upper()
+    message = str(getattr(exc, "message", None) or exc)
+    message_lower = message.lower()
+
+    if status == "RESOURCE_EXHAUSTED":
+        # A Google usa o mesmo status "RESOURCE_EXHAUSTED" tanto para cota
+        # temporária (por minuto/por dia) quanto para crédito pré-pago
+        # zerado — só o texto da mensagem diferencia os dois casos.
+        if any(
+            term in message_lower
+            for term in ("prepayment", "prepago", "pré-pago", "credit", "crédito", "billing", "faturamento")
+        ):
+            return (
+                "O crédito da sua conta do Gemini acabou. Acesse "
+                f"{_BILLING_URL} para adicionar mais crédito e voltar a "
+                "usar a transcrição e a descrição por IA. "
+                f"Detalhe técnico: {exc}"
+            )
+        return (
+            "Você atingiu o limite de uso da sua chave do Gemini por "
+            "enquanto (cota esgotada). Aguarde alguns minutos e tente de "
+            f"novo, ou confira seu plano e limites em {_BILLING_URL}. "
+            f"Detalhe técnico: {exc}"
+        )
+
+    if status in ("UNAUTHENTICATED", "PERMISSION_DENIED"):
+        return (
+            "O Gemini não aceitou sua chave de API. Confira se ela foi "
+            "copiada corretamente em Configurações > IA e Acessibilidade. "
+            f"Detalhe técnico: {exc}"
+        )
+
+    return (
+        "O Gemini recusou o pedido. Verifique se a chave de API está "
+        f"correta e se ainda há cota disponível. Detalhe técnico: {exc}"
+    )
+
+
 def _generate_text(client: genai.Client, model: str, prompt: str, media_part) -> str:
     last_exc: Optional[Exception] = None
 
@@ -216,10 +272,7 @@ def _generate_text(client: genai.Client, model: str, prompt: str, media_part) ->
                 last_exc = exc
                 time.sleep(_RETRY_BASE_DELAY_SECONDS * (2 ** (attempt - 1)))
                 continue
-            raise GeminiClientError(
-                "O Gemini recusou o pedido. Verifique se a chave de API está "
-                f"correta e se ainda há cota disponível. Detalhe técnico: {exc}"
-            ) from exc
+            raise GeminiClientError(_classify_client_error(exc)) from exc
         except APIError as exc:
             if _is_retryable(exc) and attempt <= _MAX_RETRIES:
                 last_exc = exc

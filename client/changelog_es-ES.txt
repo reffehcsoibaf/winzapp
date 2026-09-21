@@ -1,3 +1,11 @@
+V1.1.3.0
+
+Esta versión trae más proveedores de IA para las transcripciones y descripciones.
+
+NOVEDADES
+
+- Más proveedores de IA. Además de Gemini, ahora puedes usar OpenAI, Claude, Groq y OpenRouter para transcribir audios y describir imágenes, stickers y PDF. Pega la clave de los que quieras en Configuración > Transcripciones y Descripciones: WinZapp los prueba uno a uno, en el orden Gemini, OpenAI, Claude, Groq y OpenRouter, y solo avisa de un fallo si fallan todos los configurados. No todos hacen todo: el vídeo solo lo describe Gemini; el audio solo lo transcriben Gemini, OpenAI y Groq; el PDF lo leen todos, salvo Groq. Groq tiene plan gratuito y OpenRouter da acceso a muchos modelos, incluso gratuitos.
+
 V1.1.2.2
 
 Esta versión reordena dos botones y corrige el orden de las versiones que se muestra en "¿Qué hay de nuevo?".

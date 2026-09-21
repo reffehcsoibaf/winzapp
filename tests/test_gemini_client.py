@@ -9,7 +9,21 @@ gemini-2.5-flash did — see DEFAULT_MODEL's own comment).
 
 import inspect
 
-from core.gemini_client import DEFAULT_MODEL, RECOMMENDED_MODELS, resolve_model
+from google.genai.errors import ClientError
+
+from core.gemini_client import (
+    DEFAULT_MODEL,
+    RECOMMENDED_MODELS,
+    _classify_client_error,
+    resolve_model,
+)
+
+
+def _client_error(code: int, status: str, message: str) -> ClientError:
+    """Monta um ClientError com a mesma forma que o SDK do Gemini realmente
+    devolve (`{"error": {"code", "message", "status"}}`), para testar
+    _classify_client_error() sem depender de uma chamada de rede real."""
+    return ClientError(code, {"error": {"code": code, "message": message, "status": status}})
 
 
 class TestAutomaticFollowsTheDefault:
@@ -47,14 +61,86 @@ class TestTheDefaultIsAlwaysAnOfferedChoice:
 
 
 class TestEveryCallerGoesThroughResolveModel:
-    """conversations.py must never read ai_accessibility['gemini_model'] and
-    fall back to DEFAULT_MODEL by hand — that duplicates the rule this file
-    tests above, and the two copies drifting apart is exactly how the model
-    Settings shows as selected stops matching the model actually called."""
+    """Nothing must read ai_accessibility['gemini_model'] (or its OpenAI/Claude
+    counterparts) and fall back to a provider's DEFAULT_MODEL by hand — that
+    duplicates the rule this file tests above, and the two copies drifting
+    apart is exactly how the model Settings shows as selected stops matching
+    the model actually called.
 
-    def test_conversations_uses_resolve_model_not_a_hand_rolled_fallback(self):
+    Since core/ai_providers.py was introduced to fan a call out across
+    Gemini/OpenAI/Claude with fallback, ui/conversations.py itself no longer
+    calls any provider's resolve_model() directly — it hands the whole
+    ai_accessibility dict to core/ai_providers.py, which is the one place
+    (_run_chain()) that resolves each provider's model right before calling
+    it. That's where this invariant actually lives now.
+    """
+
+    def test_conversations_delegates_model_resolution_to_ai_providers(self):
         import ui.conversations as conversations_module
 
         src = inspect.getsource(conversations_module)
-        assert "_gemini_resolve_model(" in src
+        # conversations.py must go through the ai_providers orchestrator...
+        assert "ai_providers." in src
+        # ...and never hand-roll a per-provider model fallback itself.
         assert 'get("gemini_model")) or DEFAULT_MODEL' not in src
+        assert '_resolve_model(' not in src
+
+    def test_ai_providers_resolves_every_configured_providers_model(self):
+        import core.ai_providers as ai_providers_module
+
+        src = inspect.getsource(ai_providers_module)
+        assert "spec.module.resolve_model(" in src
+        assert 'get(spec.model_setting) or "").strip()) or ' not in src
+
+
+class TestClientErrorMessagesAreSpecificNotGeneric:
+    """The Gemini SDK raises the same ClientError shape for very different
+    situations (wrong key, per-minute quota, prepaid credits at zero) —
+    only exc.status/exc.message tell them apart. Before this, every one of
+    these reached the user (and their screen reader) as the same "check your
+    key and quota" sentence, which doesn't say what to actually do next."""
+
+    def test_prepayment_credits_depleted_points_to_billing(self):
+        # Real payload reported by a user (RESOURCE_EXHAUSTED, HTTP 402):
+        # prepaid credits ran out, distinct from a temporary quota limit.
+        exc = _client_error(
+            402,
+            "RESOURCE_EXHAUSTED",
+            "Your prepayment credits are depleted. Please go to AI Studio "
+            "at https://ai.studio/projects to manage your project and "
+            "billing.",
+        )
+        message = _classify_client_error(exc)
+        assert "crédito" in message.lower()
+        assert "ai.studio/projects" in message
+        # A cota/limite temporário e o crédito esgotado precisam de ações
+        # diferentes do usuário — não podem cair na mesma frase.
+        assert "aguarde" not in message.lower()
+
+    def test_generic_resource_exhausted_reads_as_temporary_quota(self):
+        exc = _client_error(
+            429,
+            "RESOURCE_EXHAUSTED",
+            "Quota exceeded for quota metric requests per minute",
+        )
+        message = _classify_client_error(exc)
+        assert "cota" in message.lower()
+        assert "aguarde" in message.lower()
+        assert "crédito" not in message.lower()
+
+    def test_invalid_key_names_the_settings_screen(self):
+        exc = _client_error(401, "UNAUTHENTICATED", "API key not valid")
+        message = _classify_client_error(exc)
+        assert "chave" in message.lower()
+        assert "Configurações" in message
+
+    def test_unrecognized_status_falls_back_to_generic_message(self):
+        exc = _client_error(400, "INVALID_ARGUMENT", "Something else entirely")
+        message = _classify_client_error(exc)
+        assert "recusou o pedido" in message
+
+    def test_every_message_keeps_the_technical_detail(self):
+        """Preferência já estabelecida no arquivo: a mensagem amigável nunca
+        substitui o detalhe técnico, só vem antes dele."""
+        exc = _client_error(402, "RESOURCE_EXHAUSTED", "prepayment credits depleted")
+        assert "Detalhe técnico:" in _classify_client_error(exc)
