@@ -321,20 +321,26 @@
   <!-- 4. IA: TRANSCRIÇÕES E DESCRIÇÕES -->
   <section id="ia-transcricoes" class="wiki-section" aria-labelledby="h-ia-transcricoes">
     <h2 id="h-ia-transcricoes">🤖 4. IA: Transcrições e Descrições</h2>
-    <p>O WinZapp pode usar o Google Gemini para transcrever áudios e figurinhas, e descrever imagens e vídeos — útil pra saber o que uma mídia contém sem precisar enxergá-la. PDFs recebidos também podem ser convertidos em texto acessível.</p>
+    <p>O WinZapp pode usar IA para transcrever áudios e figurinhas, e descrever imagens e vídeos — útil pra saber o que uma mídia contém sem precisar enxergá-la. PDFs recebidos também podem ser convertidos em texto acessível.</p>
+    <p>Três provedores de IA podem ser configurados — Google Gemini, OpenAI e Claude — e não é preciso escolher só um: preencha a chave de quantos quiser. Sempre que uma mídia é processada, o WinZapp tenta o Gemini primeiro; se ele falhar ou não estiver configurado, tenta a OpenAI; se ela também falhar ou não estiver configurada, tenta a Claude. Só aparece um aviso de erro se nenhum dos provedores configurados conseguir processar aquela mídia.</p>
 
     <h3>Como ativar</h3>
     <ol class="steps">
       <li><span class="step-num">1</span>Vá em Configurações &gt; aba Conversas &gt; botão <span class="btn-demo outline">Transcrições e Descrições</span>.</li>
       <li><span class="step-num">2</span>Marque <strong>Ativar recursos de IA</strong>.</li>
-      <li><span class="step-num">3</span>Cole sua <strong>Chave de API do Gemini</strong> no campo correspondente — é grátis, obtida em <code>aistudio.google.com/apikey</code>.</li>
-      <li><span class="step-num">4</span>No campo <strong>Modelo do Gemini</strong>, deixe em <strong>Automático (recomendado)</strong> — o WinZapp passa sozinho pro modelo mais recente recomendado quando a Google aposenta um antigo. Só escolha um modelo específico da lista se quiser fixar esse modelo mesmo assim.</li>
+      <li><span class="step-num">3</span>Use o botão de um provedor (por exemplo, <strong>Configurar Gemini</strong>) e cole a chave de API dele; basta um: <strong>Chave de API do Gemini</strong> (grátis, obtida em <code>aistudio.google.com/apikey</code>), <strong>Chave de API da OpenAI</strong> (<code>platform.openai.com/api-keys</code>), <strong>Chave de API da Claude</strong> (<code>console.anthropic.com/settings/keys</code>), <strong>Chave de API da Groq</strong> (plano gratuito, <code>console.groq.com/keys</code>) e/ou <strong>Chave de API da OpenRouter</strong> (<code>openrouter.ai/settings/keys</code>).</li>
+      <li><span class="step-num">4</span>Em cada campo de modelo (<strong>Modelo do Gemini</strong>, <strong>Modelo da OpenAI</strong>, <strong>Modelo da Claude</strong>), deixe em <strong>Automático (recomendado)</strong> — o WinZapp passa sozinho pro modelo mais recente recomendado quando o provedor aposenta um antigo. Só escolha um modelo específico da lista se quiser fixar esse modelo mesmo assim.</li>
       <li><span class="step-num">5</span>Marque quais tipos você quer que sejam processados: áudio, imagens, vídeos, figurinhas e/ou PDFs. Cada um tem sua própria caixa de seleção, independente das outras.</li>
     </ol>
 
     <div class="callout warn">
-      <div class="callout-title">⚠️ Chave obrigatória</div>
-      Sem uma chave de API válida, o WinZapp avisa e não deixa ativar os recursos de IA.
+      <div class="callout-title">⚠️ Pelo menos uma chave é obrigatória</div>
+      Sem nenhuma chave de API válida configurada (Gemini, OpenAI ou Claude), o WinZapp avisa e não deixa ativar os recursos de IA.
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Vídeo e áudio nem todo provedor processa</div>
+      Vídeo só é processado pelo Gemini — os outros dois provedores não aceitam arquivo de vídeo. Áudio é processado pelo Gemini e pela OpenAI; a Claude não transcreve áudio. Imagem, figurinha e PDF funcionam com os três.
     </div>
 
     <h3>Como usar</h3>

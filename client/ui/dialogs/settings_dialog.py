@@ -11,7 +11,12 @@ from core.audio_devices import (
     enumerate_output_devices, enumerate_input_devices, test_input_device,
 )
 from core.spell_checker import SPELL_CHECK_MODES, spell_check_mode
-from core.gemini_client import RECOMMENDED_MODELS
+from core import ai_providers
+from core.gemini_client import RECOMMENDED_MODELS as GEMINI_RECOMMENDED_MODELS
+from core.openai_client import RECOMMENDED_MODELS as OPENAI_RECOMMENDED_MODELS
+from core.claude_client import RECOMMENDED_MODELS as CLAUDE_RECOMMENDED_MODELS
+from core.groq_client import RECOMMENDED_MODELS as GROQ_RECOMMENDED_MODELS
+from core.openrouter_client import RECOMMENDED_MODELS as OPENROUTER_RECOMMENDED_MODELS
 
 # Win32 modifier constants for RegisterHotKey
 _MOD_ALT     = 0x0001
@@ -62,6 +67,17 @@ def _add_subsection_button(page, sizer, i18n, label_key, dialog):
     sizer.Add(btn, 0, wx.EXPAND | wx.ALL, 8)
     btn.Bind(wx.EVT_BUTTON, lambda evt: dialog.ShowModal())
     return btn
+
+
+# Provedores de IA na aba Transcrições e Descrições, na ordem de fallback de
+# core/ai_providers.py: (id, nome, modelos recomendados).
+_AI_PROVIDER_UI = (
+    ("gemini", "Gemini", GEMINI_RECOMMENDED_MODELS),
+    ("openai", "OpenAI", OPENAI_RECOMMENDED_MODELS),
+    ("claude", "Claude", CLAUDE_RECOMMENDED_MODELS),
+    ("groq", "Groq", GROQ_RECOMMENDED_MODELS),
+    ("openrouter", "OpenRouter", OPENROUTER_RECOMMENDED_MODELS),
+)
 
 
 class _HotkeyCaptureAccessible(wx.Accessible):
@@ -1159,11 +1175,18 @@ class SettingsDialog(wx.Dialog):
 
         # ── AI / Accessibility tab ──────────────────────────────────────────
         # Lets a screen-reader user turn a voice note, image, video or PDF
-        # into navigable text via the Gemini API. The API key field is left
-        # as a plain (unmasked) text control on purpose: masking helps
-        # against shoulder-surfing, which matters less here than a blind
-        # user being able to have their screen reader read the key back to
-        # confirm it was typed/pasted correctly.
+        # into navigable text via an AI provider. Three providers can be
+        # configured — Gemini, OpenAI and Claude — and are tried
+        # automatically in that fixed order whenever a key is filled in
+        # (core/ai_providers.py): if the first configured provider fails or
+        # its media type isn't one it supports (see each provider's help
+        # text below), the next configured one is tried before giving up.
+        # There's no "pick one provider" selector — leaving all three blank
+        # except one behaves exactly like before this fallback existed.
+        # Every API key field is left as a plain (unmasked) text control on
+        # purpose: masking helps against shoulder-surfing, which matters
+        # less here than a blind user being able to have their screen
+        # reader read the key back to confirm it was typed/pasted correctly.
         self._ai_page = wx.Panel(self._notebook)
         ai_sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -1172,44 +1195,34 @@ class SettingsDialog(wx.Dialog):
         )
         ai_sizer.Add(self._ai_enabled_check, 0, wx.ALL, 8)
 
-        self._ai_api_key_label = wx.StaticText(
-            self._ai_page, label=i18n.t("gemini_api_key_label")
+        # ── Provedores ───────────────────────────────────────────────────
+        # Um botão por provedor. Todos abrem a MESMA janela (chave + modelo),
+        # criada só na primeira vez que alguém clica e reaproveitada depois
+        # (_open_ai_provider_dialog()). Antes eram cinco blocos de cinco
+        # controles soltos nesta página — vinte e cinco paradas de Tab para
+        # quem só queria trocar uma chave — e, na primeira versão com janelas,
+        # cinco janelas prontas por SettingsDialog, o que estourou a cota de
+        # handles do Windows nos testes de CI. Os valores ficam em
+        # _ai_provider_state (um dict simples), não nos controles: a janela é
+        # só uma tela de edição de um provedor de cada vez.
+        self._ai_provider_state = {
+            pid: {"key": "", "model": ""} for pid, _n, _m in _AI_PROVIDER_UI
+        }
+        self._ai_provider_dialog = None
+        self._ai_provider_buttons = {}
+        for _pid, _pname, _models in _AI_PROVIDER_UI:
+            _button = wx.Button(
+                self._ai_page,
+                label=i18n.t("ai_provider_button").format(provider=_pname),
+            )
+            _button.Bind(
+                wx.EVT_BUTTON, lambda evt, pid=_pid: self._open_ai_provider_dialog(pid)
+            )
+            ai_sizer.Add(_button, 0, wx.EXPAND | wx.ALL, 8)
+            self._ai_provider_buttons[_pid] = _button
+        ai_sizer.Add(
+            wx.StaticLine(self._ai_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
         )
-        ai_sizer.Add(self._ai_api_key_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
-        self._ai_api_key_field = wx.TextCtrl(self._ai_page, style=wx.TE_DONTWRAP)
-        ai_sizer.Add(self._ai_api_key_field, 0, wx.EXPAND | wx.ALL, 8)
-
-        self._ai_api_key_help_label = wx.StaticText(
-            self._ai_page, label=i18n.t("gemini_api_key_help_label")
-        )
-        ai_sizer.Add(self._ai_api_key_help_label, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
-
-        # Model picker. "" (the first entry) means "Automatic": always follow
-        # core.gemini_client.DEFAULT_MODEL, which is what a code update
-        # changes the next time Google retires a model — this is how someone
-        # who never opens this combo again still stops breaking when that
-        # happens. Read-only (like _lang_combo above) so NVDA/JAWS announce a
-        # clean list instead of a free-text field that accepts typos in a
-        # model id. self._ai_model_values is the parallel array of real
-        # stored values — index-matched to the combo's displayed choices,
-        # same pattern as self._lang_codes/self._lang_combo.
-        self._ai_model_values = ["", *RECOMMENDED_MODELS]
-        self._ai_model_label = wx.StaticText(
-            self._ai_page, label=i18n.t("gemini_model_label")
-        )
-        ai_sizer.Add(self._ai_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
-        self._ai_model_combo = wx.ComboBox(
-            self._ai_page,
-            style=wx.CB_READONLY,
-            choices=[i18n.t("gemini_model_automatic_option"), *RECOMMENDED_MODELS],
-        )
-        bind_incremental_search(self._ai_model_combo)
-        ai_sizer.Add(self._ai_model_combo, 0, wx.EXPAND | wx.ALL, 8)
-
-        self._ai_model_help_label = wx.StaticText(
-            self._ai_page, label=i18n.t("gemini_model_help_label")
-        )
-        ai_sizer.Add(self._ai_model_help_label, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
 
         self._ai_transcribe_audio_check = wx.CheckBox(
             self._ai_page, label=i18n.t("ai_transcribe_audio_label")
@@ -1431,6 +1444,31 @@ class SettingsDialog(wx.Dialog):
         """
         mode = spell_check_mode(self.main_window.settings.get("general", {}))
         self._spell_check_radio.SetSelection(SPELL_CHECK_MODES.index(mode))
+
+    @staticmethod
+    def _load_ai_model_combo(combo, model_values, saved_value):
+        """
+        Select `saved_value` in an AI-provider model combo (Gemini/OpenAI/
+        Claude — same "Automatic" + recommended-models shape for all three).
+
+        A model saved by a newer WinZapp version, or typed by hand into
+        settings.json, is kept visible and selected instead of silently
+        discarded the next time Apply is pressed — same behavior the single
+        Gemini combo had before OpenAI/Claude were added.
+        """
+        value = (saved_value or "").strip()
+        if value not in model_values:
+            combo.Append(value)
+            model_values.append(value)
+        combo.SetSelection(model_values.index(value))
+
+    @staticmethod
+    def _selected_ai_model(combo, model_values) -> str:
+        """Inverse of _load_ai_model_combo(): the real stored value ("" for
+        Automatic) for whatever is currently selected in an AI-provider
+        model combo."""
+        sel = combo.GetSelection()
+        return model_values[sel] if 0 <= sel < len(model_values) else ""
 
     def _load_values(self):
         """Populate controls from current settings."""
@@ -1708,16 +1746,11 @@ class SettingsDialog(wx.Dialog):
         # AI / Accessibility
         ai_settings = self.main_window.settings.get("ai_accessibility", {})
         self._ai_enabled_check.SetValue(ai_settings.get("enabled", False))
-        self._ai_api_key_field.SetValue(ai_settings.get("gemini_api_key", ""))
-
-        model_value = (ai_settings.get("gemini_model") or "").strip()
-        if model_value not in self._ai_model_values:
-            # A model saved by a newer WinZapp version, or typed by hand into
-            # settings.json — keep it visible and selected instead of
-            # silently discarding it the next time Apply is pressed.
-            self._ai_model_combo.Append(model_value)
-            self._ai_model_values.append(model_value)
-        self._ai_model_combo.SetSelection(self._ai_model_values.index(model_value))
+        for _pid, _n, _m in _AI_PROVIDER_UI:
+            self._ai_provider_state[_pid] = {
+                "key": (ai_settings.get(f"{_pid}_api_key") or "").strip(),
+                "model": (ai_settings.get(f"{_pid}_model") or "").strip(),
+            }
 
         # Privacy — deliberately do NOT prefill the code fields (write-only,
         # see the tab's build-time comment); only the checkbox reflects a
@@ -2189,14 +2222,87 @@ class SettingsDialog(wx.Dialog):
         """A popup is meaningful only while incoming-call alerts are enabled."""
         self._call_popup_check.Enable(self._call_alerts_check.GetValue())
 
+    def _open_ai_provider_dialog(self, provider_id):
+        """Abre a janela de chave + modelo de um provedor de IA.
+
+        A janela é uma só, criada na primeira vez e reaproveitada: a cada
+        abertura ela é preenchida com os valores desse provedor (que vivem em
+        self._ai_provider_state) e, ao fechar, o que foi digitado volta para
+        lá. Se algo mudou, o botão Aplicar aparece — a janela não está na
+        lista de _sub_dialogs justamente porque preenchê-la por código dispara
+        EVT_TEXT e marcaria "alterado" sem o usuário ter tocado em nada.
+
+        O primeiro item do combo ("") é "Automático": segue sempre o modelo
+        recomendado atual em core/<provedor>_client.py, para que quem nunca
+        reabre este combo continue funcionando quando um modelo é aposentado.
+        É somente leitura (nada de campo livre que aceite erro de digitação).
+        A chave fica num campo de texto comum, sem máscara, de propósito: o
+        leitor de tela precisa poder ler a chave de volta para confirmar que
+        foi digitada/colada certo.
+        """
+        i18n = self.main_window.i18n
+        _name, models = next(
+            (n, m) for pid, n, m in _AI_PROVIDER_UI if pid == provider_id
+        )
+        if self._ai_provider_dialog is None:
+            panel = wx.Panel(self)
+            box = wx.BoxSizer(wx.VERTICAL)
+            self._ai_provider_key_label = wx.StaticText(panel, label="")
+            box.Add(self._ai_provider_key_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+            self._ai_provider_key_field = wx.TextCtrl(panel, style=wx.TE_DONTWRAP)
+            box.Add(self._ai_provider_key_field, 0, wx.EXPAND | wx.ALL, 8)
+            self._ai_provider_key_help = wx.StaticText(panel, label="")
+            box.Add(self._ai_provider_key_help, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
+            self._ai_provider_model_label = wx.StaticText(panel, label="")
+            box.Add(self._ai_provider_model_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
+            self._ai_provider_model_combo = wx.ComboBox(
+                panel, style=wx.CB_READONLY, choices=[]
+            )
+            bind_incremental_search(self._ai_provider_model_combo)
+            box.Add(self._ai_provider_model_combo, 0, wx.EXPAND | wx.ALL, 8)
+            self._ai_provider_model_help = wx.StaticText(panel, label="")
+            box.Add(self._ai_provider_model_help, 0, wx.LEFT | wx.BOTTOM | wx.RIGHT, 8)
+            panel.SetSizer(box)
+            self._ai_provider_dialog = _wrap_pages_in_dialog(self, i18n, "", [panel])
+            self._ai_provider_panel = panel
+
+        state = self._ai_provider_state[provider_id]
+        title = i18n.t("ai_provider_button").format(provider=_name)
+        dialog = self._ai_provider_dialog
+        dialog.SetTitle(title)
+        self._ai_provider_key_label.SetLabel(i18n.t(f"{provider_id}_api_key_label"))
+        self._ai_provider_key_help.SetLabel(i18n.t(f"{provider_id}_api_key_help_label"))
+        self._ai_provider_model_label.SetLabel(i18n.t(f"{provider_id}_model_label"))
+        self._ai_provider_model_help.SetLabel(i18n.t(f"{provider_id}_model_help_label"))
+        self._ai_provider_key_field.ChangeValue(state["key"])
+        combo = self._ai_provider_model_combo
+        combo.Set([i18n.t("gemini_model_automatic_option"), *models])
+        model_values = ["", *models]
+        self._load_ai_model_combo(combo, model_values, state["model"])
+        self._ai_provider_panel.Layout()
+        dialog.Fit()
+        self._ai_provider_key_field.SetFocus()
+        dialog.ShowModal()
+
+        new_state = {
+            "key": self._ai_provider_key_field.GetValue().strip(),
+            "model": self._selected_ai_model(combo, model_values),
+        }
+        if new_state != state:
+            self._ai_provider_state[provider_id] = new_state
+            self._mark_dirty()
+
     def _on_ai_enabled_toggle(self, event):
         self._update_ai_fields_state()
         event.Skip()
 
     def _update_ai_fields_state(self):
-        """The API key and per-type toggles only matter while AI features are on."""
+        """The API key fields and per-type toggles only matter while AI features are on."""
         enabled = self._ai_enabled_check.GetValue()
-        self._ai_api_key_field.Enable(enabled)
+        # Desligado, os botões dos provedores saem da ordem de Tab (e as
+        # janelas que eles abririam só teriam campos desativados).
+        for button in self._ai_provider_buttons.values():
+            button.Enable(enabled)
         self._ai_transcribe_audio_check.Enable(enabled)
         self._ai_describe_images_check.Enable(enabled)
         self._ai_describe_videos_check.Enable(enabled)
@@ -2444,14 +2550,16 @@ class SettingsDialog(wx.Dialog):
                 self._audio_settings_dialog.ShowModal()
                 return False
 
-        if self._ai_enabled_check.GetValue() and not self._ai_api_key_field.GetValue().strip():
+        if self._ai_enabled_check.GetValue() and not (
+            any(st["key"] for st in self._ai_provider_state.values())
+        ):
             wx.MessageBox(
-                self.main_window.i18n.t("invalid_gemini_api_key"),
+                self.main_window.i18n.t("invalid_ai_api_key"),
                 self.main_window.i18n.t("error").format(app_name=self.main_window.app_name),
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
-            self._ai_api_key_field.SetFocus()
+            self._ai_provider_buttons["gemini"].SetFocus()
             self._transcriptions_dialog.ShowModal()
             return False
 
@@ -2898,16 +3006,16 @@ class SettingsDialog(wx.Dialog):
         ] = self._mark_audio_played_check.GetValue()
 
         # AI / Accessibility
-        _ai_model_sel = self._ai_model_combo.GetSelection()
-        _ai_model = (
-            self._ai_model_values[_ai_model_sel]
-            if 0 <= _ai_model_sel < len(self._ai_model_values)
-            else ""
-        )
         self.main_window.settings["ai_accessibility"] = {
             "enabled": self._ai_enabled_check.GetValue(),
-            "gemini_api_key": self._ai_api_key_field.GetValue().strip(),
-            "gemini_model": _ai_model,
+            **{
+                key: value
+                for pid, st in self._ai_provider_state.items()
+                for key, value in (
+                    (f"{pid}_api_key", st["key"]),
+                    (f"{pid}_model", st["model"]),
+                )
+            },
             "transcribe_audio": self._ai_transcribe_audio_check.GetValue(),
             "describe_images": self._ai_describe_images_check.GetValue(),
             "describe_videos": self._ai_describe_videos_check.GetValue(),
@@ -3162,14 +3270,12 @@ class SettingsDialog(wx.Dialog):
 
         # AI / Accessibility tab
         self._ai_enabled_check.SetLabel(i18n.t("ai_accessibility_enabled_label"))
-        self._ai_api_key_label.SetLabel(i18n.t("gemini_api_key_label"))
-        self._ai_api_key_help_label.SetLabel(i18n.t("gemini_api_key_help_label"))
-        self._ai_model_label.SetLabel(i18n.t("gemini_model_label"))
-        # Only index 0 ("Automatic") has translated text — the rest are raw
-        # model ids and stay as-is. SetString() rewrites the entry without
-        # touching GetSelection(), same as every other combo refreshed here.
-        self._ai_model_combo.SetString(0, i18n.t("gemini_model_automatic_option"))
-        self._ai_model_help_label.SetLabel(i18n.t("gemini_model_help_label"))
+        # A janela do provedor se rotula sozinha a cada abertura; só os botões
+        # da página precisam ser atualizados aqui.
+        for _pid, _pname, _m in _AI_PROVIDER_UI:
+            self._ai_provider_buttons[_pid].SetLabel(
+                i18n.t("ai_provider_button").format(provider=_pname)
+            )
         self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))

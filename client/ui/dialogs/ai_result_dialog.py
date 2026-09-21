@@ -175,7 +175,7 @@ class AIResultDialog(wx.Dialog):
 
         self._ask_btn.Enable(False)
         self._question_field.Enable(False)
-        waiting_label = self._t("ai_result_asking_msg", "Perguntando ao Gemini...")
+        waiting_label = self._t("ai_result_asking_msg", "Perguntando à IA...")
         # Gives immediate feedback in the list itself — a screen reader
         # arriving at this item hears that a question is in flight, instead
         # of silence while the request is out.
@@ -193,7 +193,7 @@ class AIResultDialog(wx.Dialog):
                             parent.output,
                             self._t(
                                 "ai_still_processing_msg",
-                                "Ainda processando com o Gemini...",
+                                "Ainda processando com a IA...",
                             ),
                         )
 

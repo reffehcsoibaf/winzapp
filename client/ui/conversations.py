@@ -29,14 +29,8 @@ from core.audio_transcode import transcode_audio_to_wav
 from core.attachment_types import classify_attachment_media_type
 from core.sound_system import load_sound
 from core.link_preview import find_first_url, fetch_link_preview
-from core.gemini_client import (
-    resolve_model as _gemini_resolve_model,
-    transcribe_audio as _gemini_transcribe_audio,
-    describe_visual_media as _gemini_describe_visual_media,
-    ask_about_visual_media as _gemini_ask_about_visual_media,
-    pdf_to_accessible_text as _gemini_pdf_to_accessible_text,
-    GeminiClientError,
-)
+from core import ai_providers
+from core.ai_providers import AIProviderError
 from ui.dialogs.ai_result_dialog import AIResultDialog
 from ui.accessible import (
     AccessibleSearchConversations,
@@ -11135,19 +11129,20 @@ class ConversationsPanel(wx.Panel):
 
         threading.Thread(target=_run, daemon=True).start()
 
-    # ── AI transcription/description (Gemini) ───────────────────────────────
+    # ── AI transcription/description (Gemini / OpenAI / Claude, with fallback) ──
 
     def _ai_accessibility_settings(self):
         """
         Return the ai_accessibility settings dict if the feature is actually
-        usable right now (master switch on + a non-empty API key saved),
-        otherwise None. Callers use None to simply not show the menu item,
-        rather than showing it and failing when clicked.
+        usable right now (master switch on + at least one provider's API key
+        saved — Gemini, OpenAI, Claude, Groq or OpenRouter), otherwise None. Callers use None
+        to simply not show the menu item, rather than showing it and failing
+        when clicked.
         """
         settings = self.main_window.settings.get("ai_accessibility", {})
         if not settings.get("enabled"):
             return None
-        if not (settings.get("gemini_api_key") or "").strip():
+        if not ai_providers.configured_provider_ids(settings):
             return None
         return settings
 
@@ -11177,10 +11172,13 @@ class ConversationsPanel(wx.Panel):
 
     def _on_menu_ai_process(self, msg: dict):
         """
-        Send this message's media (audio, image, video or PDF) to Gemini and
-        show the result in a navigable window (AIResultDialog). The network
-        call runs on a background thread so the UI — and the screen reader
-        along with it — never freezes while waiting for Gemini to respond.
+        Send this message's media (audio, image, video or PDF) to the first
+        configured AI provider that supports it — Gemini, then OpenAI, then
+        Claude (see core/ai_providers.py for the fallback order and each
+        provider's real capability limits) — and show the result in a
+        navigable window (AIResultDialog). The network call runs on a
+        background thread so the UI — and the screen reader along with it —
+        never freezes while waiting for a provider to respond.
         """
         ai_settings = self._ai_accessibility_settings()
         if ai_settings is None:
@@ -11232,8 +11230,6 @@ class ConversationsPanel(wx.Panel):
         else:
             media_path = data_path("media", f"{msg_id}.wzmedia")
 
-        api_key = ai_settings.get("gemini_api_key", "")
-        model = _gemini_resolve_model(ai_settings.get("gemini_model"))
         is_video = msg_type == "videoMessage"
 
         self.main_window.output(self.main_window.i18n.t("ai_processing_msg"))
@@ -11273,27 +11269,37 @@ class ConversationsPanel(wx.Panel):
                     fh.write(content)
 
                 if msg_type == "audioMessage":
-                    result_text = _gemini_transcribe_audio(tmp_path, api_key, model=model)
+                    result_text, used_provider = ai_providers.transcribe_audio(
+                        tmp_path, ai_settings
+                    )
                     title = self.main_window.i18n.t("ai_result_transcription_title")
                     ask_fn = None
                 elif msg_type in ("imageMessage", "videoMessage", "stickerMessage"):
-                    result_text = _gemini_describe_visual_media(
-                        tmp_path, api_key, model=model, is_video=is_video
+                    result_text, used_provider = ai_providers.describe_visual_media(
+                        tmp_path, ai_settings, is_video=is_video
                     )
                     title = (
                         self.main_window.i18n.t("ai_result_sticker_title")
                         if msg_type == "stickerMessage"
                         else self.main_window.i18n.t("ai_result_description_title")
                     )
-                    # Kept alive by closing over tmp_path/api_key/model/is_video
-                    # — tmp_dir is only cleaned up when the OS clears the temp
-                    # folder, so the file is still there for follow-up
-                    # questions asked while this dialog stays open.
-                    ask_fn = lambda q, p=tmp_path, k=api_key, m=model, v=is_video: (
-                        _gemini_ask_about_visual_media(p, k, q, model=m, is_video=v)
+                    # Kept alive by closing over tmp_path/ai_settings/is_video/
+                    # used_provider — tmp_dir is only cleaned up when the OS
+                    # clears the temp folder, so the file is still there for
+                    # follow-up questions asked while this dialog stays open.
+                    # "prefer=used_provider" keeps follow-up answers from the
+                    # same provider that produced the description when
+                    # possible, while still falling back further if that
+                    # provider now fails.
+                    ask_fn = lambda q, p=tmp_path, s=ai_settings, v=is_video, pv=used_provider: (
+                        ai_providers.ask_about_visual_media(
+                            p, s, q, is_video=v, prefer=pv
+                        )[0]
                     )
                 else:  # documentMessage, already confirmed to be a PDF above
-                    result_text = _gemini_pdf_to_accessible_text(tmp_path, api_key, model=model)
+                    result_text, used_provider = ai_providers.pdf_to_accessible_text(
+                        tmp_path, ai_settings
+                    )
                     title = self.main_window.i18n.t("ai_result_pdf_title")
                     ask_fn = None
 
@@ -11303,7 +11309,7 @@ class ConversationsPanel(wx.Panel):
                     dlg.Destroy()
 
                 wx.CallAfter(_show_result)
-            except GeminiClientError as exc:
+            except AIProviderError as exc:
                 wx.CallAfter(
                     wx.MessageBox,
                     str(exc),

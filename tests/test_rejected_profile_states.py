@@ -31,12 +31,21 @@ SESSION = "c77cc915f87e4b1a371ebe2c105cee9b"
 OTHER = "9de1c2bf73b3ec8b8891febfe2bc4d48"
 
 
+_FIXED_MTIME = 1_789_048_351
+
+
 def _store(root, payload):
     path = os.path.join(root, LOGIN_STORE)
     os.makedirs(path, exist_ok=True)
     for name, content in payload.items():
-        with open(os.path.join(path, name), "w", encoding="utf-8") as f:
+        target = os.path.join(path, name)
+        with open(target, "w", encoding="utf-8") as f:
             f.write(content)
+        # The fingerprint keeps the newest mtime rounded to whole seconds, so
+        # two stores written back to back can straddle a second boundary and
+        # look different despite identical content — a flake seen on CI. A
+        # fixed mtime makes "same payload" mean the same fingerprint.
+        os.utime(target, (_FIXED_MTIME, _FIXED_MTIME))
 
 
 @pytest.fixture

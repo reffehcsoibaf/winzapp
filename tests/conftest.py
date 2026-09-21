@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 import tempfile
 import time
 from pathlib import Path
@@ -139,6 +140,25 @@ def wx_app():
     """
     import wx
     return wx.App()
+
+
+@pytest.fixture(autouse=True, scope="session")
+def _a_wx_app_exists_for_every_test(request):
+    """Make sure the one wx.App exists before any test runs.
+
+    Production code reached from plain stub-based tests calls wx.CallAfter,
+    which asserts "No wx.App created yet" when nothing has built the app.
+    Those tests only ever passed because SOME earlier test in the same
+    process happened to ask for `wx_app` -- an ordering coincidence that
+    disappears the moment the files are split across processes differently
+    (scripts/run_pytest_in_batches.py) or one is added or renamed. Creating
+    the app costs nothing and shows no window; wx_app is session-scoped, so
+    this is still the single instance wxWidgets allows."""
+    try:
+        import wx  # noqa: F401
+    except ImportError:
+        return None
+    return request.getfixturevalue("wx_app")
 
 
 # ── Fixtures: Windows notification state ─────────────────────────────────────
@@ -437,7 +457,91 @@ def hidden_frame(**kwargs):
     kwargs.setdefault(
         "style", wx.FRAME_TOOL_WINDOW | wx.FRAME_NO_TASKBAR | wx.DEFAULT_FRAME_STYLE
     )
-    return wx.Frame(None, **kwargs)
+    frame = wx.Frame(None, **kwargs)
+    _HIDDEN_FRAMES.append(frame)
+    return frame
+
+
+# Every frame hidden_frame() ever handed out and that nobody has cleaned up
+# yet — see _wx_windows_do_not_accumulate() below for why this exists.
+_HIDDEN_FRAMES: list = []
+
+
+def _flush_wx_pending_deletes():
+    """Let wx really delete the windows that were Destroy()ed.
+
+    wxWidgets never deletes a top-level window inside Destroy(): it queues it
+    and deletes it the next time the application goes idle. A test run has no
+    MainLoop, so nothing ever goes idle and every Destroy() is a no-op until
+    the process exits. ProcessIdle() is what the MainLoop would have done."""
+    import wx
+
+    app = wx.GetApp()
+    if app is not None:
+        try:
+            app.ProcessIdle()
+        except Exception:
+            pass
+
+
+def _gui_handles_in_use():
+    """USER objects this process holds (Windows' per-process quota is 10,000),
+    or None off Windows."""
+    try:
+        import ctypes
+
+        kernel32, user32 = ctypes.windll.kernel32, ctypes.windll.user32
+        return user32.GetGuiResources(kernel32.GetCurrentProcess(), 1)
+    except Exception:
+        return None
+
+
+@pytest.fixture(autouse=True)
+def _wx_windows_do_not_accumulate():
+    """Free the windows a test Destroy()ed as soon as the test is over.
+
+    The wx tests never run an event loop, so a Destroy() only queues the
+    window for deletion and nothing ever deletes it; and many tests never call
+    Destroy() on the frame they built at all. Every window then lives until
+    the process exits, and the GDI/USER handle quota is spent by whichever
+    test files happen to run late enough in that process -- which is why CI
+    kept failing in a different, unrelated test each time
+    ("Failed to create dialog. Incorrect DLGTEMPLATE?", a TextCtrl silently
+    keeping an empty value, ...) and why re-batching only moved the failure
+    around. This is the fix for the cause rather than for its symptom."""
+    yield
+    if "wx" in sys.modules:
+        _flush_wx_pending_deletes()
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _wx_frames_do_not_outlive_their_module(request):
+    """Destroy the hidden frames a module left behind, once it is finished.
+
+    Module scope on purpose: a fixture with a wider scope may still be holding
+    one of these frames for the next test, so it cannot be done per test.
+    Deleting a frame takes every dialog and control parented to it along."""
+    yield
+    if "wx" not in sys.modules:
+        return
+    leftovers = 0
+    for frame in _HIDDEN_FRAMES:
+        try:
+            if frame:
+                frame.Destroy()
+                leftovers += 1
+        except Exception:
+            pass
+    _HIDDEN_FRAMES.clear()
+    _flush_wx_pending_deletes()
+    if leftovers:
+        reporter = request.config.pluginmanager.get_plugin("terminalreporter")
+        handles = _gui_handles_in_use()
+        if reporter is not None and handles is not None:
+            reporter.write_line(
+                f"[wx cleanup] {request.module.__name__}: freed {leftovers} "
+                f"leftover frame(s); {handles} USER objects held afterwards"
+            )
 
 def set_clipboard_text(text):
     """Write plain text to the clipboard, with the same retry guarantee."""

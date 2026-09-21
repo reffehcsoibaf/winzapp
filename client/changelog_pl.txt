@@ -1,3 +1,11 @@
+V1.1.3.0
+
+Ta wersja dodaje więcej dostawców AI do transkrypcji i opisów.
+
+NOWOŚCI
+
+- Więcej dostawców AI. Oprócz Gemini możesz teraz używać OpenAI, Claude, Groq i OpenRouter do transkrypcji audio oraz opisywania obrazów, naklejek i plików PDF. Wklej klucze wybranych dostawców w Ustawienia > Transkrypcje i opisy: WinZapp próbuje ich po kolei, w kolejności Gemini, OpenAI, Claude, Groq i OpenRouter, i zgłasza błąd tylko wtedy, gdy zawiodą wszyscy skonfigurowani. Nie każdy robi wszystko: wideo opisuje tylko Gemini; audio transkrybują tylko Gemini, OpenAI i Groq; pliki PDF czytają wszyscy poza Groq. Groq ma darmowy plan, a OpenRouter daje dostęp do wielu modeli, także darmowych.
+
 V1.1.2.2
 
 Ta wersja zmienia kolejność dwóch przycisków i naprawia kolejność wersji w oknie "Co nowego?".
