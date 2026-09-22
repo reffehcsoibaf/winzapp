@@ -126,6 +126,7 @@
         "enabled": false,
         "gemini_api_key": "",
         "gemini_model": "",
+        "provider_order": ["gemini", "openai", "claude", "groq", "openrouter"],
         "transcribe_audio": true,
         "describe_images": true,
         "describe_videos": true,

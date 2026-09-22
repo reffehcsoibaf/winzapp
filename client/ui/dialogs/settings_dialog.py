@@ -2676,7 +2676,12 @@ class SettingsDialog(wx.Dialog):
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
-            self._ai_provider_buttons["gemini"].SetFocus()
+            gemini_index = (
+                self._ai_provider_order.index("gemini")
+                if "gemini" in self._ai_provider_order else 0
+            )
+            self._ai_provider_list.SetSelection(gemini_index)
+            self._ai_provider_list.SetFocus()
             self._transcriptions_dialog.ShowModal()
             return False
 
@@ -3389,12 +3394,14 @@ class SettingsDialog(wx.Dialog):
 
         # AI / Accessibility tab
         self._ai_enabled_check.SetLabel(i18n.t("ai_accessibility_enabled_label"))
-        # A janela do provedor se rotula sozinha a cada abertura; só os botões
-        # da página precisam ser atualizados aqui.
-        for _pid, _pname, _m in _AI_PROVIDER_UI:
-            self._ai_provider_buttons[_pid].SetLabel(
-                i18n.t("ai_provider_button").format(provider=_pname)
-            )
+        # A janela do provedor se rotula sozinha a cada abertura; aqui só
+        # precisam ser atualizados o nome acessível/itens da lista (o texto
+        # ", Ativado"/", Desativado" é traduzido) e os botões ao lado dela.
+        self._ai_provider_list.SetName(i18n.t("ai_provider_list_label"))
+        self._ai_provider_configure_button.SetLabel(i18n.t("ai_provider_configure_button"))
+        self._ai_provider_move_up_button.SetLabel(i18n.t("ai_provider_move_up_button"))
+        self._ai_provider_move_down_button.SetLabel(i18n.t("ai_provider_move_down_button"))
+        self._refresh_ai_provider_list(selection=self._ai_provider_list.GetSelection())
         self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))
