@@ -958,6 +958,13 @@ DEFAULT_SETTINGS = {
         "enabled": False,
         "gemini_api_key": "",
         "gemini_model": "",
+        # Ordem de tentativa automática dos provedores (ver
+        # core/ai_providers.py:provider_order) e se cada um participa dela
+        # (core/ai_providers.py:is_provider_enabled, default True quando a
+        # chave "<id>_enabled" nem existe — configs antigas continuam
+        # tentando todos os provedores configurados, como antes desta opção
+        # existir).
+        "provider_order": ["gemini", "openai", "claude", "groq", "openrouter"],
         "transcribe_audio": True,
         "describe_images": True,
         "describe_videos": True,

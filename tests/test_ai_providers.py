@@ -194,3 +194,58 @@ class TestNoProviderConfiguredAtAll:
         with pytest.raises(ai_providers.AIProviderError) as excinfo:
             ai_providers.describe_visual_media("/tmp/x.jpg", {})
         assert "Configurações" in str(excinfo.value)
+
+
+class TestProviderOrder:
+    """provider_order()/is_provider_enabled() back the reorderable provider
+    list + "Ativado" checkbox in Settings > Transcrições e Descrições
+    (ui/dialogs/settings_dialog.py) — a user can move a provider up/down
+    and/or turn it off without touching its API key."""
+
+    def test_with_no_saved_order_the_default_provider_order_is_used(self, fake_providers):
+        assert ai_providers.provider_order({}) == ["gemini", "openai", "claude"]
+
+    def test_a_saved_order_is_respected(self, fake_providers):
+        settings = {"provider_order": ["claude", "gemini", "openai"]}
+        assert ai_providers.provider_order(settings) == ["claude", "gemini", "openai"]
+
+    def test_unknown_ids_in_the_saved_order_are_dropped(self, fake_providers):
+        """A provider retired from PROVIDERS after a settings.json was
+        written must not resurrect a dead id."""
+        settings = {"provider_order": ["retired_provider", "claude", "gemini"]}
+        assert ai_providers.provider_order(settings) == ["claude", "gemini", "openai"]
+
+    def test_a_provider_missing_from_the_saved_order_is_appended_at_the_end(self, fake_providers):
+        """A provider added to PROVIDERS after the user's settings.json was
+        last saved (an app update) has to show up somewhere, not vanish."""
+        settings = {"provider_order": ["claude", "gemini"]}
+        assert ai_providers.provider_order(settings) == ["claude", "gemini", "openai"]
+
+    def test_every_provider_is_enabled_by_default(self, fake_providers):
+        """An install from before this checkbox existed must keep behaving
+        exactly as before — every configured provider still participates."""
+        assert ai_providers.is_provider_enabled({}, "gemini") is True
+
+    def test_a_provider_can_be_explicitly_disabled(self, fake_providers):
+        assert ai_providers.is_provider_enabled({"gemini_enabled": False}, "gemini") is False
+
+    def test_configured_provider_ids_follows_the_saved_order(self, fake_providers):
+        settings = {**ALL_KEYS, "provider_order": ["claude", "openai", "gemini"]}
+        assert ai_providers.configured_provider_ids(settings) == ["claude", "openai", "gemini"]
+
+    def test_configured_provider_ids_skips_a_disabled_provider(self, fake_providers):
+        settings = {**ALL_KEYS, "openai_enabled": False}
+        assert ai_providers.configured_provider_ids(settings) == ["gemini", "claude"]
+
+    def test_the_fallback_chain_tries_providers_in_the_saved_order(self, fake_providers):
+        fake_providers["claude"].fail = False
+        settings = {**ALL_KEYS, "provider_order": ["claude", "gemini", "openai"]}
+        text, used = ai_providers.describe_visual_media("/tmp/x.jpg", settings)
+        assert used == "claude"
+        assert fake_providers["gemini"].calls == []
+
+    def test_the_fallback_chain_skips_a_disabled_provider_even_with_a_key(self, fake_providers):
+        settings = {**ALL_KEYS, "gemini_enabled": False}
+        text, used = ai_providers.describe_visual_media("/tmp/x.jpg", settings)
+        assert used == "openai"
+        assert fake_providers["gemini"].calls == []
