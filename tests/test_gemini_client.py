@@ -11,11 +11,13 @@ import inspect
 
 from google.genai.errors import ClientError
 
+import core.gemini_client as gemini_client
 from core.gemini_client import (
     DEFAULT_MODEL,
     RECOMMENDED_MODELS,
     _classify_client_error,
     resolve_model,
+    transcribe_audio,
 )
 
 
@@ -144,3 +146,65 @@ class TestClientErrorMessagesAreSpecificNotGeneric:
         substitui o detalhe técnico, só vem antes dele."""
         exc = _client_error(402, "RESOURCE_EXHAUSTED", "prepayment credits depleted")
         assert "Detalhe técnico:" in _classify_client_error(exc)
+
+
+class _FakeModels:
+    """Stands in for genai.Client().models — records exactly what
+    transcribe_audio() sends, without ever reaching the real API."""
+
+    def __init__(self):
+        self.calls = []
+
+    def generate_content(self, *, model, contents, config=None):
+        self.calls.append({"model": model, "contents": contents, "config": config})
+
+        class _Response:
+            text = "transcrição fake"
+
+        return _Response()
+
+
+class _FakeClient:
+    def __init__(self):
+        self.models = _FakeModels()
+
+
+class TestTranscribeAudioGuardsAgainstHallucination:
+    """A user reported the Gemini transcription inventing sentences that
+    were never in the actual audio — unlike OpenAI/Groq, whose transcription
+    goes through a dedicated, deterministic Whisper-style endpoint, Gemini
+    transcribes audio the same way it answers any other generative prompt,
+    which is exactly what makes it prone to "completing" unclear passages
+    instead of admitting it couldn't make them out. temperature=0.0 (the
+    most literal setting the API offers) and an explicit anti-invention
+    instruction in the prompt are the two levers available here — neither
+    guarantees zero hallucination on its own, but both together should
+    reduce it."""
+
+    def _run_with_fake_client(self, monkeypatch, tmp_path):
+        fake_client = _FakeClient()
+        monkeypatch.setattr(gemini_client.genai, "Client", lambda api_key: fake_client)
+        audio_path = tmp_path / "voice.ogg"
+        audio_path.write_bytes(b"fake audio bytes, never actually decoded")
+        transcribe_audio(str(audio_path), "fake-key")
+        assert len(fake_client.models.calls) == 1
+        return fake_client.models.calls[0]
+
+    def test_transcription_asks_for_the_most_literal_output_possible(self, monkeypatch, tmp_path):
+        call = self._run_with_fake_client(monkeypatch, tmp_path)
+        assert call["config"] is not None
+        assert call["config"].temperature == 0.0
+
+    def test_prompt_explicitly_forbids_inventing_or_guessing_content(self, monkeypatch, tmp_path):
+        call = self._run_with_fake_client(monkeypatch, tmp_path)
+        prompt = call["contents"][1].lower()
+        assert "invente" in prompt
+        assert "adivinhe" in prompt
+        assert "inaudível" in prompt
+
+    def test_other_gemini_calls_are_unaffected_by_the_transcription_temperature(self):
+        """temperature is opt-in per call (_generate_text's default is
+        None, i.e. the API's own default) — describe/ask/pdf must keep
+        using it, not inherit transcribe_audio's temperature=0.0."""
+        src = inspect.getsource(gemini_client.describe_visual_media)
+        assert "temperature" not in src
