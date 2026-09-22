@@ -199,14 +199,13 @@ jobs:
     env:
       ALPHA_VERSION: ${{ needs.version.outputs.alpha_version }}
     steps:
-      - name: Download the built assets
-        uses: actions/download-artifact@v4
-        with:
-          name: winzapp-alpha
-          path: dist
-
       # The signing script and client/core/release_keys.py, from the same
-      # commit that was built.
+      # commit that was built. Deliberately BEFORE downloading the built
+      # assets below: actions/checkout defaults to `clean: true`, which runs
+      # `git clean -ffdx` in the workspace and would delete the just-downloaded
+      # (gitignored) dist/ directory if it ran after — confirmed live, the
+      # first real run of this step failed with "dist/SHA256SUMS.txt is
+      # missing or empty" for exactly that reason.
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -214,6 +213,12 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Download the built assets
+        uses: actions/download-artifact@v4
+        with:
+          name: winzapp-alpha
+          path: dist
 
       # Only cryptography, at the exact version the app ships with, so a
       # signature CI makes is checked by the same library that will check it on
