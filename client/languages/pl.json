@@ -306,6 +306,8 @@
   "notif_in_group": "{participant} w {group}",
   "notif_contact": "Kontakt",
   "notif_location": "Lokalizacja",
+  "notif_group_invite": "📨 Zaproszenie do \"{name}\"",
+  "notif_group_invite_no_name": "📨 Zaproszenie do grupy",
   "notif_poll": "📊 Ankieta: {name}",
   "notif_poll_no_name": "📊 Ankieta",
   "notif_template": "📝 Szablon",

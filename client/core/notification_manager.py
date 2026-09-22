@@ -311,6 +311,12 @@ def format_notification_body(msg: dict, main_window, i18n) -> str:
     if msg_type in ("locationMessage", "liveLocationMessage"):
         return i18n.t("notif_location")
 
+    # ── Group invite ──────────────────────────────────────────────────────────
+    if msg_type == "groupInviteMessage":
+        invite = msg_obj.get("groupInviteMessage") or {}
+        name = (invite.get("groupName") or "").strip()
+        return i18n.t("notif_group_invite").format(name=name) if name else i18n.t("notif_group_invite_no_name")
+
     # ── Poll ──────────────────────────────────────────────────────────────────
     if msg_type in ("pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3", "pollUpdateMessage"):
         poll = (

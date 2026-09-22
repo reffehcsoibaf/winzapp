@@ -306,6 +306,8 @@
   "notif_in_group": "{participant} in {group}",
   "notif_contact": "Contact",
   "notif_location": "Location",
+  "notif_group_invite": "📨 Invite to join \"{name}\"",
+  "notif_group_invite_no_name": "📨 Invite to join a group",
   "notif_poll": "📊 Poll: {name}",
   "notif_poll_no_name": "📊 Poll",
   "notif_template": "📝 Template",

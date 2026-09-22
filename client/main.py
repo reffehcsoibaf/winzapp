@@ -29214,7 +29214,7 @@ class MainWindow(wx.Frame):
     _PREVIEW_MESSAGE_TYPES = frozenset({
         "conversation", "extendedTextMessage", "imageMessage", "videoMessage",
         "audioMessage", "documentMessage", "stickerMessage", "contactMessage",
-        "locationMessage", "liveLocationMessage",
+        "locationMessage", "liveLocationMessage", "groupInviteMessage",
         "pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3",
         "pollUpdateMessage",
         "buttonsMessage", "listMessage", "templateMessage", "interactiveMessage",
@@ -29567,6 +29567,10 @@ class MainWindow(wx.Frame):
             content = i18n.t("contacts_count").format(count=len(contacts))
         elif msg_type in ("locationMessage", "liveLocationMessage"):
             content = i18n.t("notif_location")
+        elif msg_type == "groupInviteMessage":
+            invite = msg_obj.get("groupInviteMessage") or {}
+            name = (invite.get("groupName") or "").strip()
+            content = i18n.t("notif_group_invite").format(name=name) if name else i18n.t("notif_group_invite_no_name")
         elif msg_type in ("pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3", "pollUpdateMessage"):
             poll = msg_obj.get("pollCreationMessage") or msg_obj.get("pollCreationMessageV2") or msg_obj.get("pollCreationMessageV3") or {}
             name = poll.get("name") or ""
