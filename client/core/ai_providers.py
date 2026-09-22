@@ -7,11 +7,17 @@ conversão de PDF em texto acessível).
 
 Por quê: cada provedor de IA (Gemini, OpenAI, Claude, Groq, OpenRouter) tem instabilidade e
 limites de cota independentes um do outro. Em vez de depender de um único
-provedor, o WinZapp tenta cada chave configurada, em ordem fixa — Gemini,
-depois OpenAI, Claude, Groq e OpenRouter — e só mostra erro para o usuário quando TODOS
-os provedores configurados e compatíveis com aquele tipo de mídia falharem.
-Isso é puramente automático: não existe seletor de "provedor ativo" em
-Configurações, e o usuário pode configurar quantas chaves quiser.
+provedor, o WinZapp tenta cada chave configurada, na ordem escolhida pelo
+usuário em Configurações > Transcrições e Descrições (por padrão: Gemini,
+OpenAI, Claude, Groq e OpenRouter, nessa ordem) — e só mostra erro para o
+usuário quando TODOS os provedores habilitados, configurados e compatíveis
+com aquele tipo de mídia falharem. O usuário controla, por provedor, se ele
+entra ou não na tentativa automática (checkbox "Ativado" na lista de
+provedores) e em que ordem cada um é tentado (mover para cima/para baixo na
+mesma lista) — ver provider_order() e is_provider_enabled() abaixo. Não há
+"escolher um único provedor fixo": mesmo reordenados e com alguns
+desativados, os demais habilitados e configurados continuam servindo de rede
+de segurança uns para os outros.
 
 Limitações reais de cada provedor (não é bug, é o que cada API aceita hoje —
 ver o topo de cada core/<provedor>_client.py para o detalhe técnico):
@@ -64,9 +70,12 @@ class _ProviderSpec:
     supports_pdf: bool = True
 
 
-# Ordem de fallback fixa: Gemini primeiro (provedor original, já testado),
-# depois OpenAI, Claude, Groq e OpenRouter. Mudar a ordem aqui muda o comportamento pro
-# app inteiro — não é uma preferência por usuário.
+# Ordem de fallback PADRÃO: Gemini primeiro (provedor original, já testado),
+# depois OpenAI, Claude, Groq e OpenRouter. O usuário pode reordenar e
+# ativar/desativar cada um em Configurações — ver provider_order() e
+# is_provider_enabled() logo abaixo — então esta lista só vale para quem
+# nunca mexeu nessas configurações (ou para um provedor novo que ainda não
+# apareça na ordem salva do usuário).
 PROVIDERS: list[_ProviderSpec] = [
     _ProviderSpec(
         id="gemini", label="Gemini",
@@ -97,11 +106,48 @@ PROVIDERS: list[_ProviderSpec] = [
 ]
 
 
+def _providers_by_id() -> dict[str, _ProviderSpec]:
+    """Recalculado a cada chamada, nunca cacheado no import: os testes
+    (tests/test_ai_providers.py) trocam o módulo PROVIDERS inteiro via
+    monkeypatch.setattr() para injetar provedores falsos, e um dict
+    calculado uma vez no carregamento do módulo continuaria apontando para
+    os provedores REAIS mesmo depois da troca."""
+    return {p.id: p for p in PROVIDERS}
+
+
+def provider_order(ai_settings: dict) -> list[str]:
+    """Ordem de tentativa configurada pelo usuário (lista de ids em
+    ai_settings["provider_order"], preenchida pela lista reordenável em
+    Configurações > Transcrições e Descrições). Ids desconhecidos na lista
+    salva são ignorados (provedor removido de uma versão antiga do app); um
+    provedor que ainda não apareça nela (provedor novo, ou configuração de
+    antes desta lista existir) entra no fim, na ordem padrão de PROVIDERS."""
+    known_ids = {p.id for p in PROVIDERS}
+    saved = ai_settings.get("provider_order") or []
+    ordered = [pid for pid in saved if pid in known_ids]
+    ordered += [p.id for p in PROVIDERS if p.id not in ordered]
+    return ordered
+
+
+def is_provider_enabled(ai_settings: dict, provider_id: str) -> bool:
+    """Checkbox "Ativado" da lista de provedores. Ligado por padrão — um
+    provedor sem essa chave ainda na configuração (versão antiga do app)
+    continua participando do fallback exatamente como antes desta opção
+    existir."""
+    return bool(ai_settings.get(f"{provider_id}_enabled", True))
+
+
 def configured_provider_ids(ai_settings: dict) -> list[str]:
-    """Provedores com chave de API preenchida em Configurações, na ordem de
-    fallback. Lista vazia = nenhuma chave configurada (recursos de IA
-    indisponíveis, mesmo que o interruptor "Ativar" esteja ligado)."""
-    return [p.id for p in PROVIDERS if (ai_settings.get(p.key_setting) or "").strip()]
+    """Provedores habilitados e com chave de API preenchida em
+    Configurações, na ordem escolhida pelo usuário (provider_order). Lista
+    vazia = nenhum provedor disponível (recursos de IA indisponíveis, mesmo
+    que o interruptor "Ativar" esteja ligado)."""
+    by_id = _providers_by_id()
+    return [
+        pid for pid in provider_order(ai_settings)
+        if is_provider_enabled(ai_settings, pid)
+        and (ai_settings.get(by_id[pid].key_setting) or "").strip()
+    ]
 
 
 def _chain_for(
@@ -112,12 +158,14 @@ def _chain_for(
     needs_pdf: bool = False,
     prefer: Optional[str] = None,
 ) -> list[_ProviderSpec]:
+    by_id = _providers_by_id()
     chain = [
-        p for p in PROVIDERS
-        if (ai_settings.get(p.key_setting) or "").strip()
-        and (not needs_audio or p.supports_audio)
-        and (not needs_video or p.supports_video)
-        and (not needs_pdf or p.supports_pdf)
+        by_id[pid] for pid in provider_order(ai_settings)
+        if is_provider_enabled(ai_settings, pid)
+        and (ai_settings.get(by_id[pid].key_setting) or "").strip()
+        and (not needs_audio or by_id[pid].supports_audio)
+        and (not needs_video or by_id[pid].supports_video)
+        and (not needs_pdf or by_id[pid].supports_pdf)
     ]
     if prefer:
         # Tenta primeiro o provedor preferido (ex.: o que respondeu a

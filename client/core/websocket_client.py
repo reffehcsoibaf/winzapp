@@ -2547,6 +2547,26 @@ class WebSocketClient:
                     "type": 3
                 }
             }
+        elif msg_type == "groups_v4_invite":
+            # A shared "join this group" invite (WPPConnect's own
+            # MessageType.GROUPS_V4_INVITE) — someone sending a clickable
+            # invite to a group, distinct from actually being added to one
+            # (that arrives as "gp2" below). wa-js's message model flattens
+            # this onto inviteGrp/inviteGrpName/inviteCode/inviteCodeExp
+            # rather than nesting it, and with no branch here at all this
+            # type fell through with empty message_content — dropped before
+            # ever reaching main.py: invisible in the chat, no unread bump,
+            # no notification, indistinguishable from the message never
+            # having arrived at all.
+            message_content = {
+                "groupInviteMessage": {
+                    "groupJid": self._clean_jid(wpp_msg.get("inviteGrp") or ""),
+                    "groupName": wpp_msg.get("inviteGrpName") or "",
+                    "inviteCode": wpp_msg.get("inviteCode") or "",
+                    "inviteExpiration": wpp_msg.get("inviteCodeExp"),
+                    "caption": wpp_msg.get("body") or wpp_msg.get("caption") or "",
+                }
+            }
         elif msg_type == "gp2":
             # Group membership/settings notifications (join, leave, removed,
             # promoted, subject/description/picture change, …). WPPConnect
@@ -2611,6 +2631,7 @@ class WebSocketClient:
             "revoked": "protocolMessage",
             "extendedText": "extendedTextMessage",
             "gp2": "groupNotification",
+            "groups_v4_invite": "groupInviteMessage",
             "location": "locationMessage",
             "liveLocation": "liveLocationMessage",
         }

@@ -9101,6 +9101,12 @@ class ConversationsPanel(wx.Panel):
         if msg_type in ("locationMessage", "liveLocationMessage"):
             return i18n.t("notif_location")
 
+        # ── Group invite ─────────────────────────────────────────────────────
+        if msg_type == "groupInviteMessage":
+            invite = msg_obj.get("groupInviteMessage") or {}
+            name = (invite.get("groupName") or "").strip()
+            return i18n.t("notif_group_invite").format(name=name) if name else i18n.t("notif_group_invite_no_name")
+
         # ── Template ─────────────────────────────────────────────────────────
         if msg_type == "templateMessage":
             return i18n.t("notif_template")
@@ -9302,6 +9308,7 @@ class ConversationsPanel(wx.Panel):
             "contactMessage",
             "locationMessage",
             "liveLocationMessage",
+            "groupInviteMessage",
             "pollCreationMessage",
             "pollCreationMessageV2",
             "pollCreationMessageV3",

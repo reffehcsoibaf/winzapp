@@ -1,5 +1,6 @@
 import ctypes
 import os
+from typing import Optional
 import wx
 from core.i18n import LANGUAGE_NAMES
 from core.combo_search import bind_incremental_search
@@ -1196,30 +1197,69 @@ class SettingsDialog(wx.Dialog):
         ai_sizer.Add(self._ai_enabled_check, 0, wx.ALL, 8)
 
         # ── Provedores ───────────────────────────────────────────────────
-        # Um botão por provedor. Todos abrem a MESMA janela (chave + modelo),
-        # criada só na primeira vez que alguém clica e reaproveitada depois
-        # (_open_ai_provider_dialog()). Antes eram cinco blocos de cinco
-        # controles soltos nesta página — vinte e cinco paradas de Tab para
-        # quem só queria trocar uma chave — e, na primeira versão com janelas,
-        # cinco janelas prontas por SettingsDialog, o que estourou a cota de
-        # handles do Windows nos testes de CI. Os valores ficam em
-        # _ai_provider_state (um dict simples), não nos controles: a janela é
-        # só uma tela de edição de um provedor de cada vez.
+        # Um provedor por linha, e a ORDEM DOS ITENS NA LISTA É A ORDEM DE
+        # TENTATIVA (ver core/ai_providers.py:provider_order) — sem precisar
+        # de nenhum campo numérico separado. "Configurar" (ou duplo-clique
+        # no item) abre a MESMA janela de chave + modelo de sempre para o
+        # item selecionado (_open_ai_provider_dialog()), que agora também
+        # tem a caixa "Ativado" daquele provedor. "Mover para cima"/"para
+        # baixo" trocam o item selecionado de posição na lista
+        # (_move_ai_provider()).
+        # Os valores de chave/modelo ficam em _ai_provider_state, o estado
+        # de habilitado em _ai_provider_enabled e a ordem em
+        # _ai_provider_order (três dicts/listas simples por id de provedor)
+        # — nenhum deles vive nos controles, que só refletem o estado atual
+        # (_refresh_ai_provider_list()).
+        # Um plain wx.ListBox, não wx.CheckListBox: NVDA não expõe de forma
+        # confiável o estado marcado/desmarcado nem o papel de checkbox de
+        # um item de CheckListBox no Windows (mesmo motivo do padrão já
+        # usado pela lista de eventos de som — ver _sound_event_label()).
+        # Por isso o "Ativado"/"Desativado" é a própria caixa de verificação
+        # real dentro da janela de configuração do provedor, e aqui na lista
+        # ele só aparece embutido no texto do item (_ai_provider_list_label()).
         self._ai_provider_state = {
             pid: {"key": "", "model": ""} for pid, _n, _m in _AI_PROVIDER_UI
         }
+        self._ai_provider_enabled = {pid: True for pid, _n, _m in _AI_PROVIDER_UI}
+        self._ai_provider_order = [pid for pid, _n, _m in _AI_PROVIDER_UI]
+        self._ai_provider_names = {pid: name for pid, name, _m in _AI_PROVIDER_UI}
         self._ai_provider_dialog = None
-        self._ai_provider_buttons = {}
-        for _pid, _pname, _models in _AI_PROVIDER_UI:
-            _button = wx.Button(
-                self._ai_page,
-                label=i18n.t("ai_provider_button").format(provider=_pname),
-            )
-            _button.Bind(
-                wx.EVT_BUTTON, lambda evt, pid=_pid: self._open_ai_provider_dialog(pid)
-            )
-            ai_sizer.Add(_button, 0, wx.EXPAND | wx.ALL, 8)
-            self._ai_provider_buttons[_pid] = _button
+
+        self._ai_provider_list = wx.ListBox(self._ai_page, choices=[])
+        self._ai_provider_list.SetName(i18n.t("ai_provider_list_label"))
+        self._ai_provider_list.Bind(wx.EVT_LISTBOX_DCLICK, self._on_ai_provider_configure)
+        ai_sizer.Add(self._ai_provider_list, 0, wx.EXPAND | wx.ALL, 8)
+
+        _provider_buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self._ai_provider_configure_button = wx.Button(
+            self._ai_page, label=i18n.t("ai_provider_configure_button")
+        )
+        self._ai_provider_configure_button.Bind(wx.EVT_BUTTON, self._on_ai_provider_configure)
+        _provider_buttons_sizer.Add(self._ai_provider_configure_button, 0, wx.RIGHT, 8)
+
+        self._ai_provider_move_up_button = wx.Button(
+            self._ai_page, label=i18n.t("ai_provider_move_up_button")
+        )
+        self._ai_provider_move_up_button.Bind(
+            wx.EVT_BUTTON, lambda evt: self._move_ai_provider(-1)
+        )
+        _provider_buttons_sizer.Add(self._ai_provider_move_up_button, 0, wx.RIGHT, 8)
+
+        self._ai_provider_move_down_button = wx.Button(
+            self._ai_page, label=i18n.t("ai_provider_move_down_button")
+        )
+        self._ai_provider_move_down_button.Bind(
+            wx.EVT_BUTTON, lambda evt: self._move_ai_provider(1)
+        )
+        _provider_buttons_sizer.Add(self._ai_provider_move_down_button, 0)
+
+        ai_sizer.Add(_provider_buttons_sizer, 0, wx.LEFT | wx.RIGHT | wx.BOTTOM, 8)
+        self._ai_provider_buttons = [
+            self._ai_provider_list,
+            self._ai_provider_configure_button,
+            self._ai_provider_move_up_button,
+            self._ai_provider_move_down_button,
+        ]
         ai_sizer.Add(
             wx.StaticLine(self._ai_page), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8
         )
@@ -1751,6 +1791,12 @@ class SettingsDialog(wx.Dialog):
                 "key": (ai_settings.get(f"{_pid}_api_key") or "").strip(),
                 "model": (ai_settings.get(f"{_pid}_model") or "").strip(),
             }
+        self._ai_provider_order = ai_providers.provider_order(ai_settings)
+        self._ai_provider_enabled = {
+            _pid: ai_providers.is_provider_enabled(ai_settings, _pid)
+            for _pid, _n, _m in _AI_PROVIDER_UI
+        }
+        self._refresh_ai_provider_list()
 
         # Privacy — deliberately do NOT prefill the code fields (write-only,
         # see the tab's build-time comment); only the checkbox reflects a
@@ -2247,6 +2293,18 @@ class SettingsDialog(wx.Dialog):
         if self._ai_provider_dialog is None:
             panel = wx.Panel(self)
             box = wx.BoxSizer(wx.VERTICAL)
+            # Caixa de verificação real (não o checkbox da CheckListBox que
+            # esta janela substituiu — ver comentário em _AI_PROVIDER_UI/
+            # self._ai_provider_list acima): marcada = provedor participa do
+            # fallback automático, desmarcada = ele é pulado, exatamente como
+            # apagar a chave fazia antes desta opção existir. Um wx.CheckBox
+            # comum é lido de forma confiável pelo NVDA (estado marcado/
+            # desmarcado anunciado no foco), ao contrário do checkbox de item
+            # de uma CheckListBox.
+            self._ai_provider_enabled_check = wx.CheckBox(
+                panel, label=i18n.t("ai_provider_enabled_checkbox")
+            )
+            box.Add(self._ai_provider_enabled_check, 0, wx.ALL, 8)
             self._ai_provider_key_label = wx.StaticText(panel, label="")
             box.Add(self._ai_provider_key_label, 0, wx.LEFT | wx.TOP | wx.RIGHT, 8)
             self._ai_provider_key_field = wx.TextCtrl(panel, style=wx.TE_DONTWRAP)
@@ -2267,9 +2325,11 @@ class SettingsDialog(wx.Dialog):
             self._ai_provider_panel = panel
 
         state = self._ai_provider_state[provider_id]
+        was_enabled = self._ai_provider_enabled.get(provider_id, True)
         title = i18n.t("ai_provider_button").format(provider=_name)
         dialog = self._ai_provider_dialog
         dialog.SetTitle(title)
+        self._ai_provider_enabled_check.SetValue(was_enabled)
         self._ai_provider_key_label.SetLabel(i18n.t(f"{provider_id}_api_key_label"))
         self._ai_provider_key_help.SetLabel(i18n.t(f"{provider_id}_api_key_help_label"))
         self._ai_provider_model_label.SetLabel(i18n.t(f"{provider_id}_model_label"))
@@ -2288,9 +2348,19 @@ class SettingsDialog(wx.Dialog):
             "key": self._ai_provider_key_field.GetValue().strip(),
             "model": self._selected_ai_model(combo, model_values),
         }
+        now_enabled = self._ai_provider_enabled_check.GetValue()
         if new_state != state:
             self._ai_provider_state[provider_id] = new_state
             self._mark_dirty()
+        if now_enabled != was_enabled:
+            self._ai_provider_enabled[provider_id] = now_enabled
+            self._mark_dirty()
+            # O rótulo do item na lista embute "Ativado"/"Desativado" (ver
+            # _ai_provider_list_label) — precisa ser reconstruído para
+            # refletir o novo estado.
+            self._refresh_ai_provider_list(
+                selection=self._ai_provider_order.index(provider_id)
+            )
 
     def _on_ai_enabled_toggle(self, event):
         self._update_ai_fields_state()
@@ -2299,15 +2369,62 @@ class SettingsDialog(wx.Dialog):
     def _update_ai_fields_state(self):
         """The API key fields and per-type toggles only matter while AI features are on."""
         enabled = self._ai_enabled_check.GetValue()
-        # Desligado, os botões dos provedores saem da ordem de Tab (e as
-        # janelas que eles abririam só teriam campos desativados).
-        for button in self._ai_provider_buttons.values():
-            button.Enable(enabled)
+        # Desligado, a lista de provedores e seus botões saem da ordem de Tab
+        # (e a janela que eles abririam só teria campos desativados).
+        for control in self._ai_provider_buttons:
+            control.Enable(enabled)
         self._ai_transcribe_audio_check.Enable(enabled)
         self._ai_describe_images_check.Enable(enabled)
         self._ai_describe_videos_check.Enable(enabled)
         self._ai_transcribe_stickers_check.Enable(enabled)
         self._ai_pdf_accessible_check.Enable(enabled)
+
+    def _ai_provider_list_label(self, provider_id: str) -> str:
+        """Rótulo do item da lista, com o estado ativado/desativado embutido
+        no texto (', Ativado' / ', Desativado') — mesmo padrão de
+        _sound_event_label(), pelo mesmo motivo: NVDA não expõe de forma
+        confiável o checkbox de um item de CheckListBox no Windows."""
+        i18n = self.main_window.i18n
+        enabled = self._ai_provider_enabled.get(provider_id, True)
+        state = (
+            i18n.t("ai_provider_state_enabled") if enabled
+            else i18n.t("ai_provider_state_disabled")
+        )
+        return f"{self._ai_provider_names[provider_id]}, {state}"
+
+    def _refresh_ai_provider_list(self, *, selection: Optional[int] = None):
+        """Repopula a lista a partir de _ai_provider_order (posição na
+        lista = ordem de tentativa) e _ai_provider_enabled (estado embutido
+        no rótulo de cada item), depois de carregar as configurações, mover
+        um item ou trocar o "Ativado" de um provedor na janela de
+        configuração dele."""
+        list_ctrl = self._ai_provider_list
+        list_ctrl.Set([
+            self._ai_provider_list_label(pid) for pid in self._ai_provider_order
+        ])
+        if selection is not None and 0 <= selection < list_ctrl.GetCount():
+            list_ctrl.SetSelection(selection)
+
+    def _on_ai_provider_configure(self, event):
+        index = self._ai_provider_list.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        self._open_ai_provider_dialog(self._ai_provider_order[index])
+
+    def _move_ai_provider(self, direction: int):
+        """Troca o provedor selecionado de posição com o vizinho acima
+        (direction=-1) ou abaixo (direction=1) — a ordem na lista É a ordem
+        de tentativa automática, tentada em core/ai_providers.py."""
+        index = self._ai_provider_list.GetSelection()
+        if index == wx.NOT_FOUND:
+            return
+        new_index = index + direction
+        if not (0 <= new_index < len(self._ai_provider_order)):
+            return
+        order = self._ai_provider_order
+        order[index], order[new_index] = order[new_index], order[index]
+        self._refresh_ai_provider_list(selection=new_index)
+        self._mark_dirty()
 
     def _validate(self) -> bool:
         """Return True if all values are valid; show an error and return False otherwise."""
@@ -2559,7 +2676,12 @@ class SettingsDialog(wx.Dialog):
                 wx.OK | wx.ICON_ERROR,
                 self,
             )
-            self._ai_provider_buttons["gemini"].SetFocus()
+            gemini_index = (
+                self._ai_provider_order.index("gemini")
+                if "gemini" in self._ai_provider_order else 0
+            )
+            self._ai_provider_list.SetSelection(gemini_index)
+            self._ai_provider_list.SetFocus()
             self._transcriptions_dialog.ShowModal()
             return False
 
@@ -3008,12 +3130,14 @@ class SettingsDialog(wx.Dialog):
         # AI / Accessibility
         self.main_window.settings["ai_accessibility"] = {
             "enabled": self._ai_enabled_check.GetValue(),
+            "provider_order": list(self._ai_provider_order),
             **{
                 key: value
                 for pid, st in self._ai_provider_state.items()
                 for key, value in (
                     (f"{pid}_api_key", st["key"]),
                     (f"{pid}_model", st["model"]),
+                    (f"{pid}_enabled", self._ai_provider_enabled.get(pid, True)),
                 )
             },
             "transcribe_audio": self._ai_transcribe_audio_check.GetValue(),
@@ -3270,12 +3394,14 @@ class SettingsDialog(wx.Dialog):
 
         # AI / Accessibility tab
         self._ai_enabled_check.SetLabel(i18n.t("ai_accessibility_enabled_label"))
-        # A janela do provedor se rotula sozinha a cada abertura; só os botões
-        # da página precisam ser atualizados aqui.
-        for _pid, _pname, _m in _AI_PROVIDER_UI:
-            self._ai_provider_buttons[_pid].SetLabel(
-                i18n.t("ai_provider_button").format(provider=_pname)
-            )
+        # A janela do provedor se rotula sozinha a cada abertura; aqui só
+        # precisam ser atualizados o nome acessível/itens da lista (o texto
+        # ", Ativado"/", Desativado" é traduzido) e os botões ao lado dela.
+        self._ai_provider_list.SetName(i18n.t("ai_provider_list_label"))
+        self._ai_provider_configure_button.SetLabel(i18n.t("ai_provider_configure_button"))
+        self._ai_provider_move_up_button.SetLabel(i18n.t("ai_provider_move_up_button"))
+        self._ai_provider_move_down_button.SetLabel(i18n.t("ai_provider_move_down_button"))
+        self._refresh_ai_provider_list(selection=self._ai_provider_list.GetSelection())
         self._ai_transcribe_audio_check.SetLabel(i18n.t("ai_transcribe_audio_label"))
         self._ai_describe_images_check.SetLabel(i18n.t("ai_describe_images_label"))
         self._ai_describe_videos_check.SetLabel(i18n.t("ai_describe_videos_label"))

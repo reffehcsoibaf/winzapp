@@ -15733,6 +15733,18 @@ class MainWindow(wx.Frame):
         so lastMessage is empty for all of them) and no unread count was
         dropped from the conversation list entirely.
 
+        A verified WhatsApp Business account (banks, payment apps, utilities —
+        "99 Pay", "Verisure Brasil") is a second, separate gap in the same
+        mechanism: it never sets a personal `pushname` at all, so every message
+        from one arrived with `pushName: ""` and every fallback this method
+        already covered came up empty — the chat rendered as a bare phone
+        number with no name anywhere to fall back to. WhatsApp's own client
+        shows the business's *verified* name instead, which WPPConnect exposes
+        as `contact.verifiedName` (`ContactModel`'s `isBusiness`/`verifiedName`
+        fields) — a field this method never read. Confirmed on a real account:
+        every business chat like this had an empty `name`/`shortName`/
+        `pushname` in its `contact` block, verifiedName included.
+
         Never overwrites a value the chat already carries — the top-level keys
         win when both are present. Mutates `chat` in place.
         """
@@ -15740,7 +15752,10 @@ class MainWindow(wx.Frame):
         if not isinstance(contact_obj, dict):
             return
         if not (chat.get("name") or "").strip():
-            cname = (contact_obj.get("name") or contact_obj.get("shortName") or "").strip()
+            cname = (
+                contact_obj.get("name") or contact_obj.get("shortName")
+                or contact_obj.get("verifiedName") or ""
+            ).strip()
             if cname:
                 chat["name"] = cname
         if not (chat.get("pushName") or "").strip():
@@ -29214,7 +29229,7 @@ class MainWindow(wx.Frame):
     _PREVIEW_MESSAGE_TYPES = frozenset({
         "conversation", "extendedTextMessage", "imageMessage", "videoMessage",
         "audioMessage", "documentMessage", "stickerMessage", "contactMessage",
-        "locationMessage", "liveLocationMessage",
+        "locationMessage", "liveLocationMessage", "groupInviteMessage",
         "pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3",
         "pollUpdateMessage",
         "buttonsMessage", "listMessage", "templateMessage", "interactiveMessage",
@@ -29567,6 +29582,10 @@ class MainWindow(wx.Frame):
             content = i18n.t("contacts_count").format(count=len(contacts))
         elif msg_type in ("locationMessage", "liveLocationMessage"):
             content = i18n.t("notif_location")
+        elif msg_type == "groupInviteMessage":
+            invite = msg_obj.get("groupInviteMessage") or {}
+            name = (invite.get("groupName") or "").strip()
+            content = i18n.t("notif_group_invite").format(name=name) if name else i18n.t("notif_group_invite_no_name")
         elif msg_type in ("pollCreationMessage", "pollCreationMessageV2", "pollCreationMessageV3", "pollUpdateMessage"):
             poll = msg_obj.get("pollCreationMessage") or msg_obj.get("pollCreationMessageV2") or msg_obj.get("pollCreationMessageV3") or {}
             name = poll.get("name") or ""

@@ -250,14 +250,19 @@ def _classify_client_error(exc: ClientError) -> str:
     )
 
 
-def _generate_text(client: genai.Client, model: str, prompt: str, media_part) -> str:
+def _generate_text(
+    client: genai.Client, model: str, prompt: str, media_part,
+    *, temperature: Optional[float] = None,
+) -> str:
     last_exc: Optional[Exception] = None
+    config = types.GenerateContentConfig(temperature=temperature) if temperature is not None else None
 
     for attempt in range(1, _MAX_RETRIES + 2):  # 1 tentativa inicial + retries
         try:
             response = client.models.generate_content(
                 model=model,
                 contents=[media_part, prompt],
+                config=config,
             )
         except ClientError as exc:
             # Erros comuns: chave inválida, cota excedida, arquivo rejeitado.
@@ -314,14 +319,30 @@ def transcribe_audio(
     client = _build_client(api_key)
     media_part = _upload_or_inline(client, file_path)
 
+    # Ao contrário da OpenAI/Groq (Whisper, um modelo de transcrição
+    # dedicado e determinístico), o Gemini transcreve áudio como qualquer
+    # outro pedido a um modelo generativo — e um modelo generativo, com
+    # temperatura default, pode "completar" trechos incertos com palavras
+    # plausíveis em vez de admitir que não entendeu, em vez de reportar
+    # fielmente o que está no áudio (relatado por um usuário: a transcrição
+    # devolvida continha frases que não estavam no áudio original).
+    # temperature=0.0 pede a saída mais determinística/literal possível da
+    # API, e o prompt abaixo proíbe explicitamente completar ou adivinhar —
+    # nenhuma das duas sozinha garante zero invenção (o modelo ainda pode
+    # alucinar), mas juntas reduzem bastante a chance.
     prompt = (
         "Transcreva integralmente o áudio a seguir para texto corrido, em "
-        f"{language_hint}. Não resuma e não corte nada. Use pontuação "
-        "adequada para facilitar a leitura por um leitor de tela. Se houver "
-        "trechos inaudíveis, indique com '[inaudível]'. Responda apenas com "
-        "a transcrição, sem comentários adicionais."
+        f"{language_hint}. Transcreva apenas o que for realmente dito no "
+        "áudio, palavra por palavra — nunca complete, resuma, corrija, "
+        "parafraseie ou adivinhe uma palavra ou frase que você não consiga "
+        "entender com certeza, e nunca invente conteúdo que não esteja "
+        "no áudio. Use pontuação adequada para facilitar a leitura por um "
+        "leitor de tela. Para qualquer trecho inaudível, incerto ou sem "
+        "fala (silêncio, apenas ruído), indique com '[inaudível]' em vez "
+        "de tentar preenchê-lo. Responda apenas com a transcrição, sem "
+        "comentários adicionais."
     )
-    return _generate_text(client, model, prompt, media_part)
+    return _generate_text(client, model, prompt, media_part, temperature=0.0)
 
 
 def describe_visual_media(

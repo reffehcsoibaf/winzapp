@@ -18,14 +18,34 @@ Both were measured on a real 539-chat account that showed only 323 rows:
 _lift_contact_identity covers (1) and is tested directly. (2) is a reordering
 inside a large wx-bound method, so the decision it now makes is reproduced here
 against the same inputs.
+
+TestIndividualChatNameCascade below covers the actual name _compute_chat_lists()
+picks for a non-group chat — same two-step pipeline as production
+(_lift_contact_identity(), then the resolved_name/pushName/msg_push/chat.name
+cascade at client/main.py's "Chat individual" branch), reproduced here for the
+same reason as (2) above. This is what makes a contact who was never saved to
+the address book — but who set a display name in their own WhatsApp profile —
+show that name instead of their phone number, exactly as WhatsApp's own client
+does and as WinZapp's group-chat sender labels already did.
 """
 
 import pytest
 
+from core.utils import format_number
 from main import MainWindow
 
 
 lift = MainWindow._lift_contact_identity
+
+
+def _resolve_individual_name(*, resolved_name, chat_push, msg_push, chat_name, phone_jid):
+    """Mirrors client/main.py's _compute_chat_lists() "Chat individual" branch."""
+    name = resolved_name or chat_push
+    if not name:
+        name = msg_push or chat_name
+    if not name or not name.strip():
+        name = format_number(phone_jid) if phone_jid else ""
+    return name
 
 
 class TestLiftContactIdentity:
@@ -45,6 +65,21 @@ class TestLiftContactIdentity:
         chat = {"contact": {"pushName": "Zé"}}
         lift(chat)
         assert chat["pushName"] == "Zé"
+
+    def test_falls_back_to_the_verified_business_name(self):
+        """A verified WhatsApp Business account ("99 Pay", "Verisure Brasil",
+        a bank, a utility) never sets a personal pushname — confirmed on a
+        real account: name/shortName/pushname were all empty for every one
+        of these chats, only contact.verifiedName carried the business name
+        WhatsApp's own client shows for it."""
+        chat = {"contact": {"verifiedName": "99 Pay", "isBusiness": True}}
+        lift(chat)
+        assert chat["name"] == "99 Pay"
+
+    def test_name_and_short_name_still_win_over_verified_name(self):
+        chat = {"contact": {"name": "Meu Apelido", "verifiedName": "99 Pay"}}
+        lift(chat)
+        assert chat["name"] == "Meu Apelido"
 
     def test_never_overwrites_an_existing_top_level_name(self):
         chat = {"name": "Apelido meu", "contact": {"name": "Nome do contato"}}
@@ -117,3 +152,80 @@ class TestKeepDecision:
 
     def test_group_name_still_counts(self):
         assert _keeps_chat(**self._base(group_name="Equipe WinZapp")) is True
+
+
+class TestIndividualChatNameCascade:
+    """Reported: a person never saved to the address book shows their raw
+    phone number in the conversation list instead of the display name they
+    set on their own WhatsApp profile — even though group-chat sender labels
+    already prefer that same profile name over a number. The mechanism the
+    request asks for already exists end to end: list-chats' nested `contact`
+    block carries that profile name as `contact.pushname` (WhatsApp's own
+    client shows exactly this for a non-contact), _lift_contact_identity()
+    copies it onto chat["pushName"], and this cascade prefers it over
+    format_number() every time. These tests pin that the two stay wired
+    together — if either regresses, unsaved contacts go back to numbers."""
+
+    def test_whatsapp_profile_name_beats_the_phone_number_for_a_non_contact(self):
+        """The exact reported scenario: not in the address book (no
+        resolved_name from self.contacts), never messaged yet in this
+        session (no msg_push), no chat-level name override — only the
+        WhatsApp profile name WhatsApp Web itself already knows about."""
+        chat = {"contact": {"pushname": "Maria da Padaria"}}
+        lift(chat)
+
+        name = _resolve_individual_name(
+            resolved_name="", chat_push=chat.get("pushName", ""),
+            msg_push="", chat_name="", phone_jid="5511999999999@s.whatsapp.net",
+        )
+
+        assert name == "Maria da Padaria"
+
+    def test_verified_business_name_beats_the_phone_number(self):
+        """The exact case reported live: '99 Pay' (+55 21 2391-9910) and
+        'Verisure Brasil' (+55 11 95305-7252) showed their raw phone number
+        in the list. Both are verified WhatsApp Business accounts with no
+        personal pushname — chat_push and msg_push both come up empty, so
+        the name has to come from _resolve_contact_name()'s own fallback to
+        chat["name"], which _lift_contact_identity() now feeds from
+        contact.verifiedName."""
+        chat = {"contact": {"verifiedName": "99 Pay"}}
+        lift(chat)
+        # _resolve_contact_name() falls back to chat.get("name") once every
+        # address-book/presence lookup comes up empty — reproduced directly
+        # here since that method needs a live self.contacts/self._presence_
+        # pushname_map, same reasoning as this module's own docstring.
+        resolved_name = chat.get("name", "")
+
+        name = _resolve_individual_name(
+            resolved_name=resolved_name, chat_push=chat.get("pushName", ""),
+            msg_push="", chat_name=chat.get("name", ""),
+            phone_jid="552123919910@s.whatsapp.net",
+        )
+
+        assert name == "99 Pay"
+
+    def test_an_address_book_name_still_wins_over_the_profile_name(self):
+        """resolved_name (from self.contacts, i.e. an actual saved contact)
+        outranks the WhatsApp-profile pushname — a saved nickname must not
+        be replaced by whatever name the other person chose for themselves."""
+        name = _resolve_individual_name(
+            resolved_name="Tia Ana", chat_push="Ana W.",
+            msg_push="", chat_name="", phone_jid="5511999999999@s.whatsapp.net",
+        )
+
+        assert name == "Tia Ana"
+
+    def test_phone_number_is_the_true_last_resort(self):
+        """Nothing known anywhere — not a saved contact, no profile name
+        surfaced by list-chats, no pushName on any stored message, no chat
+        name override. Only then is the number itself acceptable."""
+        chat = {}  # no "contact" block at all
+        lift(chat)
+
+        name = _resolve_individual_name(
+            resolved_name="", chat_push=chat.get("pushName", ""),
+            msg_push="", chat_name="", phone_jid="5511999999999@s.whatsapp.net",
+        )
+
+        assert name == format_number("5511999999999@s.whatsapp.net")
