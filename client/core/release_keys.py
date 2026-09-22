@@ -34,5 +34,5 @@ STABLE_PUBLIC_KEYS: "tuple[str, ...]" = (
 )
 
 ALPHA_PUBLIC_KEYS: "tuple[str, ...]" = (
-    "3rHE3T6cc6dR2d6gNHHmoFXXMbZabz2d1EyWtfYI36g=",
+    "hmbIibJDKjwYNpAXJa1EOaqqLNHWBAaEkCqZL8p6CXc=",
 )

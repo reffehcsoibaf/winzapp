@@ -187,6 +187,13 @@ jobs:
     name: Create and publish the alpha release
     runs-on: ubuntu-latest
     needs: [version, build]
+    # Holds ALPHA_SIGNING_KEY. An environment secret rather than a repository
+    # one so it can be restricted to `main` in Settings > Environments: a
+    # repository secret is readable by a workflow pushed to ANY branch by
+    # anyone with write access. Never add required reviewers here — alphas
+    # are published with nobody at the keyboard, and a reviewer gate would
+    # silently stop every one of them.
+    environment: alpha-release
     permissions:
       contents: write
     env:
@@ -197,6 +204,33 @@ jobs:
         with:
           name: winzapp-alpha
           path: dist
+
+      # The signing script and client/core/release_keys.py, from the same
+      # commit that was built.
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      # Only cryptography, at the exact version the app ships with, so a
+      # signature CI makes is checked by the same library that will check it on
+      # a user's machine.
+      - name: Install the signing dependency
+        run: python -m pip install --quiet "$(grep -i '^cryptography==' requirements.txt)"
+
+      # Signs dist/SHA256SUMS.txt into dist/SHA256SUMS.txt.sig (see
+      # client/core/release_signature.py). While client/core/release_keys.py is
+      # still empty this signs nothing and succeeds, so alphas keep publishing
+      # before signing is set up. Once keys are committed, a missing or wrong
+      # ALPHA_SIGNING_KEY fails HERE, before anything is uploaded — every client
+      # built from that commit on would refuse an unsigned alpha anyway.
+      - name: Sign the checksum manifest
+        env:
+          ALPHA_SIGNING_KEY: ${{ secrets.ALPHA_SIGNING_KEY }}
+        run: python .github/scripts/release_signing.py ci-sign dist/SHA256SUMS.txt --version "$ALPHA_VERSION"
 
       # ── ALPHA-SPECIFIC ──────────────────────────────────────────────────────
       # Creates the tag AND the release (release.yml only uploads into one a
@@ -251,10 +285,14 @@ jobs:
           # is the word "alpha" in the name/tag, not this flag.
           prerelease: true
           generate_release_notes: true
+          # SHA256SUMS.txt.sig is absent while signing is not configured; the
+          # action only warns about an unmatched pattern (fail_on_unmatched_files
+          # defaults to false), so that state still publishes.
           files: |
             dist/WinZappInstaller.exe
             dist/WinZapp.zip
             dist/SHA256SUMS.txt
+            dist/SHA256SUMS.txt.sig
 
       # Every asset is uploaded by now, so the release is safe to expose. This
       # is deliberately the very last step: until it runs, nothing this workflow
