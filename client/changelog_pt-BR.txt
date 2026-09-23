@@ -1,3 +1,23 @@
+V1.1.4.0
+
+Esta versão permite escolher quais provedores de IA usar e em que ordem, e corrige convites de grupo que sumiam, nomes de empresas verificadas e transcrições de áudio que inventavam conteúdo.
+
+NOVIDADES
+
+- Provedores de IA configuráveis. Em Configurações > Transcrições e Descrições, agora dá para ativar ou desativar cada provedor (Gemini, OpenAI, Claude, Groq, OpenRouter) e escolher a ordem em que o WinZapp tenta cada um, com botões "Mover para cima" e "Mover para baixo". Antes, a única forma de tirar um provedor da lista de tentativas era apagar a chave dele.
+
+MELHORIAS
+
+- O canal de atualizações alpha foi removido. A opção "Verificar atualizações alpha" saiu de Configurações > Geral — o WinZapp agora sempre atualiza para a versão estável mais recente.
+
+CORREÇÕES
+
+- Convites para entrar em um grupo, compartilhados numa conversa, deixavam de aparecer: a mensagem não gerava linha na conversa, não contava como não lida e não disparava notificação, como se nunca tivesse chegado. Agora aparece normalmente.
+
+- Contas comerciais verificadas do WhatsApp (bancos, aplicativos de pagamento, concessionárias — como "99 Pay" ou "Verisure Brasil") apareciam na lista de conversas só com o número de telefone, sem nome. O WinZapp agora usa o nome verificado dessas contas quando não há nome nem apelido definido.
+
+- A transcrição de áudio pelo Gemini às vezes completava trechos pouco claros com um palpite, em vez de admitir que não deu para entender. Agora ela é mais literal e, quando não consegue identificar um trecho, escreve "[inaudível]" em vez de inventar.
+
 V1.1.3.0
 
 Esta versão traz mais provedores de IA para as transcrições e descrições.
