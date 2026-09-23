@@ -1,4 +1,4 @@
-V1.1.4.0
+V1.1.4.1
 
 This release lets you choose which AI providers to use and in what order, and fixes group invites that vanished silently, verified-business names, and audio transcriptions that invented content.
 

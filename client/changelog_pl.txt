@@ -1,4 +1,4 @@
-V1.1.4.0
+V1.1.4.1
 
 Ta wersja pozwala wybrać, których dostawców AI używać i w jakiej kolejności, oraz naprawia znikające zaproszenia do grup, nazwy zweryfikowanych firm i transkrypcje audio, które zmyślały treść.
 

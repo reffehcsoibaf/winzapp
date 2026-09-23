@@ -1,4 +1,4 @@
-V1.1.4.0
+V1.1.4.1
 
 Esta versão permite escolher quais provedores de IA usar e em que ordem, e corrige convites de grupo que sumiam, nomes de empresas verificadas e transcrições de áudio que inventavam conteúdo.
 

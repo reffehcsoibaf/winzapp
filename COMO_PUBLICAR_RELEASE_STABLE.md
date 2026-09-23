@@ -18,7 +18,7 @@ Sempre no **cmd** (Prompt de Comando), na pasta do repositório.
 
 ```cmd
 cd C:\github\winzapp
-echo __version__ = "1.1.4.0" > client\version.py
+echo __version__ = "1.1.4.1" > client\version.py
 ```
 
 **2. Compilar.** Pule a linha do `setup_api.py` se `client\api\dist\server.js`
@@ -34,7 +34,7 @@ Gera `dist\WinZappInstaller.exe` e `dist\WinZapp.zip`.
 **3. Gerar o SHA256SUMS.txt** (mesma versão do passo 1, sem o `v` na frente):
 
 ```cmd
-generate_sha256sums.bat 1.1.4.0
+generate_sha256sums.bat 1.1.4.1
 ```
 
 Confere se o arquivo mostrado no final tem 3 linhas: a de versão e as duas de
@@ -46,7 +46,7 @@ como argumento.
 
 ```cmd
 venv\scripts\activate.bat
-python sign_release_manual.py dist\SHA256SUMS.txt v1.1.4.0 --key C:\WinZappKeys\stable-primary.pem
+python sign_release_manual.py dist\SHA256SUMS.txt v1.1.4.1 --key C:\WinZappKeys\stable-primary.pem
 ```
 
 Digita a senha da chave quando pedir. Gera `dist\SHA256SUMS.txt.sig`.
@@ -55,7 +55,7 @@ Digita a senha da chave quando pedir. Gera `dist\SHA256SUMS.txt.sig`.
 
 ```cmd
 git add client\version.py
-git commit -m "chore: bump version to v1.1.4.0"
+git commit -m "chore: bump version to v1.1.4.1"
 git push origin main
 ```
 
