@@ -1,8 +1,20 @@
 name: Release Build
 
+# DISABLED (2026-09-22): stable releases are now built, signed and published
+# by hand — see CLAUDE.md's "Manual release process" section and
+# scripts/generate_release_manifest.py. Kept, not deleted, as reference for
+# the version-bump/reject-on-test-failure logic (see the note in
+# alpha-release.yml for why disabling beats deleting).
+#
+# `workflow_dispatch` here is a trap, not a working fallback: every job below
+# reads `github.event.release.*`, which only exists for the `release: created`
+# trigger this comment replaced. A manual run would proceed with those fields
+# empty rather than fail loudly. Don't use it — this file is inert until
+# someone deliberately restores the `release: types: [created]` trigger AND
+# re-verifies the jobs still make sense against however manual releases have
+# evolved by then.
 on:
-  release:
-    types: [created]
+  workflow_dispatch:
 
 env:
   NODE_VERSION: "24.15.0"
