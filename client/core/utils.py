@@ -811,9 +811,6 @@ DEFAULT_SETTINGS = {
         "notifications_enabled": True,
         "keep_muted_chats_silent_when_open": True,
         "updates_enabled": False,
-        # Alpha channel (one build per commit on main) — opt-in, see
-        # client/updater.py's select_release().
-        "alpha_updates_enabled": False,
         "noise_reduction_enabled": False,
         # Windows spell checking in the message field (core/spell_checker.py).
         # One of SPELL_CHECK_MODES: "windows" (default — follow Windows' own

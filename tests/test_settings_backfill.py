@@ -31,9 +31,9 @@ class TestItFillsOnlyWhatIsAbsent:
         assert settings["general"] == {"a": 1, "b": 2}
 
     def test_an_existing_value_is_never_overwritten(self):
-        settings = {"general": {"alpha_updates_enabled": True}}
-        backfill_missing_defaults(settings, {"general": {"alpha_updates_enabled": False}})
-        assert settings["general"]["alpha_updates_enabled"] is True
+        settings = {"general": {"updates_enabled": True}}
+        backfill_missing_defaults(settings, {"general": {"updates_enabled": False}})
+        assert settings["general"]["updates_enabled"] is True
 
     def test_nothing_missing_reports_no_change(self):
         settings = {"general": {"a": 1}}

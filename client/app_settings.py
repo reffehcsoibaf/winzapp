@@ -33,12 +33,6 @@ _FILE = "app.json"
 _DEFAULTS: dict[str, Any] = {
     "language": "",
     "updates_enabled": True,
-    # Opt-in to the alpha channel (one build per commit landed on main, see
-    # .github/workflows/alpha-release.yml). Global rather than per-account for
-    # the same reason updates_enabled is: one install, one binary — an account
-    # can't be on a different build of WinZapp than its siblings. Off by
-    # default; alpha builds are untested by definition.
-    "alpha_updates_enabled": False,
     "show_tray_icon": True,
     "autostart": False,
     # install-wide one-time setup prompts (asked once per install, NOT per
@@ -58,7 +52,7 @@ _DEFAULTS: dict[str, Any] = {
 }
 
 # Which legacy general.* keys are global (the rest stay per-account).
-_GENERAL_GLOBAL = ("language", "updates_enabled", "alpha_updates_enabled",
+_GENERAL_GLOBAL = ("language", "updates_enabled",
                    "show_tray_icon", "autostart",
                    "first_run", "hotkey_first_run_asked", "api_type_first_run_asked",
                    "switch_behavior")

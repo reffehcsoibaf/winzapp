@@ -198,30 +198,6 @@ def is_newer(remote: str, local: str) -> bool:
     return r_key > l_key
 
 
-# ── Release channel selection ─────────────────────────────────────────────────
-# Two release channels live in the same GitHub Releases list: stable releases
-# (cut by hand) and alpha builds, which .github/workflows/alpha-release.yml
-# publishes automatically for every commit that lands on main. The ONLY thing
-# separating them is the literal word "alpha" in the tag/name — which is why
-# that workflow bakes it into both. An alpha is offered exclusively to users
-# who ticked "check for alpha updates" in Settings > General.
-
-
-def is_alpha_release(release: dict) -> bool:
-    """True if *release* (a GitHub Releases API object) is an alpha build.
-
-    Matches on the literal word "alpha" in the tag or the release name, the
-    marker alpha-release.yml guarantees on both. Deliberately not keyed on the
-    API's own `prerelease` flag: that flag is also set on unrelated one-off
-    test builds (see prerelease-test.yml), and the two channels must not be
-    conflated — enabling alpha updates must not silently opt a user into every
-    other prerelease anyone ever publishes.
-    """
-    tag  = (release.get("tag_name") or "").lower()
-    name = (release.get("name") or "").lower()
-    return "alpha" in tag or "alpha" in name
-
-
 def find_zip_asset(assets: list) -> str:
     """Return the browser_download_url of a release's portable ZIP asset, or "".
 
@@ -239,33 +215,25 @@ def find_zip_asset(assets: list) -> str:
     return fallback
 
 
-def select_release(releases: list, include_alpha: bool) -> "dict | None":
+def select_release(releases: list) -> "dict | None":
     """Pick the newest release the user is eligible to receive, or None.
 
-    *releases* is a collection of GitHub release objects. Alpha builds are
-    skipped entirely unless *include_alpha*; drafts always are.
+    *releases* is a collection of GitHub release objects; drafts are always
+    skipped.
 
     The newest ELIGIBLE release is chosen by comparing parsed versions rather
-    than trusting the list order, because the list is ordered by publish date
-    and mixes both channels: with alphas filtered out, the first entry is
-    frequently an alpha, and picking blindly used to mean the newest stable —
-    sitting a few entries down — was never even considered. Releases whose tag
-    isn't a parseable WinZapp version are ignored for the same reason; they
-    could never be compared against the running version anyway.
+    than trusting the list order or taking the first entry, since a release
+    whose tag isn't a parseable WinZapp version can't be compared against the
+    running version anyway and must be ignored.
 
     A release with no ZIP asset is also skipped rather than selected-then-
-    rejected. Both callers used to take the very first entry and give up
-    entirely if it had no ZIP; with alphas published automatically that stops
-    being a theoretical case (a build whose upload was cut short by a cancelled
-    workflow run), and one such release must not block updates for everyone
-    until the next one is cut.
+    rejected — a build whose upload was cut short (a cancelled or failed
+    publish) must not block updates for everyone until the next one ships.
     """
     best     = None
     best_key = None
     for release in releases:
         if not isinstance(release, dict) or release.get("draft"):
-            continue
-        if is_alpha_release(release) and not include_alpha:
             continue
         parsed = parse_version((release.get("tag_name") or "").lstrip("vV"))
         if parsed is None:
@@ -768,7 +736,7 @@ class UpdateProgressDialog(wx.Dialog):
     """
 
     def __init__(self, parent, new_version: str, main_window, zip_url: str, sha256sums_url: str = "",
-                 signature_url: str = "", is_alpha: bool = False):
+                 signature_url: str = ""):
         i18n = main_window.i18n
         super().__init__(
             parent,
@@ -780,7 +748,6 @@ class UpdateProgressDialog(wx.Dialog):
         self._zip_url        = zip_url
         self._sha256sums_url = sha256sums_url
         self._signature_url  = signature_url
-        self._is_alpha       = is_alpha
         self._cancelled      = False
         self._install_ok     = False
         self._error_msg      = ""
@@ -855,7 +822,6 @@ class UpdateProgressDialog(wx.Dialog):
                 zip_path, filename, self._sha256sums_url,
                 signature_url=self._signature_url,
                 expected_version=self._new_version,
-                is_alpha=self._is_alpha,
             )
             if not ok:
                 logging.error("Auto-updater: Checksum verification failed for %s: %s", filename, detail)
@@ -1076,21 +1042,6 @@ class UpdateChecker:
         except Exception:
             logging.exception("Auto-updater: releasing the prompt claim failed")
 
-    def _alpha_enabled(self) -> bool:
-        """Whether the user opted into alpha builds (Settings > General).
-
-        Read fresh on every check rather than cached at construction: the
-        checker is created once at startup and lives for the whole session,
-        so a user who ticks the box mid-session would otherwise not see an
-        alpha until the next launch. Off unless explicitly enabled.
-        """
-        try:
-            return bool(
-                self._mw.settings.get("general", {}).get("alpha_updates_enabled", False)
-            )
-        except Exception:
-            return False
-
     def _get_json(self, url: str, params: "dict | None" = None):
         resp = requests.get(
             url,
@@ -1192,11 +1143,7 @@ class UpdateChecker:
     # ── Internal ──────────────────────────────────────────────────────────────
 
     def _check_once(self):
-        include_alpha = self._alpha_enabled()
-        logging.info(
-            "Auto-updater: Checking GitHub Releases for updates (alpha channel: %s)...",
-            "on" if include_alpha else "off",
-        )
+        logging.info("Auto-updater: Checking GitHub Releases for updates...")
         try:
             releases = self._fetch_releases()
         except Exception:
@@ -1204,11 +1151,10 @@ class UpdateChecker:
             self._schedule_retry()
             return
 
-        data = select_release(releases, include_alpha)
+        data = select_release(releases)
         if data is None:
             logging.warning(
-                "Auto-updater: No eligible release found among %d listed "
-                "(alpha channel: %s).", len(releases), "on" if include_alpha else "off",
+                "Auto-updater: No eligible release found among %d listed.", len(releases),
             )
             self._schedule_retry()
             return
@@ -1216,8 +1162,7 @@ class UpdateChecker:
         tag_name       = data.get("tag_name", "")
         remote_version = tag_name.lstrip("vV")
         logging.info(
-            "Auto-updater: Selected release tag=%s version=%s alpha=%s",
-            tag_name, remote_version, is_alpha_release(data),
+            "Auto-updater: Selected release tag=%s version=%s", tag_name, remote_version,
         )
 
         if not remote_version:
@@ -1236,7 +1181,6 @@ class UpdateChecker:
 
         sha256sums_url = _find_sha256sums_asset(data.get("assets", []))
         signature_url  = _find_signature_asset(data.get("assets", []))
-        release_is_alpha = is_alpha_release(data)
 
         local_version = __version__
         logging.info("Auto-updater: Local version is %s", local_version)
@@ -1280,7 +1224,7 @@ class UpdateChecker:
 
         wx.CallAfter(
             self._show_update_dialog, remote_version, changelog, zip_url, sha256sums_url,
-            signature_url=signature_url, is_alpha=release_is_alpha,
+            signature_url=signature_url,
         )
 
     def _show_no_update(self):
@@ -1301,10 +1245,7 @@ class UpdateChecker:
             wx.CallAfter(self._show_reinstall_error, str(exc))
             return
 
-        # Same channel filter as the periodic check: a user who never opted
-        # into alpha builds must not be handed one by "reinstall from ZIP"
-        # either, just because an alpha happens to sit at the top of the list.
-        data = select_release(releases, self._alpha_enabled())
+        data = select_release(releases)
         if data is None:
             logging.warning("Auto-updater: No eligible release found for forced reinstall.")
             wx.CallAfter(self._show_reinstall_error, self._mw.i18n.t("update_no_zip_asset"))
@@ -1324,11 +1265,10 @@ class UpdateChecker:
         wx.CallAfter(
             self._confirm_and_reinstall, remote_version, zip_url, sha256sums_url,
             signature_url=_find_signature_asset(data.get("assets", [])),
-            is_alpha=is_alpha_release(data),
         )
 
     def _confirm_and_reinstall(self, remote_version: str, zip_url: str, sha256sums_url: str = "",
-                               signature_url: str = "", is_alpha: bool = False):
+                               signature_url: str = ""):
         i18n = self._mw.i18n
         if wx.MessageBox(
             i18n.t("force_reinstall_confirm_msg").format(version=remote_version),
@@ -1337,7 +1277,7 @@ class UpdateChecker:
             self._mw,
         ) != wx.YES:
             return
-        self._do_install(remote_version, zip_url, sha256sums_url, signature_url, is_alpha)
+        self._do_install(remote_version, zip_url, sha256sums_url, signature_url)
 
     def _show_reinstall_error(self, error_msg: str):
         i18n = self._mw.i18n
@@ -1361,7 +1301,7 @@ class UpdateChecker:
         )
 
     def _show_update_dialog(self, remote_version: str, changelog: str, zip_url: str, sha256sums_url: str = "",
-                            signature_url: str = "", is_alpha: bool = False):
+                            signature_url: str = ""):
         dlg    = UpdateDialog(self._mw, remote_version, changelog)
         result = dlg.ShowModal()
         dlg.Destroy()
@@ -1373,18 +1313,18 @@ class UpdateChecker:
             # _do_install() releases it on every path that does not end in
             # real_exit() (which takes the claim's owner process with it, so a
             # crashed-owner recovery clears it for free).
-            self._do_install(remote_version, zip_url, sha256sums_url, signature_url, is_alpha)
+            self._do_install(remote_version, zip_url, sha256sums_url, signature_url)
         else:
             # User said No — retry in 3 hours
             self._release_prompt()
             self._schedule_retry()
 
     def _do_install(self, new_version: str, zip_url: str, sha256sums_url: str = "",
-                    signature_url: str = "", is_alpha: bool = False):
+                    signature_url: str = ""):
         while True:
             prog = UpdateProgressDialog(
                 self._mw, new_version, self._mw, zip_url, sha256sums_url,
-                signature_url=signature_url, is_alpha=is_alpha,
+                signature_url=signature_url,
             )
             result = prog.run()
             # Read before Destroy(): this is the dialog's answer to "is a batch
