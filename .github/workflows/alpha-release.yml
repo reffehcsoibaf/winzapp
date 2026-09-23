@@ -28,18 +28,22 @@
 #     also push to main, which is what triggers this workflow.
 name: Alpha Build
 
+# DISABLED (2026-09-22): the alpha channel is not used any more. Releases —
+# both what used to be published here and stable ones — are now built and
+# signed by hand; see CLAUDE.md's "Manual release process" section. This
+# workflow is kept, not deleted, purely as reference for the alpha-version
+# scheme and the signing mechanics it once ran automatically; re-enabling it
+# means restoring the `push: branches: [main]` trigger this comment replaced.
+#
+# Deleting this file instead was considered and rejected: it is exactly how
+# this repository lost its release-signing hardening once already (commit
+# 58fb92ba deleted every workflow file, and a later, unrelated commit
+# restored them from a stale local copy that predated the hardening — see the
+# fixes in PRs #6/#7/#8 for what that cost). Disabling by removing the
+# trigger is reversible without anyone having to reconstruct history again.
 on:
-  push:
-    branches: [main]
-    # version.py-only commits come from release.yml's bump-version job (which
-    # already marks them [skip ci]); nothing in a docs/CI-only change alters
-    # what gets compiled, so don't burn a ~15 minute build and a release on it.
-    paths-ignore:
-      - "client/version.py"
-      - "**/*.md"
-      - ".github/workflows/**"
-  # Manual re-run, for when an alpha needs to be rebuilt from the current main
-  # without an empty commit.
+  # Manual re-run only, for the rare case someone wants to rebuild main under
+  # the alpha scheme without re-enabling automatic publishing.
   workflow_dispatch:
 
 # A new commit on main cancels an alpha build still in flight. A build takes
