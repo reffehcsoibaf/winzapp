@@ -2785,22 +2785,19 @@ class MainWindow(wx.Frame):
     # get it back on screen without reconstructing it from scratch.
     _HELP_FORCE_REINSTALL_ZIP_ENABLED = False
 
-    # Kept dormant on purpose (see _build_menubar), 2026-09: WhatsApp Web's
-    # own privacy setters (Visto por último, Foto do perfil, etc.) broke
-    # after WhatsApp migrated to its "Comet" module system and the app-state
-    # -sync protocol — wa-js's setPrivacyForOneCategory throws, and an
-    # extensive live investigation (see the Privacidade tab's own dead code,
-    # kept below for whenever this is revisited) couldn't locate a working
-    # replacement. Until that's solved, the whole "Configurações do
-    # WhatsApp" dialog just shows a broken Privacidade tab with no other
-    # reason to be its own menu entry, so it's hidden here and
-    # "Configurações do WinZapp" is promoted to a plain top-level row
-    # instead of living inside a now-single-item "Configurações" submenu.
-    # AccountsDialog itself, _on_open_whatsapp_settings, and every existing
-    # tab in it are untouched — flip this back to True (and undo the
-    # settings_menu promotion right below it) to restore the entry exactly
-    # as it was.
-    _WA_SETTINGS_MENU_ENABLED = False
+    # Confirmed working end to end 2026-09-27. WhatsApp Web's own privacy
+    # setters (Visto por último, Foto do perfil, etc.) broke after WhatsApp
+    # migrated to its "Comet" module system — wa-js's setPrivacyForOneCategory
+    # threw (issue wppconnect-team/wa-js#3658), and an earlier live
+    # investigation (see the Privacidade tab's now-removed debug button)
+    # couldn't locate a working replacement by hand. Upstream's own fix
+    # (wa-js PR #3632, merged 2026-09-07) restores the six
+    # WPP.privacy.set* setters by requesting their lazy bundles before
+    # reading the functions. api_patches/package.json now pins
+    # @wppconnect/wa-js to a commit that includes this fix, plus PR #3682
+    # (the companion fix for the Nome field — see _PROFILE_NAME_FIELD_ENABLED
+    # in accounts_dialog.py).
+    _WA_SETTINGS_MENU_ENABLED = True
 
     def _build_menubar(self):
         """Create the menu bar.
@@ -2940,12 +2937,12 @@ class MainWindow(wx.Frame):
         # (reached through Configurações do WhatsApp below), not a menu
         # item of its own — same reasoning as Privacidade already got.
         #
-        # While _WA_SETTINGS_MENU_ENABLED is False (see its own comment),
-        # this submenu would hold a single item, which is worse than no
-        # submenu at all — so "Configurações do WinZapp" is appended
-        # straight onto root_menu instead of wrapped in its own "Configurações"
-        # row. Flip the flag back on to restore the original two-item
-        # submenu.
+        # Two-item submenu when _WA_SETTINGS_MENU_ENABLED is True (see its
+        # own comment) — "Configurações do WinZapp" and "Configurações do
+        # WhatsApp" both live under a shared "Configurações" row. If the
+        # flag is ever flipped back off, a single-item submenu would be
+        # worse than no submenu, so this falls back to appending
+        # "Configurações do WinZapp" straight onto root_menu instead.
         if self._WA_SETTINGS_MENU_ENABLED:
             settings_menu = wx.Menu()
             settings_menu.Append(
@@ -28494,29 +28491,6 @@ class MainWindow(wx.Frame):
             return f"{setting}: {msg}"
         except Exception as exc:
             return f"{setting}: {exc}"
-
-    def debug_find_privacy_module(self) -> "dict | None":
-        """TEMPORARY — calls the /privacy/debug-find-module diagnostic route
-        (see deviceController.debugFindPrivacyModule's docstring) to locate
-        which WhatsApp Web internal module now implements the privacy
-        setters, after wa-js's own setPrivacyForOneCategory lookup broke
-        (wppconnect-team/wa-js#3658). Read-only — does not change any
-        setting. Returns the parsed {debugApiFound, totalModules, byName,
-        byFingerprint, error} dict, or None on request failure. Remove this
-        method (and its debug menu/button entry point) once the real fix
-        lands."""
-        url = f"{self.wpp_server}:{self.wpp_port}/api/{self.token}/privacy/debug-find-module"
-        headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
-        try:
-            r = api_post(url, json={}, headers=headers, timeout=30)
-            if r.status_code not in (200, 201):
-                logging.warning("[debug_find_privacy_module] HTTP %s", r.status_code)
-                return {"_debug_http_status": r.status_code, "_debug_body": r.text[:4000]}
-            body = r.json()
-            return body.get("response") if isinstance(body, dict) else None
-        except Exception as exc:
-            logging.warning("[debug_find_privacy_module] exception: %s", exc)
-            return {"_debug_exception": str(exc)}
 
     def fetch_message_ack(self, remote_jid: str, msg_key: dict) -> "dict | None":
         """Live delivered/read/played timestamps for one of OUR OWN sent

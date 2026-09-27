@@ -4,6 +4,17 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
+## v1.1.5.0 — Configurações do WhatsApp: Privacidade e Nome corrigidos, diálogos padronizados
+
+### Melhorias
+- Os diálogos de subseção de Configurações do WinZapp e as janelas de Configurações do WhatsApp agora usam o botão OK em vez de Fechar, salvando ao fechar quando havia algo pendente — mesmo padrão em toda a aplicação.
+- A tela "Sem atualizações disponíveis" agora mostra o número da versão instalada.
+
+### Correções
+- **Privacidade voltou a funcionar**: a aba Privacidade de Configurações do WhatsApp aplicava as alterações (visto por último, foto de perfil, confirmação de leitura, quem pode me adicionar em grupos, etc.) sem sucesso desde que o WhatsApp mudou seu sistema interno de módulos ("Comet") — o `wa-js` que o WinZapp usa por baixo dos panos tinha o setter interno quebrado (`setPrivacyForOneCategory`, issue upstream `wppconnect-team/wa-js#3658`). Corrigido fixando `@wppconnect/wa-js` num commit que já inclui a correção upstream (PR #3632).
+- **Campo Nome voltou a salvar**: mesma causa raiz da Privacidade, mas um bug `wa-js` diferente (`setPushname`, issue `wppconnect-team/wa-js#3659`, corrigida pela PR #3682) — também resolvido fixando o `wa-js` no mesmo commit.
+- Removido o botão de depuração temporário que ficou na aba Privacidade durante a investigação do bug acima (usado só para localizar, no build do WhatsApp Web, qual módulo interno hoje implementa os setters de privacidade).
+
 ## v1.1.2.1 — correção de segurança: troca do código de conversas trancadas
 
 ### Correções

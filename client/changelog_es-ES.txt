@@ -1,3 +1,19 @@
+V1.1.5.0
+
+Esta versión corrige la pestaña Privacidad y el campo Nombre en Configuración de WhatsApp, que dependían de una corrección de wa-js aún no publicada, y estandariza las ventanas de configuración para usar OK en vez de Cerrar.
+
+MEJORAS
+
+- Los diálogos de subsección de Configuración de WinZapp y las ventanas de Configuración de WhatsApp ahora usan el botón OK en vez de Cerrar, guardando al cerrar cuando había algo pendiente.
+
+- La pantalla "No hay actualizaciones disponibles" ahora muestra el número de versión instalada.
+
+CORRECCIONES
+
+- La pestaña Privacidad de Configuración de WhatsApp volvió a aplicar los cambios (visto por última vez, foto de perfil, confirmación de lectura, entre otros) sin error. Había dejado de funcionar después de que WhatsApp cambiara su sistema interno de módulos, y dependía de una corrección de wa-js que solo llegó en esta versión.
+
+- El campo Nombre, en la pestaña Perfil de Configuración de WhatsApp, vuelve a guardarse correctamente — misma causa raíz que Privacidad, por un error diferente de wa-js.
+
 V1.1.4.1
 
 Esta versión te permite elegir qué proveedores de IA usar y en qué orden, y corrige invitaciones de grupo que desaparecían, nombres de empresas verificadas y transcripciones de audio que inventaban contenido.

@@ -6,16 +6,17 @@ WinZapp").
 Three tabs, reflecting how far each one actually is:
   - Privacidade: WPP.privacy bridge (visto por último, online, recado, foto
     de perfil, confirmação de leitura, quem pode me adicionar em grupos).
-    Fully wired — reading always works; Apply can still fail on some fields
-    while wppconnect-team/wa-js's setPrivacyForOneCategory is broken
-    upstream, which _on_apply_whatsapp_privacy() already reports per field
-    rather than pretending it succeeded.
-  - Perfil: recado and foto, applied independently via
-    MainWindow.set_profile_status()/set_profile_pic(). A blank field (or no
-    photo chosen) means "leave this one alone", not "clear it". Nome turned
-    out not to be safe from Privacidade's class of bug after all, despite
-    going through WPPConnect's own higher-level setProfileName() rather than
-    a direct wa-js internal lookup — see _PROFILE_NAME_FIELD_ENABLED below.
+    Fully wired and confirmed working end to end as of 2026-09-27, once
+    api_patches/package.json was pinned to a wa-js commit that includes
+    upstream PR #3632 (fixes setPrivacyForOneCategory, wppconnect-team/
+    wa-js#3658). _on_apply_whatsapp_privacy() still reports per field
+    rather than assuming success, since that's the right behaviour either
+    way.
+  - Perfil: recado, foto and nome, all applied independently via
+    MainWindow.set_profile_status()/set_profile_pic()/set_profile_name(). A
+    blank field (or no photo chosen) means "leave this one alone", not
+    "clear it". Nome is enabled again — see _PROFILE_NAME_FIELD_ENABLED
+    below for the history of that bug and its fix.
   - Contatos bloqueados: not built yet (a dedicated blocked-contacts screen
     is still on the winzapp.md future-intentions list). Gets a tab now,
     with a plain "ainda não implementado" placeholder, so the window this
@@ -37,9 +38,15 @@ import wx
 # advancing on its own as older catalogue entries expire (see CLAUDE.md's "The
 # WhatsApp Web version pin"). setProfileStatus (recado) and setProfilePic (foto) go
 # through a different internal path and are unaffected — confirmed the same day:
-# saving recado/foto alone works, adding a name always fails. Flip back to True
-# once wa-js fixes the reference upstream.
-_PROFILE_NAME_FIELD_ENABLED = False
+# saving recado/foto alone works, adding a name always fails.
+#
+# Fixed 2026-09-26 upstream: wa-js PR #3682 (issue #3659) registers
+# WAWebSetPushnameConnAction and awaits the existing lazy-loading mechanism
+# before resolving setPushname, mirroring the fix PR #3632 already applied
+# to the six WPP.privacy.set* setters. api_patches/package.json now pins
+# @wppconnect/wa-js to a commit that includes both fixes. Confirmed working
+# in the app on 2026-09-27.
+_PROFILE_NAME_FIELD_ENABLED = True
 
 
 class AccountsDialog(wx.Dialog):
@@ -63,10 +70,16 @@ class AccountsDialog(wx.Dialog):
         self._build_blocked_contacts_tab(i18n)
         outer_sizer.Add(self._notebook, 1, wx.EXPAND | wx.ALL, 8)
 
-        close_btn = wx.Button(outer_panel, wx.ID_CLOSE, i18n.t("close"))
-        outer_sizer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
-        close_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_CLOSE))
-        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_CLOSE))
+        # OK, not Fechar: same reasoning as _wrap_pages_in_dialog() in
+        # settings_dialog.py — there was never a real Cancel at this level
+        # (each tab already saves through its own Aplicar/Salvar button, so
+        # closing this dialog was never discarding anything), so this is a
+        # label/id change for consistency with the rest of the app, not new
+        # save-on-close behaviour.
+        ok_btn = wx.Button(outer_panel, wx.ID_OK, i18n.t("ok"))
+        outer_sizer.Add(ok_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
+        ok_btn.Bind(wx.EVT_BUTTON, lambda evt: self.EndModal(wx.ID_OK))
+        self.Bind(wx.EVT_CLOSE, lambda evt: self.EndModal(wx.ID_OK))
 
         outer_panel.SetSizer(outer_sizer)
         outer = wx.BoxSizer(wx.VERTICAL)
@@ -128,16 +141,6 @@ class AccountsDialog(wx.Dialog):
         sizer.Add(self._wa_privacy_apply_btn, 0, wx.ALL, 8)
         self._wa_privacy_apply_btn.Bind(wx.EVT_BUTTON, self._on_apply_whatsapp_privacy)
 
-        # TEMPORARY — investigation for wppconnect-team/wa-js#3658 (every
-        # WPP.privacy.set* wrapper broken). Searches WhatsApp Web's own
-        # current module registry for whatever now implements the setter,
-        # since wa-js's own lookup by the old name comes up empty. Remove
-        # this button (and MainWindow.debug_find_privacy_module) once the
-        # real fix is wired up — see that method's docstring.
-        self._wa_privacy_debug_btn = wx.Button(panel, label=i18n.t("wa_privacy_debug_find_button"))
-        sizer.Add(self._wa_privacy_debug_btn, 0, wx.ALL, 8)
-        self._wa_privacy_debug_btn.Bind(wx.EVT_BUTTON, self._on_debug_find_privacy_module)
-
         panel.SetSizer(sizer)
         self._notebook.AddPage(panel, i18n.t("wa_settings_tab_privacy"))
 
@@ -190,65 +193,6 @@ class AccountsDialog(wx.Dialog):
             )
         else:
             self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_apply_success"))
-
-    def _on_debug_find_privacy_module(self, event):
-        """TEMPORARY debug action — see the button's comment above. Runs the
-        search in a background thread (it's a network call to the WPPConnect
-        server), writes the full result as JSON to debug_dumps/ under this
-        account's data folder, and reports just the counts here (accessible,
-        short) — the file itself is what gets inspected afterward."""
-        i18n = self._i18n
-        self._wa_privacy_debug_btn.Disable()
-        self._wa_privacy_status_label.SetLabel(i18n.t("wa_privacy_debug_running"))
-
-        def _work():
-            import json
-            import os
-            import app_paths
-
-            result = self.main_window.debug_find_privacy_module()
-            dump_path = app_paths.data_path("debug_dumps", "privacy_module_search.txt")
-            error_msg = None
-            try:
-                os.makedirs(os.path.dirname(dump_path), exist_ok=True)
-                with open(dump_path, "w", encoding="utf-8") as f:
-                    json.dump(result, f, indent=2, ensure_ascii=False)
-            except Exception as exc:
-                error_msg = str(exc)
-            wx.CallAfter(self._on_debug_find_privacy_module_done, result, dump_path, error_msg)
-
-        import threading
-        threading.Thread(target=_work, daemon=True).start()
-
-    def _on_debug_find_privacy_module_done(self, result, dump_path, save_error):
-        i18n = self._i18n
-        self._wa_privacy_debug_btn.Enable()
-        self._wa_privacy_status_label.SetLabel("")
-        if not isinstance(result, dict):
-            wx.MessageBox(
-                i18n.t("wa_privacy_debug_failed"),
-                i18n.t("error").format(app_name=self.main_window.app_name),
-                wx.OK | wx.ICON_ERROR, self,
-            )
-            return
-        by_name_count = len(result.get("byName") or [])
-        by_fingerprint_count = len(result.get("byFingerprint") or [])
-        summary = i18n.t("wa_privacy_debug_result_summary").format(
-            total=result.get("totalModules", 0),
-            by_name=by_name_count,
-            by_fingerprint=by_fingerprint_count,
-            path=dump_path,
-        )
-        if result.get("error"):
-            summary += "\n\n" + i18n.t("wa_privacy_debug_result_error").format(
-                error=result.get("error")
-            )
-        if save_error:
-            summary += "\n\n" + i18n.t("wa_privacy_debug_save_failed").format(error=save_error)
-        wx.MessageBox(
-            summary,
-            i18n.t("wa_settings_tab_privacy"), wx.OK | wx.ICON_INFORMATION, self,
-        )
 
     # ── Perfil ────────────────────────────────────────────────────────────
 

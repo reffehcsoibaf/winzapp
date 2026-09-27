@@ -1,3 +1,19 @@
+V1.1.5.0
+
+This release fixes the Privacy tab and the Name field in WhatsApp Settings, which depended on an unreleased wa-js fix, and standardizes the settings dialogs to use OK instead of Close.
+
+IMPROVEMENTS
+
+- WinZapp's own Settings subsection dialogs and the WhatsApp Settings windows now use an OK button instead of Close, saving on close when there was anything pending.
+
+- The "No updates available" screen now shows the installed version number.
+
+FIXES
+
+- The Privacy tab in WhatsApp Settings can apply changes again (last seen, profile picture, read receipts, and others) without error. It had stopped working after WhatsApp changed its internal module system, and depended on a wa-js fix that only landed in this release.
+
+- The Name field, in WhatsApp Settings' Profile tab, saves correctly again — same root cause as Privacy, via a different wa-js bug.
+
 V1.1.4.1
 
 This release lets you choose which AI providers to use and in what order, and fixes group invites that vanished silently, verified-business names, and audio transcriptions that invented content.
