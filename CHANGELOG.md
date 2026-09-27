@@ -4,7 +4,10 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
-## v1.1.5.0 — Configurações do WhatsApp: Privacidade e Nome corrigidos, diálogos padronizados
+## v1.1.5.0 — Configurações do WhatsApp: Privacidade e Nome corrigidos, diálogos padronizados, Descrever também em Status
+
+### Novidades
+- O botão **Descrever** (IA), já disponível para imagens e vídeos nas mensagens, agora aparece também ao visualizar um status/stories de imagem ou vídeo, ao lado de "Salvar mídia" — mesmo pipeline (`ai_providers.describe_visual_media`), mesma janela de resultado navegável com perguntas de acompanhamento. Some automaticamente se nenhum provedor de IA estiver configurado, igual às mensagens.
 
 ### Melhorias
 - Os diálogos de subseção de Configurações do WinZapp e as janelas de Configurações do WhatsApp agora usam o botão OK em vez de Fechar, salvando ao fechar quando havia algo pendente — mesmo padrão em toda a aplicação.

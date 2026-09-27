@@ -24,6 +24,9 @@ from core.audio_devices import (
 )
 from ui.dialogs.emoji_picker import choose_and_insert_emoji
 from ui.media_viewer import MediaViewerDialog
+from ui.dialogs.ai_result_dialog import AIResultDialog
+from core import ai_providers
+from core.ai_providers import AIProviderError
 
 try:
     import pyaudio
@@ -699,6 +702,16 @@ class StatusPanel(wx.Panel):
         self._save_media_btn.Bind(wx.EVT_BUTTON, self._on_save_status_media)
         viewer_sizer.Add(self._save_media_btn, 0, wx.LEFT | wx.BOTTOM, 5)
         self._save_media_btn.Hide()
+
+        # Same "Descrever" (IA) action already offered for imageMessage/
+        # videoMessage inside conversations — reuses the identical
+        # ai_providers.describe_visual_media() pipeline and AIResultDialog,
+        # just fed from a status's own (unencrypted) media instead of a
+        # saved-to-disk message attachment. See _on_describe_status_media().
+        self._describe_ai_btn = wx.Button(self._viewer_panel, label=i18n.t("ai_describe_image_menu"))
+        self._describe_ai_btn.Bind(wx.EVT_BUTTON, self._on_describe_status_media)
+        viewer_sizer.Add(self._describe_ai_btn, 0, wx.LEFT | wx.BOTTOM, 5)
+        self._describe_ai_btn.Hide()
 
         # ── Reply to the currently viewed status ────────────────────────────
         self._reply_label = wx.StaticText(self._viewer_panel, label=i18n.t("status_reply_label"))
@@ -1754,6 +1767,7 @@ class StatusPanel(wx.Panel):
         is_image = msg_type == "imageMessage"
         self._play_pause_btn.Show(is_video or is_audio)
         self._save_media_btn.Show(is_video or is_image or is_audio)
+        self._describe_ai_btn.Show((is_video or is_image) and self._ai_accessibility_settings() is not None)
 
         # Copy-text applies to the actual text content: the full text for a
         # text status, or just the caption (not the "Foto:"/"Vídeo:" label
@@ -2146,6 +2160,92 @@ class StatusPanel(wx.Panel):
                 mw.app_name,
                 wx.OK | wx.ICON_ERROR,
             )
+
+    # ── Descrever (IA) — image/video statuses ────────────────────────────────
+
+    def _ai_accessibility_settings(self):
+        """Same gate as ConversationsPanel's own method of the same name:
+        None unless the master switch is on AND at least one provider's key
+        is saved. Kept as its own copy (not imported) since the two panels
+        don't otherwise share a base class."""
+        settings = self.main_window.settings.get("ai_accessibility", {})
+        if not settings.get("enabled"):
+            return None
+        if not ai_providers.configured_provider_ids(settings):
+            return None
+        return settings
+
+    def _on_describe_status_media(self, event):
+        """Sends the currently-viewed status's image/video to the first
+        configured AI provider — same ai_providers.describe_visual_media()
+        pipeline conversations.py's _on_menu_ai_process() uses for message
+        attachments. Statuses don't need decrypt_bytes()/_ensure_media_on_disk()
+        first: _download_status_media() already returns the raw bytes
+        straight from WhatsApp, unlike a saved local message attachment."""
+        status = self._current_status
+        if status is None:
+            return
+        mw = self.main_window
+        i18n = mw.i18n
+        ai_settings = self._ai_accessibility_settings()
+        if ai_settings is None:
+            wx.MessageBox(
+                i18n.t("ai_not_configured_msg"), mw.app_name,
+                wx.OK | wx.ICON_INFORMATION, self,
+            )
+            return
+        msg_type = status.get("messageType", "")
+        is_video = msg_type == "videoMessage"
+        ext = ".mp4" if is_video else ".jpg"
+
+        self._describe_ai_btn.Disable()
+        mw.output(i18n.t("ai_processing_msg"))
+
+        def _run():
+            stop_watchdog = threading.Event()
+
+            def _watchdog():
+                while not stop_watchdog.wait(8):
+                    wx.CallAfter(mw.output, i18n.t("ai_still_processing_msg"))
+
+            watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
+            watchdog_thread.start()
+            try:
+                content = _download_status_media(mw, status)
+                tmp_dir = tempfile.mkdtemp(prefix="wz_status_ai_")
+                tmp_path = os.path.join(tmp_dir, f"status{ext}")
+                with open(tmp_path, "wb") as fh:
+                    fh.write(content)
+
+                result_text, used_provider = ai_providers.describe_visual_media(
+                    tmp_path, ai_settings, is_video=is_video
+                )
+                title = i18n.t("ai_result_description_title")
+                # tmp_dir is only cleaned up by the OS, so tmp_path is still
+                # there for follow-up questions while the dialog stays open
+                # — same reasoning as conversations.py's own ask_fn.
+                ask_fn = lambda q, p=tmp_path, s=ai_settings, v=is_video, pv=used_provider: (
+                    ai_providers.ask_about_visual_media(p, s, q, is_video=v, prefer=pv)[0]
+                )
+
+                def _show_result(text=result_text, dlg_title=title, fn=ask_fn):
+                    dlg = AIResultDialog(mw, dlg_title, text, ask_fn=fn)
+                    dlg.ShowModal()
+                    dlg.Destroy()
+
+                wx.CallAfter(_show_result)
+            except AIProviderError as exc:
+                wx.CallAfter(wx.MessageBox, str(exc), mw.app_name, wx.OK | wx.ICON_ERROR, self)
+            except Exception:
+                wx.CallAfter(
+                    wx.MessageBox, i18n.t("ai_media_download_error_msg"),
+                    mw.app_name, wx.OK | wx.ICON_ERROR, self,
+                )
+            finally:
+                stop_watchdog.set()
+                wx.CallAfter(self._describe_ai_btn.Enable)
+
+        threading.Thread(target=_run, daemon=True).start()
 
     # ── Reply to the currently viewed status ─────────────────────────────────
 

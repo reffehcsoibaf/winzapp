@@ -1,6 +1,10 @@
 V1.1.5.0
 
-Esta versión corrige la pestaña Privacidad y el campo Nombre en Configuración de WhatsApp, que dependían de una corrección de wa-js aún no publicada, y estandariza las ventanas de configuración para usar OK en vez de Cerrar.
+Esta versión corrige la pestaña Privacidad y el campo Nombre en Configuración de WhatsApp, que dependían de una corrección de wa-js aún no publicada, estandariza las ventanas de configuración para usar OK en vez de Cerrar, y añade el botón Describir (IA) también a los estados de imagen y vídeo.
+
+NOVEDADES
+
+- El botón Describir (IA), ya disponible para imágenes y vídeos en los mensajes, ahora también aparece al ver un estado/historia de imagen o vídeo. Se oculta automáticamente si no hay ningún proveedor de IA configurado.
 
 MEJORAS
 
