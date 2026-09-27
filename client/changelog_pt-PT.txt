@@ -1,6 +1,10 @@
 V1.1.5.0
 
-Esta versão corrige o separador Privacidade e o campo Nome em Definições do WhatsApp, que dependiam de uma correção do wa-js ainda não publicada, e uniformiza as janelas de definições para usarem OK em vez de Fechar.
+Esta versão corrige o separador Privacidade e o campo Nome em Definições do WhatsApp, que dependiam de uma correção do wa-js ainda não publicada, uniformiza as janelas de definições para usarem OK em vez de Fechar, e acrescenta o botão Descrever (IA) também aos estados de imagem e vídeo.
+
+NOVIDADES
+
+- O botão Descrever (IA), já disponível para imagens e vídeos nas mensagens, passa a aparecer também ao ver um estado/story de imagem ou vídeo. Desaparece automaticamente se nenhum fornecedor de IA estiver configurado.
 
 MELHORIAS
 

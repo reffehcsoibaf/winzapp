@@ -1,6 +1,10 @@
 V1.1.5.0
 
-Esta versão corrige a aba Privacidade e o campo Nome em Configurações do WhatsApp, que dependiam de uma correção ainda não publicada do wa-js, e padroniza as janelas de configurações para usar OK em vez de Fechar.
+Esta versão corrige a aba Privacidade e o campo Nome em Configurações do WhatsApp, que dependiam de uma correção ainda não publicada do wa-js, padroniza as janelas de configurações para usar OK em vez de Fechar, e adiciona o botão Descrever (IA) também aos status de imagem e vídeo.
+
+NOVIDADES
+
+- O botão Descrever (IA), já disponível para imagens e vídeos nas mensagens, agora aparece também ao visualizar um status/stories de imagem ou vídeo. Some automaticamente se nenhum provedor de IA estiver configurado.
 
 MELHORIAS
 

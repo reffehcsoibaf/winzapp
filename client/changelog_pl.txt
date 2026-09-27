@@ -1,6 +1,10 @@
 V1.1.5.0
 
-Ta wersja naprawia zakładkę Prywatność i pole Imię w Ustawieniach WhatsApp, które zależały od jeszcze nieopublikowanej poprawki wa-js, oraz ujednolica okna ustawień, tak aby używały przycisku OK zamiast Zamknij.
+Ta wersja naprawia zakładkę Prywatność i pole Imię w Ustawieniach WhatsApp, które zależały od jeszcze nieopublikowanej poprawki wa-js, ujednolica okna ustawień, tak aby używały przycisku OK zamiast Zamknij, oraz dodaje przycisk Opisz (AI) również do statusów ze zdjęciem lub wideo.
+
+NOWOŚCI
+
+- Przycisk Opisz (AI), dostępny już dla zdjęć i filmów w wiadomościach, pojawia się teraz również podczas przeglądania statusu/relacji ze zdjęciem lub wideo. Znika automatycznie, jeśli nie skonfigurowano żadnego dostawcy AI.
 
 ULEPSZENIA
 

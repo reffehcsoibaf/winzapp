@@ -1,6 +1,10 @@
 V1.1.5.0
 
-This release fixes the Privacy tab and the Name field in WhatsApp Settings, which depended on an unreleased wa-js fix, and standardizes the settings dialogs to use OK instead of Close.
+This release fixes the Privacy tab and the Name field in WhatsApp Settings, which depended on an unreleased wa-js fix, standardizes the settings dialogs to use OK instead of Close, and adds the Describe (AI) button to image and video statuses too.
+
+NEW
+
+- The Describe (AI) button, already available for images and videos in messages, now also appears when viewing an image or video status/story. It hides automatically if no AI provider is configured.
 
 IMPROVEMENTS
 
