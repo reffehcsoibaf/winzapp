@@ -1,3 +1,19 @@
+V1.1.5.0
+
+Ta wersja naprawia zakładkę Prywatność i pole Imię w Ustawieniach WhatsApp, które zależały od jeszcze nieopublikowanej poprawki wa-js, oraz ujednolica okna ustawień, tak aby używały przycisku OK zamiast Zamknij.
+
+ULEPSZENIA
+
+- Okna podsekcji Ustawień WinZapp oraz okna Ustawień WhatsApp używają teraz przycisku OK zamiast Zamknij, zapisując zmiany przy zamknięciu, gdy było coś oczekującego.
+
+- Ekran "Brak dostępnych aktualizacji" pokazuje teraz numer zainstalowanej wersji.
+
+POPRAWKI
+
+- Zakładka Prywatność w Ustawieniach WhatsApp znowu stosuje zmiany (ostatnia wizyta, zdjęcie profilowe, potwierdzenia odczytu i inne) bez błędu. Przestała działać po tym, jak WhatsApp zmienił swój wewnętrzny system modułów, i zależała od poprawki wa-js, która pojawiła się dopiero w tej wersji.
+
+- Pole Imię, w zakładce Profil Ustawień WhatsApp, znowu poprawnie zapisuje zmiany — ta sama przyczyna co w przypadku Prywatności, ale inny błąd wa-js.
+
 V1.1.4.1
 
 Ta wersja pozwala wybrać, których dostawców AI używać i w jakiej kolejności, oraz naprawia znikające zaproszenia do grup, nazwy zweryfikowanych firm i transkrypcje audio, które zmyślały treść.

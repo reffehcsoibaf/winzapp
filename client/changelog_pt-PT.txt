@@ -1,3 +1,19 @@
+V1.1.5.0
+
+Esta versão corrige o separador Privacidade e o campo Nome em Definições do WhatsApp, que dependiam de uma correção do wa-js ainda não publicada, e uniformiza as janelas de definições para usarem OK em vez de Fechar.
+
+MELHORIAS
+
+- As janelas de subsecção de Definições do WinZapp e as janelas de Definições do WhatsApp passam a usar o botão OK em vez de Fechar, guardando ao fechar quando havia algo pendente.
+
+- O ecrã "Sem atualizações disponíveis" passa a mostrar o número da versão instalada.
+
+CORREÇÕES
+
+- O separador Privacidade de Definições do WhatsApp voltou a aplicar as alterações (visto por último, foto de perfil, confirmação de leitura, entre outras) sem erro. Tinha deixado de funcionar depois de o WhatsApp mudar o seu sistema interno de módulos, e dependia de uma correção do wa-js que só chegou nesta versão.
+
+- O campo Nome, no separador Perfil de Definições do WhatsApp, volta a guardar corretamente — a mesma causa da Privacidade, por um erro diferente do wa-js.
+
 V1.1.4.1
 
 Esta versão permite escolher que fornecedores de IA usar e em que ordem, e corrige convites de grupo que desapareciam, nomes de empresas verificadas e transcrições de áudio que inventavam conteúdo.
