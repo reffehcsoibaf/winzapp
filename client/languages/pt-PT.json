@@ -338,7 +338,7 @@
   "update_error_msg": "Ocorreu um erro durante a atualização:\n\n{error}\n\nDeseja tentar novamente?",
   "update_uac_declined": "A permissão de administrador foi negada, pelo que a atualização não pôde ser instalada.",
   "update_checksum_mismatch": "O ficheiro transferido não passou na verificação de integridade e não será instalado, por segurança. Detalhes: {detail}",
-  "update_not_available": "Não há atualizações disponíveis. Já está a utilizar a versão mais recente.",
+  "update_not_available": "Não há atualizações disponíveis. Já está a utilizar a versão mais recente ({current}).",
   "update_not_available_title": "Sem atualizações",
   "menu_file": "&Ficheiro",
   "menu_main": "Menu",

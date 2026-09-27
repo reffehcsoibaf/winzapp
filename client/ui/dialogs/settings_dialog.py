@@ -42,6 +42,15 @@ def _wrap_pages_in_dialog(owner, i18n, title, panels):
     shows and hides it, so its widgets — and whatever the user typed
     into them — survive being closed and reopened within the same
     Settings session, same as a notebook tab would.
+
+    Its own button is OK, not Close: closing this dialog — by the button,
+    Esc or the title bar — always resolves ShowModal() to wx.ID_OK, which
+    every call site treats as "run the outer dialog's own Apply now" (see
+    _add_subsection_button() and _open_ai_provider_dialog()). There was
+    never a real Cancel at this level to begin with — Fechar never
+    discarded anything either, since these are the same live widgets the
+    outer dialog already reads from — so this only adds the save that was
+    missing, without removing any behaviour that existed before.
     """
     dlg = wx.Dialog(
         owner, title=title,
@@ -53,20 +62,43 @@ def _wrap_pages_in_dialog(owner, i18n, title, panels):
         if i > 0:
             outer.Add(wx.StaticLine(dlg), 0, wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         outer.Add(panel, 0, wx.EXPAND)
-    close_btn = wx.Button(dlg, wx.ID_CLOSE, i18n.t("close"))
-    outer.Add(close_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
-    close_btn.Bind(wx.EVT_BUTTON, lambda evt: dlg.EndModal(wx.ID_CLOSE))
-    dlg.Bind(wx.EVT_CLOSE, lambda evt: dlg.EndModal(wx.ID_CLOSE))
+    ok_btn = wx.Button(dlg, wx.ID_OK, i18n.t("ok"))
+    outer.Add(ok_btn, 0, wx.ALL | wx.ALIGN_RIGHT, 8)
+    ok_btn.Bind(wx.EVT_BUTTON, lambda evt: dlg.EndModal(wx.ID_OK))
+    dlg.Bind(wx.EVT_CLOSE, lambda evt: dlg.EndModal(wx.ID_OK))
     dlg.SetSizerAndFit(outer)
     return dlg
 
 
-def _add_subsection_button(page, sizer, i18n, label_key, dialog):
+def _add_subsection_button(page, sizer, i18n, label_key, dialog, owner, focus_ctrl=None):
     """A button on a 'hub' tab (Conversas, Sons, …) that opens one of the
-    dialogs _wrap_pages_in_dialog() built."""
+    dialogs _wrap_pages_in_dialog() built.
+
+    The dialog is reused across openings (see that function's docstring),
+    so wx only focuses its first control the very first time it's shown —
+    later openings land wherever focus was left when it was last closed.
+    Passing focus_ctrl moves focus onto that control right before
+    ShowModal(), same as the existing validation-error call sites do.
+
+    dialog.ShowModal() only returns once that dialog's own modal loop has
+    genuinely ended (its OK button/Esc/title bar all resolve to wx.ID_OK —
+    see _wrap_pages_in_dialog()) — calling owner._on_apply() here, after
+    that return, is therefore safe: it's the same call frame that opened
+    the dialog, not a handler running inside its still-active loop, which
+    is what makes reopening the same dialog from inside _apply_values()'s
+    own validation failures (existing behaviour, unchanged) a fresh
+    ShowModal() rather than a reentrant one. _on_apply() ignores its event
+    argument, so passing None is fine."""
     btn = wx.Button(page, label=i18n.t(label_key))
     sizer.Add(btn, 0, wx.EXPAND | wx.ALL, 8)
-    btn.Bind(wx.EVT_BUTTON, lambda evt: dialog.ShowModal())
+
+    def _on_click(evt):
+        if focus_ctrl is not None:
+            focus_ctrl.SetFocus()
+        if dialog.ShowModal() == wx.ID_OK:
+            owner._on_apply(None)
+
+    btn.Bind(wx.EVT_BUTTON, _on_click)
     return btn
 
 
@@ -1387,7 +1419,7 @@ class SettingsDialog(wx.Dialog):
                                  wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self._speech_btn = _add_subsection_button(
             self._accessibility_page, accessibility_sizer, i18n,
-            "tab_speech_content", self._speech_dialog,
+            "tab_speech_content", self._speech_dialog, self,
         )
         self._accessibility_page.Layout()
 
@@ -1396,7 +1428,8 @@ class SettingsDialog(wx.Dialog):
                       wx.EXPAND | wx.LEFT | wx.RIGHT | wx.TOP, 8)
         self._ui_btn = _add_subsection_button(
             self._general_page, gen_sizer, i18n,
-            "btn_interface", self._ui_dialog,
+            "btn_interface", self._ui_dialog, self,
+            focus_ctrl=self._messages_page_size_field,
         )
         self._general_page.Layout()
 
@@ -1405,19 +1438,19 @@ class SettingsDialog(wx.Dialog):
         conversations_sizer = wx.BoxSizer(wx.VERTICAL)
         self._locked_chats_btn = _add_subsection_button(
             self._conversations_page, conversations_sizer, i18n,
-            "btn_locked_chats", self._locked_chats_dialog,
+            "btn_locked_chats", self._locked_chats_dialog, self,
         )
         self._transcriptions_btn = _add_subsection_button(
             self._conversations_page, conversations_sizer, i18n,
-            "btn_transcriptions", self._transcriptions_dialog,
+            "btn_transcriptions", self._transcriptions_dialog, self,
         )
         self._audio_playback_btn = _add_subsection_button(
             self._conversations_page, conversations_sizer, i18n,
-            "btn_audio_playback", self._audio_playback_dialog,
+            "btn_audio_playback", self._audio_playback_dialog, self,
         )
         self._calls_btn = _add_subsection_button(
             self._conversations_page, conversations_sizer, i18n,
-            "btn_calls", self._calls_dialog,
+            "btn_calls", self._calls_dialog, self,
         )
         self._conversations_page.SetSizer(conversations_sizer)
         self._notebook.AddPage(self._conversations_page, i18n.t("tab_conversations"))
@@ -1427,11 +1460,11 @@ class SettingsDialog(wx.Dialog):
         sounds_sizer = wx.BoxSizer(wx.VERTICAL)
         self._audio_settings_btn = _add_subsection_button(
             self._sounds_page, sounds_sizer, i18n,
-            "btn_audio_settings", self._audio_settings_dialog,
+            "btn_audio_settings", self._audio_settings_dialog, self,
         )
         self._sound_events_btn = _add_subsection_button(
             self._sounds_page, sounds_sizer, i18n,
-            "btn_sound_events", self._sound_events_dialog,
+            "btn_sound_events", self._sound_events_dialog, self,
         )
         self._sounds_page.SetSizer(sounds_sizer)
         self._notebook.AddPage(self._sounds_page, i18n.t("tab_sounds"))
@@ -2324,7 +2357,7 @@ class SettingsDialog(wx.Dialog):
         self._ai_provider_panel.Layout()
         dialog.Fit()
         self._ai_provider_key_field.SetFocus()
-        dialog.ShowModal()
+        result = dialog.ShowModal()
 
         new_state = {
             "key": self._ai_provider_key_field.GetValue().strip(),
@@ -2343,6 +2376,15 @@ class SettingsDialog(wx.Dialog):
             self._refresh_ai_provider_list(
                 selection=self._ai_provider_order.index(provider_id)
             )
+
+        # This dialog's own button now says OK, not Fechar (see
+        # _wrap_pages_in_dialog()) and is expected to save immediately like
+        # every other subsection dialog's OK — but only once new_state/
+        # now_enabled above have actually been copied out of the widgets
+        # and into self._ai_provider_state/_ai_provider_enabled, which
+        # _apply_values() reads instead of the widgets themselves.
+        if result == wx.ID_OK:
+            self._on_apply(None)
 
     def _on_ai_enabled_toggle(self, event):
         self._update_ai_fields_state()

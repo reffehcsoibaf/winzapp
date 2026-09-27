@@ -1189,7 +1189,7 @@ class UpdateChecker:
             logging.info("Auto-updater: WinZapp is already up-to-date.")
             if self._force:
                 self._force = False
-                wx.CallAfter(self._show_no_update)
+                wx.CallAfter(self._show_no_update, local_version)
             else:
                 self._schedule_retry()
             return
@@ -1227,10 +1227,10 @@ class UpdateChecker:
             signature_url=signature_url,
         )
 
-    def _show_no_update(self):
+    def _show_no_update(self, current_version: str):
         i18n = self._mw.i18n
         wx.MessageBox(
-            i18n.t("update_not_available"),
+            i18n.t("update_not_available").format(current=current_version),
             i18n.t("update_not_available_title"),
             wx.OK | wx.ICON_INFORMATION,
             self._mw,
