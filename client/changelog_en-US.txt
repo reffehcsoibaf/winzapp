@@ -12,6 +12,8 @@ IMPROVEMENTS
 
 - The "No updates available" screen now shows the installed version number.
 
+- The user guide is now also available in English, Spanish, Polish and European Portuguese, in addition to Brazilian Portuguese.
+
 FIXES
 
 - The Privacy tab in WhatsApp Settings can apply changes again (last seen, profile picture, read receipts, and others) without error. It had stopped working after WhatsApp changed its internal module system, and depended on a wa-js fix that only landed in this release.

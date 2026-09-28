@@ -12,6 +12,8 @@ MEJORAS
 
 - La pantalla "No hay actualizaciones disponibles" ahora muestra el número de versión instalada.
 
+- La guía de uso ahora está disponible también en inglés, español, polaco y portugués de Portugal, además del portugués de Brasil.
+
 CORRECCIONES
 
 - La pestaña Privacidad de Configuración de WhatsApp volvió a aplicar los cambios (visto por última vez, foto de perfil, confirmación de lectura, entre otros) sin error. Había dejado de funcionar después de que WhatsApp cambiara su sistema interno de módulos, y dependía de una corrección de wa-js que solo llegó en esta versión.

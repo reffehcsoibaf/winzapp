@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WinZapp — User Guide</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --ink:        #1a1a2e;
+    --ink-light:  #3d3d5c;
+    --ink-muted:  #7a7a9a;
+    --surface:    #ffffff;
+    --surface-2:  #f4f4f8;
+    --surface-3:  #eaeaf2;
+    --accent:     #0a7d5f;
+    --accent-2:   #0f9d8a;
+    --accent-warm:#d97706;
+    --success:    #059669;
+    --danger:     #dc2626;
+    --border:     #d1d1e0;
+    --radius:     6px;
+    --sidebar-w:  260px;
+    --font-body:  Georgia, 'Times New Roman', serif;
+    --font-ui:    'Segoe UI', system-ui, sans-serif;
+    --font-code:  'Courier New', monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ink:       #e8e8f4; --ink-light: #b8b8d4; --ink-muted: #7a7a9a;
+      --surface:   #12121e; --surface-2: #1a1a2e; --surface-3: #22223a;
+      --accent:    #34d3a8; --accent-2:  #5eead4; --accent-warm:#fbbf24;
+      --success:   #34d399; --danger:    #f87171; --border:     #2e2e4a;
+    }
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: var(--font-body);
+    font-size: 16px;
+    line-height: 1.75;
+    color: var(--ink);
+    background: var(--surface);
+    display: flex;
+    min-height: 100vh;
+  }
+
+  .skip-link {
+    position: absolute; top: -100px; left: 1rem;
+    background: var(--accent); color: #fff;
+    padding: 8px 16px; border-radius: var(--radius);
+    font-family: var(--font-ui); font-size: 14px; z-index: 9999;
+    transition: top .2s;
+  }
+  .skip-link:focus { top: 1rem; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    position: fixed; top: 0; left: 0;
+    width: var(--sidebar-w); height: 100vh;
+    background: var(--surface-2); border-right: 1px solid var(--border);
+    overflow-y: auto; padding: 0 0 2rem;
+    z-index: 100; display: flex; flex-direction: column;
+  }
+
+  .sidebar-header {
+    padding: 1.25rem 1.25rem 1rem; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--surface-2); z-index: 1;
+  }
+
+  .sidebar-logo {
+    font-family: var(--font-ui); font-size: 15px; font-weight: 700;
+    color: var(--ink); text-decoration: none;
+    display: flex; align-items: center; gap: 8px; letter-spacing: -.2px;
+  }
+  .sidebar-logo span { font-size: 20px; }
+  .sidebar-subtitle {
+    font-family: var(--font-ui); font-size: 11px; color: var(--ink-muted);
+    margin-top: 3px; letter-spacing: .4px; text-transform: uppercase;
+  }
+
+  .sidebar-search { padding: .75rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .sidebar-search input {
+    width: 100%; padding: 6px 10px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface); color: var(--ink);
+    font-family: var(--font-ui); font-size: 13px; outline: none;
+  }
+  .sidebar-search input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent);
+  }
+
+  .nav-section { padding: .5rem 0; }
+  .nav-section-title {
+    font-family: var(--font-ui); font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase; color: var(--ink-muted);
+    padding: .5rem 1.25rem .25rem;
+  }
+  .nav-link {
+    display: block; padding: 5px 1.25rem 5px 1.5rem;
+    font-family: var(--font-ui); font-size: 13.5px; color: var(--ink-light);
+    text-decoration: none; border-left: 3px solid transparent;
+    transition: all .15s; line-height: 1.4;
+  }
+  .nav-link:hover { color: var(--accent); background: var(--surface-3); border-left-color: var(--accent); }
+  .nav-link.active { color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); border-left-color: var(--accent); font-weight: 600; }
+
+  /* ── Main ── */
+  .main { margin-left: var(--sidebar-w); flex: 1; max-width: 860px; padding: 3rem 4rem 6rem; }
+
+  .wiki-section { margin-bottom: 4rem; padding-top: 1rem; }
+  .wiki-section:not(:last-child) { border-bottom: 1px solid var(--border); padding-bottom: 3rem; }
+
+  h1 { font-family: var(--font-ui); font-size: 2rem; font-weight: 800; color: var(--ink); letter-spacing: -.5px; line-height: 1.2; margin-bottom: 1rem; }
+  h2 { font-family: var(--font-ui); font-size: 1.35rem; font-weight: 700; color: var(--ink); margin: 2rem 0 .75rem; letter-spacing: -.2px; display: flex; align-items: center; gap: .5rem; }
+  h2::after { content: ''; flex: 1; height: 1px; background: var(--border); margin-left: .5rem; }
+  h3 { font-family: var(--font-ui); font-size: 1rem; font-weight: 700; color: var(--ink); margin: 1.5rem 0 .5rem; }
+
+  .lead { font-size: 1.05rem; color: var(--ink-light); margin-bottom: 1.5rem; line-height: 1.8; }
+  p { margin-bottom: 1rem; }
+
+  .callout { border-left: 4px solid var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-2)); padding: .85rem 1.25rem; border-radius: 0 var(--radius) var(--radius) 0; margin: 1.25rem 0; font-family: var(--font-ui); font-size: 14px; line-height: 1.6; }
+  .callout.tip  { border-color: var(--success); background: color-mix(in srgb, var(--success) 6%, var(--surface-2)); }
+  .callout.warn { border-color: var(--accent-warm); background: color-mix(in srgb, var(--accent-warm) 6%, var(--surface-2)); }
+  .callout.info { border-color: var(--accent-2); background: color-mix(in srgb, var(--accent-2) 6%, var(--surface-2)); }
+  .callout-title { font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+
+  kbd { display: inline-block; background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px; padding: 1px 7px; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--ink); box-shadow: 0 1px 0 var(--border); white-space: nowrap; }
+
+  .btn-demo { display: inline-flex; align-items: center; gap: 5px; background: var(--accent); color: #fff; padding: 4px 12px; border-radius: var(--radius); font-family: var(--font-ui); font-size: 13px; font-weight: 600; white-space: nowrap; vertical-align: middle; }
+  .btn-demo.outline { background: transparent; color: var(--accent); border: 1.5px solid var(--accent); }
+
+  .steps { list-style: none; padding: 0; margin: 1rem 0 1.5rem; }
+  .steps li { display: flex; gap: 1rem; margin-bottom: .85rem; font-family: var(--font-ui); font-size: 14px; line-height: 1.6; align-items: flex-start; }
+  .step-num { flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+
+  .cols-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .col-card { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; font-family: var(--font-ui); font-size: 13.5px; line-height: 1.6; }
+  .col-card h4 { font-size: 13px; font-weight: 700; margin-bottom: .5rem; color: var(--ink); display: flex; align-items: center; gap: 6px; }
+
+  .field-table { width: 100%; border-collapse: collapse; font-family: var(--font-ui); font-size: 13.5px; margin: 1rem 0 1.5rem; }
+  .field-table th { text-align: left; padding: 8px 12px; background: var(--surface-3); border: 1px solid var(--border); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-muted); font-weight: 700; }
+  .field-table td { padding: 8px 12px; border: 1px solid var(--border); color: var(--ink-light); vertical-align: top; line-height: 1.5; }
+  .field-table tr:nth-child(even) td { background: var(--surface-2); }
+  .field-name { font-family: var(--font-code); font-size: 13px; color: var(--accent); font-weight: 700; white-space: nowrap; }
+
+  [id] { scroll-margin-top: 1.5rem; }
+
+  .hero-toc { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; margin: 1.5rem 0 2rem; font-family: var(--font-ui); font-size: 13.5px; }
+  .hero-toc-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .8px; color: var(--ink-muted); margin-bottom: .75rem; }
+  .hero-toc ol { columns: 2; gap: 1rem; padding-left: 1.25rem; color: var(--ink-light); line-height: 2.2; }
+  .hero-toc a { color: var(--accent); text-decoration: none; }
+  .hero-toc a:hover { text-decoration: underline; }
+
+  .menu-toggle { display: none; position: fixed; top: 1rem; right: 1rem; z-index: 200; background: var(--accent); color: #fff; border: none; border-radius: var(--radius); padding: 8px 14px; font-family: var(--font-ui); font-size: 14px; font-weight: 700; cursor: pointer; }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); transition: transform .25s; }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; padding: 2rem 1.25rem 4rem; }
+    .menu-toggle { display: block; }
+    .cols-2 { grid-template-columns: 1fr; }
+    .hero-toc ol { columns: 1; }
+  }
+
+  mark { background: color-mix(in srgb, var(--accent-warm) 30%, transparent); color: inherit; border-radius: 2px; padding: 0 2px; }
+
+  .em-breve { color: var(--ink-muted); font-family: var(--font-ui); font-style: italic; }
+
+  @media print {
+    .sidebar, .menu-toggle, .skip-link { display: none; }
+    .main { margin-left: 0; padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#conteudo">Skip to content</a>
+<button class="menu-toggle" aria-label="Open menu" aria-expanded="false" id="menuToggle">☰ Menu</button>
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<nav class="sidebar" id="sidebar" aria-label="Guide navigation">
+  <div class="sidebar-header">
+    <a href="#topo" class="sidebar-logo"><span>💬</span> WinZapp</a>
+    <div class="sidebar-subtitle">User Guide</div>
+  </div>
+  <div class="sidebar-search">
+    <input type="search" id="searchInput" placeholder="Search the guide…" aria-label="Search the guide" autocomplete="off">
+  </div>
+
+  <div class="nav-section">
+    <a href="#primeiros-passos" class="nav-link">1. Getting started</a>
+    <a href="#navegacao-basica" class="nav-link">2. Basic navigation</a>
+    <a href="#dentro-conversa" class="nav-link">3. Inside a chat</a>
+    <a href="#ia-transcricoes" class="nav-link">4. AI: Transcriptions & Descriptions</a>
+    <a href="#chamadas" class="nav-link">5. Calls</a>
+    <a href="#configuracoes" class="nav-link">6. Settings</a>
+    <a href="#menu-contas" class="nav-link">7. Accounts menu</a>
+    <a href="#atalhos-teclado" class="nav-link">8. Keyboard shortcuts</a>
+  </div>
+</nav>
+
+<!-- ══════════════════ CONTEÚDO ══════════════════ -->
+<main class="main" id="conteudo" tabindex="-1">
+
+  <!-- TOPO -->
+  <div id="topo" class="wiki-section">
+    <h1>WinZapp</h1>
+    <p class="lead">WinZapp user guide, the accessible WhatsApp client for Windows. Browse the index on the left or use search to find any topic.</p>
+    <div class="hero-toc" role="navigation" aria-label="Guide index">
+      <div class="hero-toc-title">📋 In this guide</div>
+      <ol>
+        <li><a href="#primeiros-passos">Getting started</a></li>
+        <li><a href="#navegacao-basica">Basic navigation</a></li>
+        <li><a href="#dentro-conversa">Inside a chat</a></li>
+        <li><a href="#ia-transcricoes">AI: Transcriptions & Descriptions</a></li>
+        <li><a href="#chamadas">Calls</a></li>
+        <li><a href="#configuracoes">Settings</a></li>
+        <li><a href="#menu-contas">Accounts menu</a></li>
+        <li><a href="#atalhos-teclado">Keyboard shortcuts</a></li>
+      </ol>
+    </div>
+  </div>
+
+  <!-- 1. GETTING STARTED -->
+  <section id="primeiros-passos" class="wiki-section" aria-labelledby="h-primeiros-passos">
+    <h2 id="h-primeiros-passos">🔌 1. Getting started</h2>
+
+    <h3>Pairing WhatsApp</h3>
+    <p>When you open WinZapp for the first time (or after disconnecting), the connection screen appears with two ways to pair:</p>
+    <ol class="steps">
+      <li><span class="step-num">1</span><strong>QR Code (default):</strong> on your phone, open WhatsApp, go to Settings &gt; Linked devices &gt; Link a device, and point the camera at the code shown on WinZapp's screen.</li>
+      <li><span class="step-num">2</span><strong>Phone number:</strong> click <span class="btn-demo outline">Link with phone number</span>, choose your country, type your number and click Continue. WhatsApp generates a short letter/number code — type that code on your phone, in the same place (Settings &gt; Linked devices &gt; Link with phone number).</li>
+    </ol>
+    <p>Both buttons for switching between QR Code and phone number live right on the connection screen, so you can change your mind at any point before pairing.</p>
+
+    <h3>What happens after pairing</h3>
+    <p>As soon as pairing is confirmed, WinZapp starts syncing your chats. This process has two parts:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>📇 Index</h4>First, it builds the list of chats and messages — this is fast, because no media (photo, audio, video, sticker, document) is downloaded automatically at this point. This keeps the first sync light and quick.</div>
+      <div class="col-card"><h4>🖼️ Media</h4>Then, if automatic download is enabled (Settings &gt; Storage), it fetches the most recent media a bit at a time, in the background, periodically announcing how many have been processed.</div>
+    </div>
+    <div class="callout tip">
+      <div class="callout-title">💡 Media on demand</div>
+      Even with automatic download off, opening a media item manually (photo, audio, etc.) always downloads it on the spot.
+    </div>
+
+    <h3>If you need to pair again</h3>
+    <p>WhatsApp can occasionally end the session — for example, if the phone is offline for too long, or if you remove the device manually from the phone. When this happens, WinZapp shows the same connection screen again, and the process is identical to the initial pairing.</p>
+  </section>
+
+  <!-- 2. BASIC NAVIGATION -->
+  <section id="navegacao-basica" class="wiki-section" aria-labelledby="h-navegacao-basica">
+    <h2 id="h-navegacao-basica">🧭 2. Basic navigation</h2>
+
+    <h3>The chat list</h3>
+    <p>When you open WinZapp, the main list shows your regular chats — individual and group — ordered most recent first. Up/down arrows move between them; <kbd>Enter</kbd> opens the focused chat.</p>
+
+    <h3>Starting something new</h3>
+    <p>In the main menu (press <kbd>Alt</kbd>), right at the top, there are three shortcuts to start something from scratch:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>💬 New chat</h4>Search by name or number among your contacts and existing chats. Also the <kbd>Ctrl</kbd>+<kbd>N</kbd> shortcut.</div>
+      <div class="col-card"><h4>👥 New group</h4>Choose a name and the participants from your saved contacts, with search.</div>
+    </div>
+    <p><strong>New contact</strong> saves a first name, last name and number locally in WinZapp, so it shows up in future searches.</p>
+
+    <div class="cols-2">
+      <div class="col-card"><h4>📦 Archived</h4>Archived chats don't show up in the main list — they live in their own tab, with search and filters (all, unread, groups, individual). Archiving/unarchiving syncs with the phone.</div>
+      <div class="col-card"><h4>🔒 Locked</h4>A locked chat (WhatsApp's own feature) disappears completely from the list as soon as you open the app, with no manual step needed.</div>
+    </div>
+
+    <p>To reach a locked chat, type the lock code right into the main list's search box. If the code is correct, locked chats appear temporarily in the search results; opening one of them may ask for the code again, depending on how you configured that in Settings &gt; Conversations &gt; Locked conversations.</p>
+
+    <div class="callout warn">
+      <div class="callout-title">⚠️ Locked and archived don't coexist</div>
+      WhatsApp doesn't allow a chat to be both archived and locked at the same time — if you lock an archived chat from the phone, it's automatically unarchived.
+    </div>
+
+    <h3>Blocked contacts</h3>
+    <p>Chats with a contact you've blocked are also hidden from everything — main list and Archived — with no exception. There's no dedicated screen inside WinZapp yet to manage blocked contacts; that still has to be done through WhatsApp on the phone.</p>
+
+    <h3>Search</h3>
+    <p>The main list's search box filters by chat name. As mentioned above, typing the lock code there also temporarily reveals locked chats.</p>
+  </section>
+
+  <!-- 3. INSIDE A CHAT -->
+  <section id="dentro-conversa" class="wiki-section" aria-labelledby="h-dentro-conversa">
+    <h2 id="h-dentro-conversa">💬 3. Inside a chat</h2>
+
+    <h3>Navigating messages</h3>
+    <p>Inside an open chat, the ↑ and ↓ arrows move focus between messages. When focusing a message that has media (photo, audio, video, sticker, document) or a link, pressing <kbd>Tab</kbd> moves focus into it — for a link, straight to the link itself; for media, to that message's action buttons.</p>
+
+    <h3>Action buttons by message type</h3>
+    <p>The buttons shown vary by the type of the focused message:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>🖼️ Image, sticker, video, document</h4>If AI is on, the first button is <span class="btn-demo outline">Describe</span> (or <span class="btn-demo outline">Transcribe sticker</span>), followed by <span class="btn-demo outline">Open</span> and <span class="btn-demo outline">Save as</span>.</div>
+      <div class="col-card"><h4>🎙️ Audio</h4>Plays with <kbd>Enter</kbd> on the message itself (not a separate button); if AI is on, the <span class="btn-demo outline">Transcribe</span> button appears.</div>
+    </div>
+    <p>If the media hasn't been downloaded yet (automatic download off, or outside the configured window), a <span class="btn-demo outline">Download</span> button appears instead — it downloads right away, on demand.</p>
+
+    <h3>Replying and reacting</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>With a message focused, <kbd>Alt</kbd>+<kbd>R</kbd> starts a reply to it (the typing field switches to show "replying to…").</li>
+      <li><span class="step-num">2</span>In groups, <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> replies privately — sends a direct message to the sender, quoting the group message.</li>
+      <li><span class="step-num">3</span><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> opens a quick list of reaction emojis; pick one to react to the focused message, or click <span class="btn-demo outline">More emojis…</span> to open the full picker, with search by name.</li>
+    </ol>
+
+    <h3>Message info</h3>
+    <p><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>D</kbd> on one of your own messages opens the sent, delivered, read and (for audio/video) played time — in a group, broken down member by member for who received and who read it.</p>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ More shortcuts</div>
+      Copy, forward, edit, delete and several other message shortcuts are listed in full in the <a href="#atalhos-teclado">Keyboard shortcuts</a> section.
+    </div>
+  </section>
+
+  <!-- 4. AI: TRANSCRIPTIONS & DESCRIPTIONS -->
+  <section id="ia-transcricoes" class="wiki-section" aria-labelledby="h-ia-transcricoes">
+    <h2 id="h-ia-transcricoes">🤖 4. AI: Transcriptions &amp; Descriptions</h2>
+    <p>WinZapp can use AI to transcribe audio and stickers, and describe images and videos — useful for knowing what a piece of media contains without needing to see it. Received PDFs can also be converted into accessible text.</p>
+    <p>Three AI providers can be configured — Google Gemini, OpenAI and Claude — and you don't have to pick just one: fill in the key for as many as you like. Whenever a piece of media is processed, WinZapp tries Gemini first; if it fails or isn't configured, it tries OpenAI; if that also fails or isn't configured, it tries Claude. An error only appears if none of the configured providers can process that media.</p>
+
+    <h3>How to turn it on</h3>
+    <ol class="steps">
+      <li><span class="step-num">1</span>Go to Settings &gt; Conversations tab &gt; <span class="btn-demo outline">Transcriptions and Descriptions</span> button.</li>
+      <li><span class="step-num">2</span>Check <strong>Enable AI features</strong>.</li>
+      <li><span class="step-num">3</span>Use a provider's button (for example, <strong>Configure Gemini</strong>) and paste its API key; just one is enough: <strong>Gemini API key</strong> (free, obtained at <code>aistudio.google.com/apikey</code>), <strong>OpenAI API key</strong> (<code>platform.openai.com/api-keys</code>), <strong>Claude API key</strong> (<code>console.anthropic.com/settings/keys</code>), <strong>Groq API key</strong> (free tier, <code>console.groq.com/keys</code>) and/or <strong>OpenRouter API key</strong> (<code>openrouter.ai/settings/keys</code>).</li>
+      <li><span class="step-num">4</span>In each model field (<strong>Gemini model</strong>, <strong>OpenAI model</strong>, <strong>Claude model</strong>), leave it on <strong>Automatic (recommended)</strong> — WinZapp switches on its own to the latest recommended model whenever the provider retires an old one. Only pick a specific model from the list if you want to pin that model anyway.</li>
+      <li><span class="step-num">5</span>Check which types you want processed: audio, images, videos, stickers and/or PDFs. Each has its own checkbox, independent of the others.</li>
+    </ol>
+
+    <div class="callout warn">
+      <div class="callout-title">⚠️ At least one key is required</div>
+      Without any valid API key configured (Gemini, OpenAI or Claude), WinZapp warns you and won't let you turn on AI features.
+    </div>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Not every provider handles video and audio</div>
+      Video is only processed by Gemini — the other two providers don't accept video files. Audio is processed by Gemini and OpenAI; Claude doesn't transcribe audio. Image, sticker and PDF work with all three.
+    </div>
+
+    <h3>How to use it</h3>
+    <p>With the feature on for the right media type, focusing a matching message (photo, audio, sticker, video or PDF) and pressing <kbd>Tab</kbd> shows a button — <span class="btn-demo outline">Describe</span> or <span class="btn-demo outline">Transcribe</span>, depending on the type. The same button is also available in the message's context menu. The result appears in its own window, with the text ready to be read by a screen reader or copied.</p>
+    <p>The same <span class="btn-demo outline">Describe</span> button also appears when viewing an image or video status/story (Status tab), next to <span class="btn-demo outline">Save as...</span> — same rule: it only disappears if no AI provider is configured.</p>
+
+    <div class="callout tip">
+      <div class="callout-title">💡 Stickers with text</div>
+      Sticker and image descriptions already include any text visible in the media itself — handy for memes and stickers with captions.
+    </div>
+  </section>
+
+  <!-- 5. CALLS -->
+  <section id="chamadas" class="wiki-section" aria-labelledby="h-chamadas">
+    <h2 id="h-chamadas">📞 5. Calls</h2>
+    <p>WinZapp announces incoming voice and video calls — from a contact or a group — saying who's calling ("So-and-so is calling you." or "Incoming group call in group X.").</p>
+
+    <h3>Incoming call window</h3>
+    <p>If the option is on (Settings &gt; Conversations tab &gt; <span class="btn-demo outline">Calls</span> button &gt; <strong>Open a window when receiving a call</strong>), a window appears with two buttons: <span class="btn-demo outline">Hang up</span> and <span class="btn-demo outline">Close window</span>. Closing the window doesn't hang up the call — it just dismisses the alert, the call keeps ringing on the phone.</p>
+
+    <div class="callout info">
+      <div class="callout-title">ℹ️ The call itself happens on the phone</div>
+      WinZapp announces and lets you decline an incoming call, but answering/talking is still done on the phone itself — WinZapp has no built-in call audio/video.
+    </div>
+
+    <p>You can turn off call alerts entirely by unchecking <strong>Allow incoming call alerts</strong> in the same settings.</p>
+  </section>
+
+  <!-- 6. SETTINGS -->
+  <section id="configuracoes" class="wiki-section" aria-labelledby="h-configuracoes">
+    <h2 id="h-configuracoes">⚙️ 6. Settings</h2>
+    <p>Reach Settings from the main menu (press <kbd>Alt</kbd>, go down to <strong>Settings</strong> and enter with the right arrow, then <strong>WinZapp Settings</strong>), or with the <kbd>Ctrl</kbd>+<kbd>,</kbd> shortcut. The window is organized into six tabs; some hold several related topics behind buttons, which open in their own window.</p>
+
+    <div class="cols-2">
+      <div class="col-card"><h4>🌐 General</h4>Language, spell check, and the <strong>Interface</strong> button (WinZapp's own visual interface preferences).</div>
+      <div class="col-card"><h4>🦯 Accessibility</h4>Screen reader preferences, and the <strong>Spoken content</strong> button (what's announced out loud and when).</div>
+    </div>
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>🔌 Connection</h4>Address and port of the local WPPConnect server, and reconnection options.</div>
+      <div class="col-card"><h4>💾 Storage</h4>Automatic media download (which types, how many days, maximum size), where/how to save files, and the <strong>Media cleanup</strong> and <strong>Backup</strong> buttons.</div>
+    </div>
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>💬 Conversations</h4>Four buttons: <strong>Locked conversations</strong> (lock code), <strong>Transcriptions and Descriptions</strong> (AI), <strong>Audio playback</strong> and <strong>Calls</strong>.</div>
+      <div class="col-card"><h4>🔊 Sounds</h4>Two buttons: <strong>Audio settings</strong> (input/output device) and <strong>Event sounds</strong> (which sound plays for each event — message, call, etc.).</div>
+    </div>
+
+    <h3>WhatsApp Settings</h3>
+    <p>This is a separate window — <strong>Settings</strong> &gt; <strong>WhatsApp Settings</strong>, in the main menu — because these options live on your WhatsApp account itself, not in WinZapp. It has two ready tabs:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>👤 Profile</h4>About and profile photo — two independent fields. Fill in only what you want to change (or choose a photo); a blank field isn't changed.</div>
+      <div class="col-card"><h4>🔒 Privacy</h4>Last seen, online, about, photo, read receipts and who can add me to groups. Reading and saving both work normally; if a specific field can't be saved, WinZapp shows exactly which one it was.</div>
+    </div>
+
+    <h3>Setting the locked-chats code</h3>
+    <p>Inside Conversations, the <strong>Locked conversations</strong> button opens the tab where the code is set. If there's no code configured yet, just type the new code and confirm it. If a code already exists, you need to enter the current code before typing a new one — without that, whoever opened this window could change someone else's code without ever having known the original.</p>
+    <div class="callout warn">
+      <div class="callout-title">⚠️ Forgot the code?</div>
+      There's no way to recover or reset the code without erasing what it protected. The only way to use the feature again is to disconnect the account (main menu &gt; File &gt; Disconnect) and pair again — this permanently deletes all of WinZapp's messages and media for this account and clears the way to set a new code. Chats locked from the phone itself aren't affected: they stay under the phone's control and go back to showing as locked in WinZapp as soon as the account resyncs.
+    </div>
+
+    <h3>Media cleanup</h3>
+    <p>Inside Storage, the <strong>Media cleanup</strong> button deletes already-downloaded files to free up disk space — messages stay put, only the file disappears (it can be downloaded again later, if it's still available).</p>
+    <ol class="steps">
+      <li><span class="step-num">1</span>Choose the chats: the list shows only ones already in your chats (regular and archived), identified by the contact/group name or, when there's no name, by the phone number. A filter lets you show all, only groups, or only individual chats, and the first item in the list, <strong>Select all</strong>, selects or clears everything the current filter is showing, all at once.</li>
+      <li><span class="step-num">2</span>Also choose the media types (photos, videos, audio, voice messages, documents) and, if you want, a minimum size in MB.</li>
+      <li><span class="step-num">3</span>Click <span class="btn-demo outline">Gather data</span> — an overview appears: how many chats affected, how many files, and the total in MB, by type.</li>
+      <li><span class="step-num">4</span>Check the overview and click <span class="btn-demo outline">Proceed with cleanup</span> to confirm, or close the window to cancel without deleting anything.</li>
+    </ol>
+    <div class="callout warn">
+      <div class="callout-title">⚠️ Can't be undone</div>
+      Deleting media files is permanent. The messages themselves are never affected — only the downloaded file.
+    </div>
+
+    <h3>Backup and restore</h3>
+    <p>Inside Storage, the <strong>Backup</strong> button opens a window with two paths:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>💾 Create backup</h4>Choose which chats to include, which media types (photos, videos, audio, voice messages, documents) and, optionally, WinZapp's own settings. You can protect the file with a password.</div>
+      <div class="col-card"><h4>♻️ Restore backup</h4>Choose the file, type the password if it has one, and select what to restore — same logic for chats and media types.</div>
+    </div>
+    <p>In both cases, the chat list identifies each one by the contact/group name or, when there's no name, by the phone number; a filter lets you show all, only groups, or only individual chats; and the first item in the list, <strong>Select all</strong>, selects or clears everything the current filter is showing, all at once. When creating a backup, the list only shows chats that already appear in your chat lists (regular and archived) — no search is done across all contacts.</p>
+    <div class="callout tip">
+      <div class="callout-title">💡 Restoring never deletes anything</div>
+      Restoring only adds what doesn't already exist in your account — no chat or message already present is overwritten or changed. You need to close and reopen WinZapp to see the restored content in the list.
+    </div>
+  </section>
+
+  <!-- 7. ACCOUNTS MENU -->
+  <section id="menu-contas" class="wiki-section" aria-labelledby="h-menu-contas">
+    <h2 id="h-menu-contas">👤 7. Accounts menu</h2>
+    <p>The Accounts menu lives inside the main menu (press <kbd>Alt</kbd>, go down to <strong>Accounts</strong> and enter with the right arrow). It brings together everything related to the connected WhatsApp account:</p>
+    <div class="cols-2">
+      <div class="col-card"><h4>🔀 Switch account</h4>Every paired number is listed; selecting one switches to it. You can also switch quickly from the keyboard: <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd> through <kbd>9</kbd> jumps straight to the matching account, no matter where focus currently is.</div>
+      <div class="col-card"><h4>⚙️ Manage accounts</h4>Opens a window to add, rename, archive, restore or remove paired accounts.</div>
+    </div>
+    <div class="cols-2" style="margin-top:1rem;">
+      <div class="col-card"><h4>📴 Offline mode</h4>Pauses syncing with WhatsApp without actually disconnecting — handy for pausing the phone's data/battery use for a while.</div>
+      <div class="col-card"><h4>🔌 Disconnect</h4>Ends the current account's session; using it again requires pairing again.</div>
+    </div>
+  </section>
+
+  <!-- 8. KEYBOARD SHORTCUTS -->
+  <section id="atalhos-teclado" class="wiki-section" aria-labelledby="h-atalhos-teclado">
+    <h2 id="h-atalhos-teclado">⌨️ 8. Keyboard shortcuts</h2>
+    <div class="callout info">
+      <div class="callout-title">ℹ️ Always up to date: F1</div>
+      The list below covers the most-used shortcuts, organized by topic. For a complete, always-current reference, press <kbd>F1</kbd> at any time inside WinZapp.
+    </div>
+
+    <h3>General navigation</h3>
+    <table class="field-table">
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td class="field-name">Alt+1</td><td>Go to chats</td></tr>
+      <tr><td class="field-name">Alt+2</td><td>Go to the latest message</td></tr>
+      <tr><td class="field-name">Alt+3</td><td>Go to unread messages</td></tr>
+      <tr><td class="field-name">Alt+4</td><td>Go to archived chats</td></tr>
+      <tr><td class="field-name">Alt+5</td><td>Go to status</td></tr>
+      <tr><td class="field-name">Alt+T</td><td>Announce chat status (last seen, online, typing)</td></tr>
+      <tr><td class="field-name">Ctrl+N</td><td>New chat</td></tr>
+      <tr><td class="field-name">Ctrl+,</td><td>Open Settings</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+1 to 9</td><td>Switch account (Accounts menu)</td></tr>
+      <tr><td class="field-name">Esc / Ctrl+W</td><td>Close chat</td></tr>
+      <tr><td class="field-name">F1</td><td>Show all shortcuts</td></tr>
+    </table>
+
+    <h3>Inside a chat</h3>
+    <table class="field-table">
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td class="field-name">Alt+R</td><td>Reply to the focused message</td></tr>
+      <tr><td class="field-name">Alt+Shift+R</td><td>Reply privately (groups)</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+R</td><td>React to the message</td></tr>
+      <tr><td class="field-name">Alt+Shift+D</td><td>Message info</td></tr>
+      <tr><td class="field-name">Alt+E</td><td>Edit message</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+E</td><td>Forward message</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+O</td><td>Star message</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+P</td><td>Pin/unpin the selected message</td></tr>
+      <tr><td class="field-name">Delete</td><td>Delete message or chat</td></tr>
+      <tr><td class="field-name">Ctrl+C</td><td>Copy message</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+A</td><td>Add attachment</td></tr>
+      <tr><td class="field-name">Ctrl+R</td><td>Record voice message</td></tr>
+      <tr><td class="field-name">Ctrl+0 to Ctrl+9</td><td>Create/jump to a bookmark on the focused message</td></tr>
+    </table>
+
+    <h3>Audio/video playback</h3>
+    <table class="field-table">
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td class="field-name">Alt+, / Alt+.</td><td>Decrease / increase speed</td></tr>
+      <tr><td class="field-name">Shift+Left / Right</td><td>Rewind / skip forward 5 seconds</td></tr>
+      <tr><td class="field-name">Shift+Page Up / Down</td><td>Rewind / skip forward 1 minute</td></tr>
+    </table>
+
+    <h3>Bulk selection</h3>
+    <table class="field-table">
+      <tr><th>Shortcut</th><th>Action</th></tr>
+      <tr><td class="field-name">Ctrl+Space</td><td>Select/deselect the focused chat or message</td></tr>
+      <tr><td class="field-name">Shift+Down arrow</td><td>Select the next one and move focus to it</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+Space</td><td>Select all / deselect all</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+C</td><td>Copy the selected ones</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+E</td><td>Forward the selected ones</td></tr>
+      <tr><td class="field-name">Ctrl+Alt+Shift+S</td><td>Save the selected ones</td></tr>
+      <tr><td class="field-name">Ctrl+Shift+Delete</td><td>Delete the selected ones</td></tr>
+    </table>
+  </section>
+
+</main>
+
+<script>
+// ── Highlight active nav link on scroll ──
+(function() {
+    const links = document.querySelectorAll('.nav-link');
+    const sections = Array.from(document.querySelectorAll('section[id], div[id]'));
+    function updateActive() {
+        let current = '';
+        sections.forEach(sec => { if (sec.getBoundingClientRect().top <= 80) current = sec.id; });
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current));
+    }
+    window.addEventListener('scroll', updateActive, { passive: true });
+    updateActive();
+})();
+
+// ── Mobile sidebar toggle ──
+(function() {
+    const btn = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    btn.addEventListener('click', function() {
+        const open = sidebar.classList.toggle('open');
+        btn.setAttribute('aria-expanded', open);
+        btn.textContent = open ? '✕ Close' : '☰ Menu';
+    });
+    sidebar.querySelectorAll('.nav-link').forEach(l => {
+        l.addEventListener('click', function() {
+            if (window.innerWidth <= 768) {
+                sidebar.classList.remove('open');
+                btn.setAttribute('aria-expanded', 'false');
+                btn.textContent = '☰ Menu';
+            }
+        });
+    });
+})();
+
+// ── Search / highlight ──
+(function() {
+    const input = document.getElementById('searchInput');
+    const main  = document.getElementById('conteudo');
+    let origHTML = null;
+
+    function clearMarks() {
+        if (origHTML !== null) { main.innerHTML = origHTML; origHTML = null; bindSearch(); }
+    }
+
+    function doSearch(term) {
+        if (!term) { clearMarks(); return; }
+        if (origHTML === null) origHTML = main.innerHTML;
+        main.innerHTML = origHTML;
+        const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const rx = new RegExp('(' + escaped + ')', 'gi');
+        function walk(node) {
+            if (node.nodeType === 3) {
+                if (rx.test(node.textContent)) {
+                    const span = document.createElement('span');
+                    span.innerHTML = node.textContent.replace(rx, '<mark>$1</mark>');
+                    node.parentNode.replaceChild(span, node);
+                }
+            } else if (node.nodeType === 1 && !['SCRIPT','STYLE','INPUT'].includes(node.tagName)) {
+                Array.from(node.childNodes).forEach(walk);
+            }
+        }
+        walk(main);
+        const first = main.querySelector('mark');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function bindSearch() {
+        const inp = document.getElementById('searchInput');
+        if (inp) inp.addEventListener('input', function() { doSearch(this.value.trim()); });
+    }
+    bindSearch();
+})();
+</script>
+</body>
+</html>

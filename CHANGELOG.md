@@ -13,6 +13,8 @@ mexer no projeto.
 - Os diálogos de subseção de Configurações do WinZapp e as janelas de Configurações do WhatsApp agora usam o botão OK em vez de Fechar, salvando ao fechar quando havia algo pendente — mesmo padrão em toda a aplicação.
 - A tela "Sem atualizações disponíveis" agora mostra o número da versão instalada.
 
+- O guia de uso (Ajuda > Guia de uso) agora existe também em inglês, espanhol, polonês e português de Portugal (`client/data/help_guide/<idioma>.html`); antes só existia em pt-BR. Também atualizado o trecho de Privacidade (agora descreve o funcionamento normal) e o nome do botão de salvar mídia dos Status.
+
 ### Correções
 - **Privacidade voltou a funcionar**: a aba Privacidade de Configurações do WhatsApp aplicava as alterações (visto por último, foto de perfil, confirmação de leitura, quem pode me adicionar em grupos, etc.) sem sucesso desde que o WhatsApp mudou seu sistema interno de módulos ("Comet") — o `wa-js` que o WinZapp usa por baixo dos panos tinha o setter interno quebrado (`setPrivacyForOneCategory`, issue upstream `wppconnect-team/wa-js#3658`). Corrigido fixando `@wppconnect/wa-js` num commit que já inclui a correção upstream (PR #3632).
 - **Campo Nome voltou a salvar**: mesma causa raiz da Privacidade, mas um bug `wa-js` diferente (`setPushname`, issue `wppconnect-team/wa-js#3659`, corrigida pela PR #3682) — também resolvido fixando o `wa-js` no mesmo commit.
