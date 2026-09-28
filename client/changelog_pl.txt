@@ -12,6 +12,8 @@ ULEPSZENIA
 
 - Ekran "Brak dostępnych aktualizacji" pokazuje teraz numer zainstalowanej wersji.
 
+- Przewodnik użytkownika jest teraz dostępny również w języku angielskim, hiszpańskim, polskim i europejskim portugalskim, oprócz brazylijskiego portugalskiego.
+
 POPRAWKI
 
 - Zakładka Prywatność w Ustawieniach WhatsApp znowu stosuje zmiany (ostatnia wizyta, zdjęcie profilowe, potwierdzenia odczytu i inne) bez błędu. Przestała działać po tym, jak WhatsApp zmienił swój wewnętrzny system modułów, i zależała od poprawki wa-js, która pojawiła się dopiero w tej wersji.

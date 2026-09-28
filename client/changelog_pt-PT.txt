@@ -12,6 +12,8 @@ MELHORIAS
 
 - O ecrã "Sem atualizações disponíveis" passa a mostrar o número da versão instalada.
 
+- O guia de utilização passa a estar disponível também em inglês, espanhol, polaco e português de Portugal, além do português do Brasil.
+
 CORREÇÕES
 
 - O separador Privacidade de Definições do WhatsApp voltou a aplicar as alterações (visto por último, foto de perfil, confirmação de leitura, entre outras) sem erro. Tinha deixado de funcionar depois de o WhatsApp mudar o seu sistema interno de módulos, e dependia de uma correção do wa-js que só chegou nesta versão.

@@ -12,6 +12,8 @@ MELHORIAS
 
 - A tela "Sem atualizações disponíveis" agora mostra o número da versão instalada.
 
+- O guia de uso agora está disponível também em inglês, espanhol, polonês e português de Portugal, além do português do Brasil.
+
 CORREÇÕES
 
 - A aba Privacidade de Configurações do WhatsApp voltou a aplicar as alterações (visto por último, foto de perfil, confirmação de leitura, entre outras) sem erro. Elas haviam parado de funcionar depois que o WhatsApp mudou seu sistema interno de módulos, e dependiam de uma correção do wa-js que só chegou nesta versão.
