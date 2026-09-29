@@ -1,10 +1,20 @@
+V1.1.5.1
+
+Esta versión corrige el botón Describir (IA) de los estados cuando se abren en el reproductor separado.
+
+CORRECCIONES
+
+- El botón Describir (IA) de los estados también aparece cuando la opción "Mostrar los estados en un reproductor separado (abre un nuevo diálogo)" (Configuración > Interfaz) está marcada. Antes solo aparecía con esa opción desmarcada.
+
 V1.1.5.0
 
-Esta versión corrige la pestaña Privacidad y el campo Nombre en Configuración de WhatsApp, que dependían de una corrección de wa-js aún no publicada, estandariza las ventanas de configuración para usar OK en vez de Cerrar, y añade el botón Describir (IA) también a los estados de imagen y vídeo.
+Esta versión recupera la ventana Configuración de WhatsApp — ahora con Privacidad funcionando y edición del nombre del perfil —, añade el botón Describir (IA) a los estados de imagen y vídeo y estandariza las ventanas de configuración con el botón OK.
 
 NOVEDADES
 
-- El botón Describir (IA), ya disponible para imágenes y vídeos en los mensajes, ahora también aparece al ver un estado/historia de imagen o vídeo. Se oculta automáticamente si no hay ningún proveedor de IA configurado.
+- Describir (IA) también en los estados. El botón Describir, ya disponible para imágenes y vídeos en los mensajes, ahora también aparece al ver un estado/historia de imagen o vídeo. Se oculta automáticamente si no hay ningún proveedor de IA configurado.
+
+- Edición del nombre del perfil directamente en WinZapp, junto con el estado (info) y la foto (Configuración de WhatsApp > Perfil).
 
 MEJORAS
 
@@ -16,9 +26,7 @@ MEJORAS
 
 CORRECCIONES
 
-- La pestaña Privacidad de Configuración de WhatsApp volvió a aplicar los cambios (visto por última vez, foto de perfil, confirmación de lectura, entre otros) sin error. Había dejado de funcionar después de que WhatsApp cambiara su sistema interno de módulos, y dependía de una corrección de wa-js que solo llegó en esta versión.
-
-- El campo Nombre, en la pestaña Perfil de Configuración de WhatsApp, vuelve a guardarse correctamente — misma causa raíz que Privacidad, por un error diferente de wa-js.
+- La ventana Configuración de WhatsApp ha vuelto al menú Configuración. Había desaparecido porque WhatsApp cambió internamente y dejó de aceptar los cambios de privacidad; ahora la pestaña Privacidad guarda con normalidad (última vez, en línea, info, foto de perfil, confirmación de lectura y quién puede añadirme a grupos), y con ella ha vuelto la edición del estado (info) y de la foto de perfil.
 
 V1.1.4.1
 

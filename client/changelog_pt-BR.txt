@@ -1,10 +1,20 @@
+V1.1.5.1
+
+Esta versão corrige o botão Descrever (IA) dos status quando eles abrem em player separado.
+
+CORREÇÕES
+
+- O botão Descrever (IA) dos status também aparece quando a opção "Mostrar os status em player separado (abre novo diálogo)" (Configurações > Interface) está marcada. Antes ele só aparecia com essa opção desmarcada.
+
 V1.1.5.0
 
-Esta versão corrige a aba Privacidade e o campo Nome em Configurações do WhatsApp, que dependiam de uma correção ainda não publicada do wa-js, padroniza as janelas de configurações para usar OK em vez de Fechar, e adiciona o botão Descrever (IA) também aos status de imagem e vídeo.
+Esta versão traz de volta a janela Configurações do WhatsApp — agora com a Privacidade funcionando e a edição do nome do perfil —, adiciona o botão Descrever (IA) aos status de imagem e vídeo e padroniza as janelas de configurações com o botão OK.
 
 NOVIDADES
 
-- O botão Descrever (IA), já disponível para imagens e vídeos nas mensagens, agora aparece também ao visualizar um status/stories de imagem ou vídeo. Some automaticamente se nenhum provedor de IA estiver configurado.
+- Descrever (IA) também nos status. O botão Descrever, já disponível para imagens e vídeos nas mensagens, agora aparece ao visualizar um status/stories de imagem ou vídeo. Some automaticamente se nenhum provedor de IA estiver configurado.
+
+- Edição do nome do perfil direto no WinZapp, junto com o recado e a foto (Configurações do WhatsApp > Perfil).
 
 MELHORIAS
 
@@ -16,9 +26,7 @@ MELHORIAS
 
 CORREÇÕES
 
-- A aba Privacidade de Configurações do WhatsApp voltou a aplicar as alterações (visto por último, foto de perfil, confirmação de leitura, entre outras) sem erro. Elas haviam parado de funcionar depois que o WhatsApp mudou seu sistema interno de módulos, e dependiam de uma correção do wa-js que só chegou nesta versão.
-
-- O campo Nome, na aba Perfil de Configurações do WhatsApp, voltou a salvar corretamente — mesma causa raiz da Privacidade, por um bug diferente do wa-js.
+- A janela Configurações do WhatsApp voltou ao menu Configurações. Ela tinha saído porque o WhatsApp mudou por dentro e as alterações de privacidade deixaram de ser aceitas; agora a aba Privacidade salva normalmente (visto por último, online, recado, foto de perfil, confirmação de leitura e quem pode me adicionar em grupos), e a edição de recado e foto de perfil voltou junto.
 
 V1.1.4.1
 

@@ -1,10 +1,20 @@
+V1.1.5.1
+
+This release fixes the Describe (AI) button on statuses opened in the separate player.
+
+FIXES
+
+- The Describe (AI) button on statuses now also appears when the "Show statuses in a separate player (opens a new dialog)" option (Settings > Interface) is checked. Before, it only appeared with that option unchecked.
+
 V1.1.5.0
 
-This release fixes the Privacy tab and the Name field in WhatsApp Settings, which depended on an unreleased wa-js fix, standardizes the settings dialogs to use OK instead of Close, and adds the Describe (AI) button to image and video statuses too.
+This release brings back the WhatsApp Settings window — now with Privacy working and profile name editing — adds the Describe (AI) button to image and video statuses, and standardizes the settings windows on an OK button.
 
 NEW
 
-- The Describe (AI) button, already available for images and videos in messages, now also appears when viewing an image or video status/story. It hides automatically if no AI provider is configured.
+- Describe (AI) on statuses too. The Describe button, already available for images and videos in messages, now also appears when viewing an image or video status/story. It hides automatically if no AI provider is configured.
+
+- Edit your profile name right in WinZapp, alongside the About text and photo (WhatsApp Settings > Profile).
 
 IMPROVEMENTS
 
@@ -16,9 +26,7 @@ IMPROVEMENTS
 
 FIXES
 
-- The Privacy tab in WhatsApp Settings can apply changes again (last seen, profile picture, read receipts, and others) without error. It had stopped working after WhatsApp changed its internal module system, and depended on a wa-js fix that only landed in this release.
-
-- The Name field, in WhatsApp Settings' Profile tab, saves correctly again — same root cause as Privacy, via a different wa-js bug.
+- The WhatsApp Settings window is back in the Settings menu. It had been removed because WhatsApp changed internally and privacy changes stopped being accepted; now the Privacy tab saves normally (last seen, online, about, profile photo, read receipts and who can add me to groups), and editing the About text and profile photo is back with it.
 
 V1.1.4.1
 

@@ -1,10 +1,20 @@
+V1.1.5.1
+
+Ta wersja naprawia przycisk Opisz (AI) w statusach otwieranych w osobnym odtwarzaczu.
+
+POPRAWKI
+
+- Przycisk Opisz (AI) w statusach pojawia się teraz także wtedy, gdy zaznaczona jest opcja „Pokaż statusy w osobnym odtwarzaczu (otwiera nowe okno dialogowe)" (Ustawienia > Interfejs). Wcześniej pojawiał się tylko przy odznaczonej opcji.
+
 V1.1.5.0
 
-Ta wersja naprawia zakładkę Prywatność i pole Imię w Ustawieniach WhatsApp, które zależały od jeszcze nieopublikowanej poprawki wa-js, ujednolica okna ustawień, tak aby używały przycisku OK zamiast Zamknij, oraz dodaje przycisk Opisz (AI) również do statusów ze zdjęciem lub wideo.
+Ta wersja przywraca okno Ustawienia WhatsApp — teraz z działającą Prywatnością i edycją nazwy profilu — dodaje przycisk Opisz (AI) do statusów ze zdjęciem i wideo oraz ujednolica okna ustawień, tak aby używały przycisku OK.
 
 NOWOŚCI
 
-- Przycisk Opisz (AI), dostępny już dla zdjęć i filmów w wiadomościach, pojawia się teraz również podczas przeglądania statusu/relacji ze zdjęciem lub wideo. Znika automatycznie, jeśli nie skonfigurowano żadnego dostawcy AI.
+- Opisz (AI) także w statusach. Przycisk Opisz, dostępny już dla zdjęć i filmów w wiadomościach, pojawia się teraz również podczas przeglądania statusu/relacji ze zdjęciem lub wideo. Znika automatycznie, jeśli nie skonfigurowano żadnego dostawcy AI.
+
+- Edycja nazwy profilu bezpośrednio w WinZapp, razem ze statusem (informacjami) i zdjęciem (Ustawienia WhatsApp > Profil).
 
 ULEPSZENIA
 
@@ -16,9 +26,7 @@ ULEPSZENIA
 
 POPRAWKI
 
-- Zakładka Prywatność w Ustawieniach WhatsApp znowu stosuje zmiany (ostatnia wizyta, zdjęcie profilowe, potwierdzenia odczytu i inne) bez błędu. Przestała działać po tym, jak WhatsApp zmienił swój wewnętrzny system modułów, i zależała od poprawki wa-js, która pojawiła się dopiero w tej wersji.
-
-- Pole Imię, w zakładce Profil Ustawień WhatsApp, znowu poprawnie zapisuje zmiany — ta sama przyczyna co w przypadku Prywatności, ale inny błąd wa-js.
+- Okno Ustawienia WhatsApp wróciło do menu Ustawienia. Zniknęło, ponieważ WhatsApp zmienił się wewnętrznie i przestał przyjmować zmiany prywatności; teraz karta Prywatność zapisuje normalnie (ostatnio widziany, online, informacje, zdjęcie profilowe, potwierdzenia odczytu i kto może dodawać mnie do grup), a wraz z nią wróciła edycja statusu (informacji) i zdjęcia profilowego.
 
 V1.1.4.1
 
