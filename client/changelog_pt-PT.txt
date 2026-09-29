@@ -1,14 +1,24 @@
+V1.1.5.1
+
+Esta versão corrige o botão Descrever (IA) dos estados quando abrem num leitor separado.
+
+CORREÇÕES
+
+- O botão Descrever (IA) dos estados também aparece quando a opção "Mostrar os estados num leitor separado (abre novo diálogo)" (Definições > Interface) está marcada. Antes só aparecia com essa opção desmarcada.
+
 V1.1.5.0
 
-Esta versão corrige o separador Privacidade e o campo Nome em Definições do WhatsApp, que dependiam de uma correção do wa-js ainda não publicada, uniformiza as janelas de definições para usarem OK em vez de Fechar, e acrescenta o botão Descrever (IA) também aos estados de imagem e vídeo.
+Esta versão traz de volta a janela Configurações do WhatsApp — agora com a Privacidade a funcionar e a edição do nome do perfil —, acrescenta o botão Descrever (IA) aos estados de imagem e vídeo e uniformiza as janelas de definições com o botão OK.
 
 NOVIDADES
 
-- O botão Descrever (IA), já disponível para imagens e vídeos nas mensagens, passa a aparecer também ao ver um estado/story de imagem ou vídeo. Desaparece automaticamente se nenhum fornecedor de IA estiver configurado.
+- Descrever (IA) também nos estados. O botão Descrever, já disponível para imagens e vídeos nas mensagens, passa a aparecer também ao ver um estado/story de imagem ou vídeo. Desaparece automaticamente se nenhum fornecedor de IA estiver configurado.
+
+- Edição do nome do perfil diretamente no WinZapp, juntamente com o recado e a foto (Configurações do WhatsApp > Perfil).
 
 MELHORIAS
 
-- As janelas de subsecção de Definições do WinZapp e as janelas de Definições do WhatsApp passam a usar o botão OK em vez de Fechar, guardando ao fechar quando havia algo pendente.
+- As janelas de subsecção de Definições do WinZapp e as janelas de Configurações do WhatsApp passam a usar o botão OK em vez de Fechar, guardando ao fechar quando havia algo pendente.
 
 - O ecrã "Sem atualizações disponíveis" passa a mostrar o número da versão instalada.
 
@@ -16,9 +26,7 @@ MELHORIAS
 
 CORREÇÕES
 
-- O separador Privacidade de Definições do WhatsApp voltou a aplicar as alterações (visto por último, foto de perfil, confirmação de leitura, entre outras) sem erro. Tinha deixado de funcionar depois de o WhatsApp mudar o seu sistema interno de módulos, e dependia de uma correção do wa-js que só chegou nesta versão.
-
-- O campo Nome, no separador Perfil de Definições do WhatsApp, volta a guardar corretamente — a mesma causa da Privacidade, por um erro diferente do wa-js.
+- A janela Configurações do WhatsApp voltou ao menu Definições. Tinha saído porque o WhatsApp mudou internamente e deixou de aceitar as alterações de privacidade; agora o separador Privacidade guarda normalmente (visto por último, online, recado, foto de perfil, confirmação de leitura e quem me pode adicionar a grupos), e a edição do recado e da foto de perfil voltou com ela.
 
 V1.1.4.1
 

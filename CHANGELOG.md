@@ -4,23 +4,63 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
-## v1.1.5.0 — Configurações do WhatsApp: Privacidade e Nome corrigidos, diálogos padronizados, Descrever também em Status
-
-### Novidades
-- O botão **Descrever** (IA), já disponível para imagens e vídeos nas mensagens, agora aparece também ao visualizar um status/stories de imagem ou vídeo, ao lado de "Salvar mídia" — mesmo pipeline (`ai_providers.describe_visual_media`), mesma janela de resultado navegável com perguntas de acompanhamento. Some automaticamente se nenhum provedor de IA estiver configurado, igual às mensagens.
-
-### Melhorias
-- Os diálogos de subseção de Configurações do WinZapp e as janelas de Configurações do WhatsApp agora usam o botão OK em vez de Fechar, salvando ao fechar quando havia algo pendente — mesmo padrão em toda a aplicação.
-- A tela "Sem atualizações disponíveis" agora mostra o número da versão instalada.
-
-- O guia de uso (Ajuda > Guia de uso) agora existe também em inglês, espanhol, polonês e português de Portugal (`client/data/help_guide/<idioma>.html`); antes só existia em pt-BR. Também atualizado o trecho de Privacidade (agora descreve o funcionamento normal) e o nome do botão de salvar mídia dos Status.
+## v1.1.5.1 — Descrever (IA) nos status também com o player separado
 
 ### Correções
-- **Privacidade voltou a funcionar**: a aba Privacidade de Configurações do WhatsApp aplicava as alterações (visto por último, foto de perfil, confirmação de leitura, quem pode me adicionar em grupos, etc.) sem sucesso desde que o WhatsApp mudou seu sistema interno de módulos ("Comet") — o `wa-js` que o WinZapp usa por baixo dos panos tinha o setter interno quebrado (`setPrivacyForOneCategory`, issue upstream `wppconnect-team/wa-js#3658`). Corrigido fixando `@wppconnect/wa-js` num commit que já inclui a correção upstream (PR #3632).
-- **Campo Nome voltou a salvar**: mesma causa raiz da Privacidade, mas um bug `wa-js` diferente (`setPushname`, issue `wppconnect-team/wa-js#3659`, corrigida pela PR #3682) — também resolvido fixando o `wa-js` no mesmo commit.
-- Removido o botão de depuração temporário que ficou na aba Privacidade durante a investigação do bug acima (usado só para localizar, no build do WhatsApp Web, qual módulo interno hoje implementa os setters de privacidade).
+- O botão **Descrever** dos status não aparecia com "Mostrar os status em player separado" (Configurações > Interface) marcado: nesse modo o status abre no `MediaViewerDialog` genérico, e o botão só existia no visualizador embutido do `StatusPanel`. `MediaViewerDialog` ganhou um callback `on_describe` (mesmo padrão de `on_like`/`on_reply`, sem acoplar o diálogo ao `ai_providers`), e `status_panel.py` passou a compartilhar a chamada de IA entre os dois caminhos (`_run_status_ai_describe`). No player separado a mídia que o diálogo já baixou é reaproveitada, sem segundo download.
+
+## v1.1.5.0 — Configurações do WhatsApp de volta (Privacidade + Nome), Descrever em Status, diálogos com OK, guia em 5 idiomas
+
+Contexto: na v1.1.4.1 a janela "Configurações do WhatsApp" estava fora do menu (`_WA_SETTINGS_MENU_ENABLED = False`, desde a v1.1.2.1) porque os setters de privacidade do wa-js quebraram com a migração "Comet" do WhatsApp Web, e o campo Nome estava desabilitado (`_PROFILE_NAME_FIELD_ENABLED = False`) pelo mesmo motivo.
+
+### Novidades
+- O botão **Descrever** (IA), já disponível para imagens e vídeos nas mensagens, agora aparece também ao visualizar um status/stories de imagem ou vídeo, ao lado de "Salvar mídia como..." — mesmo pipeline (`ai_providers.describe_visual_media`), mesma janela de resultado navegável com perguntas de acompanhamento. Some automaticamente se nenhum provedor de IA estiver configurado.
+- **Edição do nome do perfil** (Configurações do WhatsApp > Perfil), junto com recado e foto. Nunca tinha sido entregue: o campo estava desabilitado desde antes da v1.1.1.0.
+
+### Melhorias
+- Os diálogos de subseção de Configurações do WinZapp e a janela de Configurações do WhatsApp agora usam o botão OK em vez de Fechar, salvando ao fechar quando havia algo pendente — mesmo padrão em toda a aplicação.
+- A tela "Sem atualizações disponíveis" agora mostra o número da versão instalada.
+- O guia de uso (Ajuda > Guia de uso) agora existe também em inglês, espanhol, polonês e português de Portugal (`client/data/help_guide/<idioma>.html`); antes só existia em pt-BR. O trecho de Privacidade do guia em pt-BR também foi atualizado (agora descreve o funcionamento normal).
+
+### Correções
+- **Configurações do WhatsApp voltou ao menu e a Privacidade voltou a funcionar**: os seis setters `WPP.privacy.set*` falhavam com `setPrivacyForOneCategory is not a function` (issue upstream `wppconnect-team/wa-js#3658`), corrigido upstream pela PR #3632. O campo Nome falhava com `setPushname is not a function` (`wppconnect-team/wa-js#3659`), corrigido pela PR #3682. As duas correções ainda não estavam numa versão publicada do wa-js (a mais recente no npm é a 4.6.0).
+- Removido o botão de depuração temporário da aba Privacidade e o método `debug_find_privacy_module` que ele chamava (era só um localizador de módulos internos; nunca esteve visível ao usuário, já que o menu estava escondido).
+
+## v1.1.4.1 — provedores de IA configuráveis, convites de grupo e nomes de empresas verificadas
+
+Esta versão permite escolher quais provedores de IA usar e em que ordem, e corrige convites de grupo que sumiam, nomes de empresas verificadas e transcrições de áudio que inventavam conteúdo.
+
+### Novidades
+- Provedores de IA configuráveis. Em Configurações > Transcrições e Descrições, agora dá para ativar ou desativar cada provedor (Gemini, OpenAI, Claude, Groq, OpenRouter) e escolher a ordem em que o WinZapp tenta cada um, com botões "Mover para cima" e "Mover para baixo". Antes, a única forma de tirar um provedor da lista de tentativas era apagar a chave dele.
+
+### Melhorias
+- O canal de atualizações alpha foi removido. A opção "Verificar atualizações alpha" saiu de Configurações > Geral — o WinZapp agora sempre atualiza para a versão estável mais recente.
+
+### Correções
+- Convites para entrar em um grupo, compartilhados numa conversa, deixavam de aparecer: a mensagem não gerava linha na conversa, não contava como não lida e não disparava notificação, como se nunca tivesse chegado. Agora aparece normalmente.
+- Contas comerciais verificadas do WhatsApp (bancos, aplicativos de pagamento, concessionárias — como "99 Pay" ou "Verisure Brasil") apareciam na lista de conversas só com o número de telefone, sem nome. O WinZapp agora usa o nome verificado dessas contas quando não há nome nem apelido definido.
+- A transcrição de áudio pelo Gemini às vezes completava trechos pouco claros com um palpite, em vez de admitir que não deu para entender. Agora ela é mais literal e, quando não consegue identificar um trecho, escreve "[inaudível]" em vez de inventar.
+
+## v1.1.3.0 — mais provedores de IA (OpenAI, Claude, Groq e OpenRouter)
+
+Esta versão traz mais provedores de IA para as transcrições e descrições.
+
+### Novidades
+- Mais provedores de IA. Além do Gemini, agora você pode usar OpenAI, Claude, Groq e OpenRouter para transcrever áudios e descrever imagens, figurinhas e PDFs. Cole a chave de quantos quiser em Configurações > Transcrições e Descrições: o WinZapp tenta um por vez, na ordem Gemini, OpenAI, Claude, Groq e OpenRouter, e só avisa que falhou se todos os configurados falharem. Nem todos fazem tudo: vídeo só o Gemini descreve; áudio só Gemini, OpenAI e Groq transcrevem; PDF todos leem, exceto a Groq. A Groq tem plano gratuito e a OpenRouter dá acesso a muitos modelos, inclusive gratuitos.
+
+## v1.1.2.2 — ordem dos botões de IA e das versões em "Quais as novidades?"
+
+Esta versão ajusta a ordem de dois botões e corrige a ordem das versões na tela "Quais as novidades?".
+
+### Correções
+- Ao dar Tab numa mensagem de imagem, vídeo ou PDF, o primeiro botão agora é o de Descrever/Transcrever (IA) — antes ele vinha depois de Abrir, Salvar e Baixar. Áudio já funcionava assim, por ser o único botão daquele tipo de mensagem.
+- A tela "Quais as novidades?" sempre mostrou as versões da mais recente pra mais antiga, exceto por um trecho antigo do changelog (das versões 1.1.0.0 a 1.1.0.3) que ficou gravado na ordem contrária — quem atualizasse cruzando essas versões via as novidades fora de ordem. Corrigido.
 
 ## v1.1.2.1 — correção de segurança: troca do código de conversas trancadas
+
+### Melhorias
+- O guia de uso agora abre numa janela do próprio WinZapp (Edge/WebView2), em vez do navegador — mesma página, com menu lateral, busca e modo escuro. Sem o WebView2 instalado, abre no navegador como antes.
+- Na tela de atualização disponível, o botão "Quais as novidades?" agora aparece sempre e mostra as novidades da versão que será instalada (antes vinha da versão já instalada, então podia mostrar novidades antigas ou nenhuma).
 
 ### Correções
 - **Falha de segurança corrigida**: a aba Privacidade (Configurações >
@@ -66,10 +106,73 @@ mexer no projeto.
   automaticamente, uma única vez por travamento. Some sozinha assim que a
   sincronização realmente termina.
 
-## v1.1.0.0 — base original (upstream, sem modificações)
+## v1.1.2.0 — figurinhas por IA, guia de uso, backup, limpeza de mídia e edição de perfil
 
-Ponto de partida: o WinZapp original, clonado direto do repositório
-público de gabrielhhaber, antes de qualquer modificação nossa.
+Esta versão reúne tudo o que foi feito desde a fusão com a versão 1.1.1.0 do criador original: figurinhas transcritas por IA, um guia de uso dentro do próprio programa, backup e restauração de conversas, uma ferramenta de limpeza de mídia, edição de recado e foto de perfil, e uma lista de correções — entre elas, as mensagens de lista de opções de empresas que chegavam vazias ao WinZapp.
+
+### Novidades
+- Transcrição de figurinhas. A mesma descrição por IA que já existia para imagens agora também funciona em figurinhas, com um interruptor próprio em Configurações > Conversas > Transcrições e Descrições.
+- Botão de IA (Transcrever/Descrever) ao lado de Abrir e Salvar. Áudio, imagem, figurinha, vídeo e PDF ganham esse botão no mesmo lugar dos demais botões de ação da mensagem — antes ele só existia no menu de contexto, e o áudio não tinha nenhum botão de ação até agora.
+- Dados da mensagem em grupos, participante por participante. Os "Dados da mensagem" de uma mensagem de grupo agora mostram quem recebeu, leu e reproduziu, agrupados pela etapa mais avançada alcançada, em vez de só o total agregado.
+- Busca na aba Conversas Arquivadas, igual à que já existia na lista principal.
+- Guia de uso do WinZapp dentro do programa, acessível pelo menu Ajuda e também pela tela de pareamento.
+- Mais opções de reação às mensagens. Além das 12 reações rápidas, um botão "Mais emojis…" abre o mesmo seletor completo, com busca, usado ao escrever uma mensagem.
+- Backup e restauração de conversas. Um único arquivo (.wzbackup) guarda as conversas, mídias e configurações que você escolher, com senha opcional; restaurar sempre mescla com o que já existe, nunca sobrescreve.
+- Ferramenta de limpeza de mídia em Configurações > Armazenamento: filtra por conversa, tipo de mídia e tamanho mínimo, mostra um resumo antes de apagar qualquer coisa, e só remove arquivos já baixados — nunca as mensagens.
+- Edição do recado e da foto de perfil direto no WinZapp, sem precisar abrir o WhatsApp no celular.
+- As mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" enviados pelo WhatsApp Business) às vezes chegavam vazias, sem nenhuma opção para escolher. O WinZapp agora busca o conteúdo direto no WhatsApp Web quando isso acontece — tanto ao receber a mensagem quanto ao navegar até ela pelo teclado — e volta a mostrar as opções normalmente, inclusive em mensagens que já tinham chegado vazias antes.
+
+### Melhorias
+- Configurações reorganizadas em menos abas: uma aba Conversas reúne os botões de Conversas bloqueadas por senha, Transcrições e Descrições, Reprodução de áudio e Chamadas; uma aba Sons reúne os ajustes de áudio e os sons de eventos.
+- "Ver dados do contato" agora mostra o cartão inteiro — aniversário, empresa, telefones, e-mails e endereços com rótulo, sites e redes sociais — e não só nome e telefone.
+- O item "Escolher conta…" do menu Contas só aparece quando há 10 ou mais contas pareadas; com menos, os atalhos diretos (Ctrl+Alt+1 a 9) já bastam.
+- As atualizações automáticas agora verificam a assinatura do instalador antes de aplicá-lo.
+
+### Correções
+- O indicador de download de mídia ("processadas X de Y") inflava o total em contas com muito histórico e nunca parecia terminar. Agora conta só o que realmente vai ser baixado.
+- As conversas de contatos bloqueados ficam realmente ocultas da lista e de Arquivadas — antes só recebiam um aviso "(bloqueado)" e continuavam aparecendo.
+- A conexão parava de funcionar com frequência logo depois de o próprio WinZapp se atualizar, pedindo para parear de novo. Agora a atualização espera a sessão se desconectar de verdade antes de fechar o programa.
+- Descrever uma foto que tinha legenda mas nenhum nome de arquivo próprio podia falhar.
+- O aviso falado de que "o envio pode não funcionar" disparava por falhas em recursos de Status, mesmo quando enviar texto e mídia funcionava normalmente. Agora só avisa quando o essencial (texto ou mídia) falha de verdade.
+- Contatos compartilhados exportados de iPhone/Mac com mais de um número às vezes não eram lidos corretamente.
+
+## v1.1.1.0 — sessão sempre conectada: recuperação do perfil do navegador
+
+Esta versão é sobre manter a sua conta conectada. O WinZapp passou a guardar uma cópia de segurança do perfil do navegador — que é onde a sua conexão com o WhatsApp realmente fica guardada — e a restaurá-la sozinho quando ela deixa de ser aceita, avisando o que aconteceu. Junto vieram as correções das situações que quebravam a sessão e faziam o programa pedir para parear de novo: desligar o computador, suspender e retomar, e o próprio programa reiniciando a conexão. Também chegaram a verificação ortográfica no campo de mensagem e as ações sobre links.
+
+### Novidades
+- Recuperação automática do perfil do navegador. A sua conexão com o WhatsApp fica guardada no perfil do navegador que o WinZapp usa por baixo, e quando esse perfil deixava de ser aceito só restava parear de novo. Agora o WinZapp guarda uma cópia de segurança dele, mantém também a cópia anterior, e restaura sozinho quando percebe que a conexão foi recusada — dizendo em voz alta que restaurou e que está reconectando. Ele nunca oferece de volta uma cópia que o WhatsApp já recusou, e quando não há nenhuma cópia aproveitável ele avisa claramente, em vez de deixar você offline sem explicação.
+- Verificação ortográfica no campo de mensagem. Em Configurações você escolhe entre seguir a configuração de ortografia do próprio Windows (padrão), sempre ativada ou sempre desativada. Há também um som próprio para erro de ortografia, que pode ser configurado junto com os demais sons.
+- Ações sobre links nas mensagens. Quando a mensagem tem links, o menu de contexto passa a oferecer Abrir link e Copiar link para o link que está em foco, e Ctrl+C copia esse link em vez da mensagem inteira.
+- Aviso quando o navegador interno está incompleto. Se o navegador que o WinZapp usa para conectar ao WhatsApp não conseguir iniciar — em geral porque um antivírus removeu parte dele — o programa diz isso com todas as letras e explica o que fazer, em vez de parecer que o problema é o WhatsApp.
+- Aviso de envio não confirmado. Quando o WhatsApp aceita uma mensagem mas não confirma a entrega, o WinZapp avisa para você conferir a conversa antes de reenviar, em vez de arriscar entregar a mesma mensagem duas vezes.
+
+### Melhorias
+- Iniciar junto com o Windows ficou muito mais rápido de conectar. O programa esperava a conexão só depois de já ter tentado usá-la, e passava um bom tempo mostrando "desconectado do WhatsApp" sem motivo. Agora ele espera tudo estar pronto antes de aparecer na bandeja.
+- A lista de mensagens não é mais reconstruída inteira a cada minuto. Só as linhas que realmente mudaram são reescritas, então o leitor de tela deixa de reler a mensagem em que você está e o som de seleção não toca mais sozinho.
+- Menos notificações de sincronização no seu celular. O WinZapp só pede histórico antigo ao telefone para conversas que você abriu, um pedido de cada vez, e para de pedir de vez quando a conversa já respondeu que não tem mais nada.
+- Conversas que a sincronização tinha parado de olhar voltam a ser verificadas sozinhas, sem depender de você atualizar com F5.
+- Em várias contas ao mesmo tempo, a atualização do WinZapp abre uma janela só, em vez de uma por conta.
+- Áudio: o WinZapp pergunta ao microfone qual é a taxa de amostragem dele antes de tentar as taxas fixas, e a saída de som se recupera sozinha quando o dispositivo padrão muda ou é desconectado.
+- Reações que chegaram enquanto a conversa estava fechada aparecem ao abri-la.
+- Quebras de linha na caixa de mensagem agora podem ser navegadas normalmente pelo leitor de tela.
+- Conexão com o WhatsApp atualizada (WPPConnect 2.10.21), incluindo correções de segurança, e o WinZapp percebe sozinho quando essa conexão ficou fora do padrão e precisa ser reinstalada.
+
+### Correções
+- Desligar o computador não quebra mais a sessão. O WinZapp fechava a conexão com o WhatsApp tarde demais no desligamento do Windows, quando o processo que a mantém já tinha sido encerrado — e o perfil voltava inutilizável, pedindo pareamento na próxima vez. Agora ele fecha tudo enquanto o Windows ainda está perguntando se pode desligar.
+- Suspender o computador não quebra mais a sessão. Ao retomar, o WinZapp reiniciava a conexão sem esperar o navegador terminar de gravar o que tinha em mãos, e isso bastava para perder o pareamento. Agora ele espera.
+- Responder a um status voltou a funcionar. A resposta falhava dizendo que não foi possível enviar.
+- Uma falha de envio ambígua não gera mais mensagens duplicadas: quando não dá para saber se o WhatsApp recebeu, o WinZapp não reenvia por conta própria.
+- Baixar documentos grandes voltou a ser possível. Arquivos de algumas centenas de megabytes anunciavam "baixando" e não produziam nada.
+- O indicador de progresso de envio e download agora mostra a transferência que realmente está acontecendo, e não continua girando numa mensagem que já terminou nem aparece na linha errada.
+- Cancelar ou fechar a tela de pareamento não apaga mais as suas conversas, e uma falha momentânea de autenticação ao abrir o programa também não. O histórico só é apagado quando outro número de telefone é realmente conectado — e nesse caso o WinZapp avisa.
+- O QR-code só é anunciado quando está realmente na tela. O WinZapp dizia "o QR-code foi atualizado" antes de qualquer código ter sido exibido, o que fazia parecer que o código só aparecia na segunda tentativa. Agora a tela de pareamento avisa que o código está sendo gerado, anuncia quando ele aparece de fato, e diz quando não foi possível gerá-lo ou quando o código de pareamento expirou — em vez de ficar em silêncio ou anunciar uma atualização que não houve.
+- Contagem de não lidas: conversas não voltam mais a aparecer como não lidas sem que tenha chegado mensagem nova.
+- O caractere fantasma que aparecia no campo de mensagem ao voltar de outro programa com o NVDA ligado não aparece mais.
+- Copiar uma mensagem de voz passou a funcionar.
+- Conversas que apareciam com o número em vez do nome agora são resolvidas.
+- Trocar de conta apaga corretamente as mídias da conta anterior, que antes podiam ficar para trás no computador.
+- Mensagens de lista de opções de empresas (aqueles menus de "escolha uma opção" que o WhatsApp Business envia) às vezes chegavam vazias, sem nenhuma opção para selecionar. O WinZapp agora busca o conteúdo direto do WhatsApp Web quando isso acontece — tanto ao receber a mensagem quanto ao navegar até ela pelo teclado — e volta a mostrar as opções normalmente, mesmo em mensagens que já tinham chegado vazias antes.
 
 ## v1.1.0.3 — mensagens trancadas e confirmação de leitura em tempo real
 
@@ -166,3 +269,8 @@ público de gabrielhhaber, antes de qualquer modificação nossa.
 - Função de "Reiniciar conexão do WhatsApp" pelo menu Arquivo: chegou a
   ser implementada, mas removida por falta de utilidade prática percebida
   no uso real.
+
+## v1.1.0.0 — base original (upstream, sem modificações)
+
+Ponto de partida: o WinZapp original, clonado direto do repositório
+público de gabrielhhaber, antes de qualquer modificação nossa.
