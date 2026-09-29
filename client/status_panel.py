@@ -1553,6 +1553,7 @@ class StatusPanel(wx.Panel):
             is_liked=self._viewer_status_is_liked,
             on_like=self._viewer_like_status,
             on_reply=self._viewer_reply_status,
+            on_describe=lambda item, path, done: self._viewer_describe_status(item, path, done, dlg),
         )
         try:
             dlg.ShowModal()
@@ -2175,30 +2176,34 @@ class StatusPanel(wx.Panel):
             return None
         return settings
 
-    def _on_describe_status_media(self, event):
-        """Sends the currently-viewed status's image/video to the first
-        configured AI provider — same ai_providers.describe_visual_media()
-        pipeline conversations.py's _on_menu_ai_process() uses for message
-        attachments. Statuses don't need decrypt_bytes()/_ensure_media_on_disk()
-        first: _download_status_media() already returns the raw bytes
-        straight from WhatsApp, unlike a saved local message attachment."""
-        status = self._current_status
-        if status is None:
-            return
+    def _run_status_ai_describe(self, parent, status, get_path_fn, on_button_toggle):
+        """Shared by both status Describe entry points — the classic inline
+        viewer's own _describe_ai_btn (_on_describe_status_media() below)
+        and the separate-player MediaViewerDialog (_viewer_describe_status()
+        below, wired through on_describe). Same
+        ai_providers.describe_visual_media() pipeline conversations.py's
+        _on_menu_ai_process() uses for message attachments.
+
+        get_path_fn() must return a local file path to the media, downloading
+        it first if the caller doesn't already have one on disk — the inline
+        viewer re-downloads (its own _download_status_media() call), the
+        MediaViewerDialog caller passes the path it already loaded to show
+        the status, so no second download happens there.
+        on_button_toggle(enabled: bool) re-enables whichever button (inline
+        or in the viewer dialog) triggered this, once done."""
         mw = self.main_window
         i18n = mw.i18n
         ai_settings = self._ai_accessibility_settings()
         if ai_settings is None:
             wx.MessageBox(
                 i18n.t("ai_not_configured_msg"), mw.app_name,
-                wx.OK | wx.ICON_INFORMATION, self,
+                wx.OK | wx.ICON_INFORMATION, parent,
             )
             return
         msg_type = status.get("messageType", "")
         is_video = msg_type == "videoMessage"
-        ext = ".mp4" if is_video else ".jpg"
 
-        self._describe_ai_btn.Disable()
+        on_button_toggle(False)
         mw.output(i18n.t("ai_processing_msg"))
 
         def _run():
@@ -2211,41 +2216,73 @@ class StatusPanel(wx.Panel):
             watchdog_thread = threading.Thread(target=_watchdog, daemon=True)
             watchdog_thread.start()
             try:
-                content = _download_status_media(mw, status)
-                tmp_dir = tempfile.mkdtemp(prefix="wz_status_ai_")
-                tmp_path = os.path.join(tmp_dir, f"status{ext}")
-                with open(tmp_path, "wb") as fh:
-                    fh.write(content)
-
+                tmp_path = get_path_fn()
                 result_text, used_provider = ai_providers.describe_visual_media(
                     tmp_path, ai_settings, is_video=is_video
                 )
                 title = i18n.t("ai_result_description_title")
-                # tmp_dir is only cleaned up by the OS, so tmp_path is still
-                # there for follow-up questions while the dialog stays open
-                # — same reasoning as conversations.py's own ask_fn.
+                # tmp_path is still there for follow-up questions while the
+                # result dialog stays open — same reasoning as
+                # conversations.py's own ask_fn.
                 ask_fn = lambda q, p=tmp_path, s=ai_settings, v=is_video, pv=used_provider: (
                     ai_providers.ask_about_visual_media(p, s, q, is_video=v, prefer=pv)[0]
                 )
 
                 def _show_result(text=result_text, dlg_title=title, fn=ask_fn):
-                    dlg = AIResultDialog(mw, dlg_title, text, ask_fn=fn)
+                    dlg = AIResultDialog(parent, dlg_title, text, ask_fn=fn)
                     dlg.ShowModal()
                     dlg.Destroy()
 
                 wx.CallAfter(_show_result)
             except AIProviderError as exc:
-                wx.CallAfter(wx.MessageBox, str(exc), mw.app_name, wx.OK | wx.ICON_ERROR, self)
+                wx.CallAfter(wx.MessageBox, str(exc), mw.app_name, wx.OK | wx.ICON_ERROR, parent)
             except Exception:
                 wx.CallAfter(
                     wx.MessageBox, i18n.t("ai_media_download_error_msg"),
-                    mw.app_name, wx.OK | wx.ICON_ERROR, self,
+                    mw.app_name, wx.OK | wx.ICON_ERROR, parent,
                 )
             finally:
                 stop_watchdog.set()
-                wx.CallAfter(self._describe_ai_btn.Enable)
+                wx.CallAfter(on_button_toggle, True)
 
         threading.Thread(target=_run, daemon=True).start()
+
+    def _on_describe_status_media(self, event):
+        status = self._current_status
+        if status is None:
+            return
+
+        def _get_path(st=status):
+            content = _download_status_media(self.main_window, st)
+            tmp_dir = tempfile.mkdtemp(prefix="wz_status_ai_")
+            ext = ".mp4" if st.get("messageType", "") == "videoMessage" else ".jpg"
+            tmp_path = os.path.join(tmp_dir, f"status{ext}")
+            with open(tmp_path, "wb") as fh:
+                fh.write(content)
+            return tmp_path
+
+        self._run_status_ai_describe(
+            self, status, _get_path,
+            lambda enabled: self._describe_ai_btn.Enable(enabled),
+        )
+
+    def _viewer_describe_status(self, item, path, done, dlg):
+        """on_describe callback for the separate-player MediaViewerDialog
+        (see _open_status_media_viewer()). *path* is already the media
+        MediaViewerDialog loaded to display it, so unlike the inline
+        viewer's own entry point above, no second download is needed."""
+        status = item.get("status")
+        if status is None:
+            done()
+            return
+        # media_viewer.py's own _on_describe() already disabled the button
+        # before invoking this callback, so only the final re-enable
+        # (enabled=True) needs to reach done() — an early call would
+        # re-enable it while the request is still running.
+        self._run_status_ai_describe(
+            dlg, status, lambda: path,
+            lambda enabled: done() if enabled else None,
+        )
 
     # ── Reply to the currently viewed status ─────────────────────────────────
 

@@ -111,7 +111,10 @@ class MediaViewerDialog(wx.Dialog):
       from_me / status_id (status context metadata)
 
     Optional callbacks make the same dialog status-aware without coupling it
-    to StatusPanel itself.
+    to StatusPanel itself. on_describe additionally powers the "Descrever"
+    (AI) button for image/video items, shown whenever it's provided —
+    used by StatusPanel so the button works the same whether Settings >
+    Interface > "Mostrar os status em player separado" is on or off.
     """
 
     SPEEDS = (1.0, 1.5, 2.0)
@@ -129,6 +132,7 @@ class MediaViewerDialog(wx.Dialog):
         is_liked: Optional[Callable[[dict], bool]] = None,
         on_like: Optional[Callable[[dict, Callable[[bool], None]], None]] = None,
         on_reply: Optional[Callable[[dict, str, Callable[[bool], None]], None]] = None,
+        on_describe: Optional[Callable[[dict, str, Callable[[], None]], None]] = None,
     ):
         self.main_window = main_window
         self.i18n = main_window.i18n
@@ -138,6 +142,13 @@ class MediaViewerDialog(wx.Dialog):
         self._is_liked_cb = is_liked
         self._on_like_cb = on_like
         self._on_reply_cb = on_reply
+        # Generic AI "Descrever" hook — same idea as on_like/on_reply: keeps
+        # this dialog decoupled from ai_providers/StatusPanel. Called as
+        # on_describe(item, local_path, done) where local_path is whatever
+        # is already loaded on disk for the current item (this dialog
+        # already downloads media to show it, so callers don't need to
+        # download it again) and done() re-enables the button when finished.
+        self._on_describe_cb = on_describe
 
         super().__init__(
             parent,
@@ -311,6 +322,9 @@ class MediaViewerDialog(wx.Dialog):
         self._next_btn.Bind(wx.EVT_BUTTON, self._on_next)
         bottom.Add(self._next_btn, 0, wx.RIGHT, 8)
         bottom.AddStretchSpacer(1)
+        self._describe_btn = wx.Button(self, label=self.i18n.t("ai_describe_image_menu"))
+        self._describe_btn.Bind(wx.EVT_BUTTON, self._on_describe)
+        bottom.Add(self._describe_btn, 0, wx.RIGHT, 8)
         self._save_btn = wx.Button(self, label=self.i18n.t("save_as"))
         self._save_btn.SetAccessible(AccessibleSaveAs())
         self._save_btn.Bind(wx.EVT_BUTTON, self._on_save)
@@ -414,6 +428,7 @@ class MediaViewerDialog(wx.Dialog):
             self._loading_label.Hide()
             self._transport_panel.Hide()
             self._save_btn.Hide()
+            self._describe_btn.Hide()
             self._text_ctrl.Show()
             self._text_ctrl.SetValue(str(item.get("text") or ""))
             self.Layout()
@@ -425,6 +440,9 @@ class MediaViewerDialog(wx.Dialog):
         self._transport_panel.Hide()
         self._bitmap_panel.Show()
         self._save_btn.Show()
+        self._describe_btn.Show(
+            self._current_kind in ("image", "video") and self._on_describe_cb is not None
+        )
 
         path = item.get("local_path") or self._loaded_paths.get(self.index)
         if path and os.path.isfile(path):
@@ -756,6 +774,22 @@ class MediaViewerDialog(wx.Dialog):
             shutil.copyfile(path, target)
         except Exception as exc:
             wx.MessageBox(str(exc), self.main_window.app_name, wx.OK | wx.ICON_ERROR)
+
+    def _on_describe(self, event):
+        if self._on_describe_cb is None:
+            return
+        item = self._current_item()
+        path = self._current_path or self._loaded_paths.get(self.index, "")
+        if not path or not os.path.isfile(path):
+            return
+        self._describe_btn.Disable()
+
+        def _done():
+            if getattr(self, "_cleaned_up", False) or not bool(self):
+                return
+            wx.CallAfter(self._describe_btn.Enable)
+
+        self._on_describe_cb(item, path, _done)
 
     def _on_char_hook(self, event):
         key = event.GetKeyCode()
