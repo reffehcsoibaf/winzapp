@@ -1,3 +1,11 @@
+V1.1.5.2
+
+Ta wersja odkłada automatyczne sprawdzanie aktualizacji do czasu, aż WinZapp będzie już chwilę działać.
+
+ULEPSZENIA
+
+- Automatyczne sprawdzanie aktualizacji (pole „Automatycznie sprawdzaj aktualizacje") nie uruchamia się już zaraz po otwarciu WinZapp. Czeka 10 minut, żeby nie nakładać się na łączenie i synchronizację. Jeśli parowanie lub synchronizacja nadal trwają, odkłada sprawdzanie jeszcze na chwilę. „Sprawdź aktualizacje" w menu Pomoc nadal działa od razu.
+
 V1.1.5.1
 
 Ta wersja naprawia przycisk Opisz (AI) w statusach otwieranych w osobnym odtwarzaczu.

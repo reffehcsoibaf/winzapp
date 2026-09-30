@@ -1,3 +1,11 @@
+V1.1.5.2
+
+Esta versión aplaza la búsqueda automática de actualizaciones hasta que WinZapp lleve un rato funcionando.
+
+MEJORAS
+
+- La búsqueda automática de actualizaciones (casilla "Buscar actualizaciones automáticamente") ya no se ejecuta nada más abrir WinZapp. Espera 10 minutos, para no coincidir con la conexión y la sincronización. Si aún hay emparejamiento o sincronización en curso, la aplaza un poco más. "Buscar actualizaciones" en el menú Ayuda sigue siendo inmediato.
+
 V1.1.5.1
 
 Esta versión corrige el botón Describir (IA) de los estados cuando se abren en el reproductor separado.

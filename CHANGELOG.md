@@ -4,6 +4,11 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
+## v1.1.5.2 — Busca automática de atualizações com atraso
+
+### Melhorias
+- A busca automática de atualizações (Configurações > Geral > "Verificar atualizações automaticamente") não roda mais logo ao abrir o WinZapp: espera 10 minutos (a da WPPConnect, 11), para não coincidir com a conexão/sincronização, quando uma atualização ou reinício poderia corromper a sessão. Se ainda houver pareamento ou sincronização em andamento na hora, adia de 5 em 5 minutos (até 3 vezes). Com a caixa desmarcada continua sem buscar nada; "Buscar atualizações" no menu Ajuda continua imediato. Implementado em `MainWindow._startup_update_check` (`main.py`).
+
 ## v1.1.5.1 — Descrever (IA) nos status também com o player separado
 
 ### Correções

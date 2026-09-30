@@ -1,3 +1,11 @@
+V1.1.5.2
+
+This release postpones the automatic update check until WinZapp has been running for a while.
+
+IMPROVEMENTS
+
+- The automatic update check ("Automatically check for updates" box) no longer runs right when WinZapp opens. It now waits 10 minutes, so it doesn't overlap with connecting and syncing. If pairing or syncing is still in progress, it postpones a little longer. "Check for updates" in the Help menu is still immediate.
+
 V1.1.5.1
 
 This release fixes the Describe (AI) button on statuses opened in the separate player.
