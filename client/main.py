@@ -1714,6 +1714,21 @@ def unexpired_group_send_verdict(stored, now, max_age_seconds):
     return stored
 
 
+# Atraso da busca automática de atualizações (caixa "Verificar atualizações
+# automaticamente"). Ao abrir, o WinZapp está conectando/sincronizando, e uma
+# atualização aceita nesse momento (ou o reinício da WPPConnect) pode
+# corromper a sessão. A busca só começa depois que ele já está rodando há um
+# tempo; a da WPPConnect vem 1 minuto depois para os dois avisos não
+# aparecerem juntos.
+_UPDATE_CHECK_STARTUP_DELAY_MS = 10 * 60 * 1000
+_WPP_UPDATE_CHECK_STARTUP_DELAY_MS = 11 * 60 * 1000
+# Se, na hora, ainda houver pareamento ou sincronização em andamento, adia de
+# novo — no máximo _UPDATE_CHECK_MAX_DEFERS vezes, para que uma sincronização
+# travada não impeça a busca para sempre.
+_UPDATE_CHECK_DEFER_MS = 5 * 60 * 1000
+_UPDATE_CHECK_MAX_DEFERS = 3
+
+
 class MainWindow(wx.Frame):
     def __init__(self, account_id=None, account_name=None, startup_source="user",
                  resume_pending=False, registry=None, global_dir=None):
@@ -1889,15 +1904,20 @@ class MainWindow(wx.Frame):
         # Schedule the update checker on the event loop early (but after i18n
         # is initialized) so it can run even if modal dialogs block __init__.
         if not self.background_mode:
-            wx.CallLater(15000, self._start_update_checker)
-            # Separate, independent check for the WPPConnect Server itself —
-            # it breaks between WinZapp releases too, and until now the only
-            # fix was a user manually wiping client/api/ and node_modules.
-            # Given a much longer delay: unlike the WinZapp checker (which
-            # only shows a dialog), accepting this one stops and restarts the
-            # live API session, so it must never fire while pairing/the
-            # initial sync is still settling in.
-            wx.CallLater(90000, self._start_wpp_update_checker)
+            # Both checks start well after launch (see the constants above
+            # MainWindow): at startup WinZapp is connecting and syncing, and
+            # an update prompt/restart landing on top of that can corrupt
+            # the session. The refs are kept so the timers can't be collected
+            # while they wait. The setting is read again when they fire.
+            self._startup_update_timers = [
+                wx.CallLater(_UPDATE_CHECK_STARTUP_DELAY_MS,
+                             self._startup_update_check),
+                # Separate, independent check for the WPPConnect Server
+                # itself — it breaks between WinZapp releases too. Accepting
+                # it stops and restarts the live API session.
+                wx.CallLater(_WPP_UPDATE_CHECK_STARTUP_DELAY_MS,
+                             self._startup_update_check, True),
+            ]
 
         # Terms of service – show once before anything else happens
         if not self.background_mode:
@@ -5177,6 +5197,49 @@ class MainWindow(wx.Frame):
         self._update_checker.force_reinstall()
 
     # ── Auto-updater ──────────────────────────────────────────────────────────
+
+    def _update_check_should_wait(self) -> bool:
+        """True while the session is still busy — pairing (or unknown state),
+        or connected with the first/initial sync not finished yet."""
+        if not self.wpp_update_may_run_now():
+            return True
+        if getattr(self, "offline_mode", False):
+            return False
+        return bool(getattr(self, "_wa_connected", False)) and not getattr(
+            self, "_sync_completed", False
+        )
+
+    def _startup_update_check(self, wpp: bool = False, _attempt: int = 0):
+        """First automatic update check, run a while after launch.
+
+        Does nothing when "Verificar atualizações automaticamente" is off
+        (read now, not at launch, so unticking it in the meantime is
+        honoured). Postpones itself while pairing/syncing is in progress, up
+        to _UPDATE_CHECK_MAX_DEFERS times. The manual menu items don't come
+        through here and are never delayed.
+        """
+        if self.background_mode:
+            return
+        if not self.settings.get("general", {}).get("updates_enabled", True):
+            return
+        if _attempt < _UPDATE_CHECK_MAX_DEFERS and self._update_check_should_wait():
+            logging.info(
+                "[update] Session still pairing/syncing — postponing the %s "
+                "update check by %d minutes (attempt %d/%d).",
+                "WPPConnect" if wpp else "WinZapp",
+                _UPDATE_CHECK_DEFER_MS // 60000,
+                _attempt + 1,
+                _UPDATE_CHECK_MAX_DEFERS,
+            )
+            self._startup_update_timers.append(
+                wx.CallLater(_UPDATE_CHECK_DEFER_MS, self._startup_update_check,
+                             wpp, _attempt + 1)
+            )
+            return
+        if wpp:
+            self._start_wpp_update_checker()
+        else:
+            self._start_update_checker()
 
     def _start_update_checker(self, force: bool = False):
         updates_enabled = self.settings.get("general", {}).get("updates_enabled", True)

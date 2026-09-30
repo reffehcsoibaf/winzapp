@@ -1,3 +1,11 @@
+V1.1.5.2
+
+Esta versão adia a busca automática de atualizações para depois que o WinZapp já está rodando.
+
+MELHORIAS
+
+- A busca automática de atualizações (caixa "Verificar atualizações automaticamente") não roda mais logo ao abrir o WinZapp. Ela espera 10 minutos, para não coincidir com a conexão e a sincronização. Se ainda houver pareamento ou sincronização em andamento, adia mais um pouco. "Buscar atualizações" no menu Ajuda continua imediato.
+
 V1.1.5.1
 
 Esta versão corrige o botão Descrever (IA) dos status quando eles abrem em player separado.

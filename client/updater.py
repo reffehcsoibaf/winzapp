@@ -2,7 +2,8 @@
 Auto-updater for WinZapp.
 
 Flow:
-  1. UpdateChecker runs in a background thread at startup (if updates_enabled).
+  1. UpdateChecker runs in a background thread ~10 minutes after startup (if
+     updates_enabled; see MainWindow._startup_update_check for why it waits).
   2. If a newer version is found, show UpdateDialog on the main thread.
   3. User clicks "Sim" -> UpdateProgressDialog downloads the ZIP then installs.
   4. User clicks "Nao" -> retry in 3 hours.
