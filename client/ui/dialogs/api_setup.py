@@ -191,7 +191,15 @@ _PATCHED_DEPENDENCY_KEYS = [
 # api/.gitignore) and nothing writes to it any more — it is empty on a
 # current install — but dropping it here would delete whatever an old
 # install still has in it.
-_KEEP_RUNTIME = {"tokens", "wppconnect_tokens", "userDataDir", "wppconnect.log"}
+#
+# ".cache" is the Puppeteer browser cache (PUPPETEER_CACHE_DIR, see _run_setup).
+# It is kept so a WPPConnect update does not download the whole browser again
+# just to find the same version: `puppeteer browsers install` skips the
+# download while the right version directory exists. An incomplete build is
+# removed before that step and older builds are pruned after it
+# (core/browser_cache_keep.py), so keeping it can neither pin a broken browser
+# nor grow the folder by one browser per update.
+_KEEP_RUNTIME = {"tokens", "wppconnect_tokens", "userDataDir", "wppconnect.log", ".cache"}
 
 # WinZapp's patches on top of upstream wppconnect-server — same list as
 # setup_api.py's custom_files and build.py's API_CUSTOM_SRC_FILES. Unlike
@@ -1113,6 +1121,11 @@ class ApiSetupDialog(wx.Dialog):
                 "chrome" if sys.platform == "win32" else "chrome-headless-shell"
             )
             self._set_stage(self._i18n.t("api_setup_downloading_chrome"), *stages["chrome"])
+            # The browser cache survives updates (see _KEEP_RUNTIME), so drop
+            # any build that cannot start first: puppeteer skips its download
+            # whenever the version directory exists, damaged or not.
+            from core.browser_cache_keep import prune_older, remove_incomplete
+            remove_incomplete(puppeteer_cache, browser_product)
             ok, err = self._run_subprocess(
                 npm_cmd + ["exec", "puppeteer", "browsers", "install", browser_product],
                 cwd=api_dir,
@@ -1121,6 +1134,10 @@ class ApiSetupDialog(wx.Dialog):
             # Do not fail hard if this step fails (e.g. offline setup where Chrome was pre-copied)
             if not ok:
                 logging.warning(f"Failed to install Chrome browser via Puppeteer CLI: {err}")
+            else:
+                # Only the newest complete build stays, so the kept cache does
+                # not collect one browser per update.
+                prune_older(puppeteer_cache, browser_product)
 
             if self._cancelled:
                 return
