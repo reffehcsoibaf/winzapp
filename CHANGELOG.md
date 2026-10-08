@@ -4,6 +4,14 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
+## Não lançado — Atualização do WPPConnect mais rápida e sem pedir de novo
+
+### Melhorias
+- A atualização do servidor WPPConnect (e o "Forçar reinstalação") deixa de baixar o Chrome inteiro toda vez: a pasta `api/.cache`, onde o navegador fica, agora sobrevive à limpeza que a atualização faz (`_KEEP_RUNTIME` em `ui/dialogs/api_setup.py`), e o passo `puppeteer browsers install` encontra a versão já instalada e pula o download (se a versão nova precisar de outro Chrome, baixa só esse). Para isso ser seguro: antes do passo, qualquer build incompleto (sem `icudtl.dat`, sem executável) é removido, porque o puppeteer pula o download sempre que a pasta da versão existe, mesmo danificada; depois dele, só o build completo mais novo de cada plataforma fica, para a pasta não acumular um navegador por atualização. Lógica em `core/browser_cache_keep.py`.
+
+### Correções
+- Depois de atualizar o servidor WPPConnect e, em seguida, atualizar o próprio WinZapp, o app voltava a oferecer a mesma atualização do WPPConnect. O ZIP da versão traz o `api/package.json` do servidor embutido e o instalador (xcopy) o gravava por cima do instalado, trazendo de volta o número de versão antigo. Agora, antes de gravar o script do instalador, se o `package.json` instalado for estritamente mais novo que o do ZIP, o do ZIP é substituído por uma mescla: parte do instalado (que combina com o `node_modules` que já está no disco), mantém as dependências fixadas pelo WinZapp (`_PATCHED_DEPENDENCY_KEYS`, para a checagem de divergência da biblioteca continuar valendo) e acrescenta qualquer dependência nova do ZIP. O `dist/` continua vindo do ZIP, porque é por ele que as correções próprias do WinZapp chegam. Lógica em `core/update_keeps_server.py`, chamada de `updater._run_batch_installer`.
+
 ## v1.1.5.2 — Busca automática de atualizações com atraso
 
 ### Melhorias
