@@ -1817,17 +1817,7 @@ class SettingsDialog(wx.Dialog):
         # see the tab's build-time comment); only the checkbox reflects a
         # stored value.
         priv_settings = self.main_window.settings.get("privacy", {})
-        self._privacy_current_code_field.SetValue("")
-        # Only ask for the current code when one is actually configured —
-        # first-time setup has nothing to prove yet. Re-evaluated every time
-        # the dialog opens (not just once at construction) since a code can
-        # be set, or cleared by a re-pair, while the dialog is closed.
-        _code_exists = self.main_window.has_locked_chats_code_configured()
-        self._privacy_current_code_label.Show(_code_exists)
-        self._privacy_current_code_field.Show(_code_exists)
-        self._privacy_page.Layout()
-        self._privacy_new_code_field.SetValue("")
-        self._privacy_confirm_code_field.SetValue("")
+        self._reset_locked_chats_code_fields()
         self._privacy_require_code_check.SetValue(
             priv_settings.get("locked_chats_require_code_to_open", True)
         )
@@ -2814,6 +2804,36 @@ class SettingsDialog(wx.Dialog):
         for idx, key in enumerate(GROUP_MEDIA_TYPES):
             self._group_media_types_list.CheckItem(idx, key in saved)
 
+    def _reset_locked_chats_code_fields(self):
+        """Blank the three locked-chats code fields and show the "current
+        code" one only when a code is actually configured.
+
+        The fields are write-only (never prefilled). Used when the dialog
+        loads its values AND right after a new code is stored, because
+        _apply_values() can run twice in a row for one edit (the sub-dialog's
+        OK applies, then the main OK/Apply applies again) and the second
+        validation must not see the code that was just saved as a new one
+        typed over an existing code. Only shown when a code exists — first-time
+        setup has nothing to prove yet; re-evaluated on every call since a code
+        can be set, or cleared by a re-pair, while the dialog is closed.
+
+        Does not mark the dialog as having pending changes: emptying the
+        fields fires EVT_TEXT, which would otherwise bring the Apply button
+        back right after applying.
+        """
+        _was_loading = self._loading_values
+        self._loading_values = True
+        try:
+            self._privacy_current_code_field.SetValue("")
+            _code_exists = self.main_window.has_locked_chats_code_configured()
+            self._privacy_current_code_label.Show(_code_exists)
+            self._privacy_current_code_field.Show(_code_exists)
+            self._privacy_page.Layout()
+            self._privacy_new_code_field.SetValue("")
+            self._privacy_confirm_code_field.SetValue("")
+        finally:
+            self._loading_values = _was_loading
+
     def _apply_values(self) -> bool:
         """Validate, save, and apply all settings. Returns True on success."""
         if not self._validate():
@@ -3178,6 +3198,15 @@ class SettingsDialog(wx.Dialog):
             _salt = chat_lock.generate_salt()
             _priv["locked_chats_code_salt"] = _salt
             _priv["locked_chats_code_hash"] = chat_lock.hash_code(_new_code, _salt)
+            # The code is stored now, so the code fields must go back to the
+            # state a freshly opened dialog has. Closing the "Locked chats"
+            # sub-dialog with OK already applies the settings (see
+            # _add_subsection_button), and pressing OK/Apply again validates
+            # them a second time: with the new/confirm fields still filled in
+            # and a code now configured, that second pass demanded the
+            # "current code" (empty, or the old one) and reported it as
+            # incorrect even though the code had just been saved.
+            self._reset_locked_chats_code_fields()
         _priv["locked_chats_require_code_to_open"] = self._privacy_require_code_check.GetValue()
 
         # Persist and propagate
