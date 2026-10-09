@@ -1,11 +1,11 @@
-V2026.10.8.0
+V2026.10.9.0
 
 Ta wersja zmienia nazwę programu na TeleZapp, wprowadza numerowanie wersji według daty (rok.miesiąc.dzień) i przyspiesza aktualizację WPPConnect.
 
 NOWOŚCI
 
 - WinZapp nazywa się teraz TeleZapp, aby odróżnić go od oryginalnego projektu, z którego nadal czerpiemy dobre pomysły (i do którego także wnosimy ulepszenia). Aktualizacja trafia do Ciebie zwykłym aktualizatorem: kto używa WinZapp, dostaje TeleZapp bez ręcznego pobierania, a jego konta, rozmowy i ustawienia pozostają bez zmian.
-- Wersje są teraz numerowane według daty, w formacie rok.miesiąc.dzień. To jest wersja 2026.10.8.0 (ostatnia liczba zmienia się tylko wtedy, gdy tego samego dnia jest więcej niż jedna wersja).
+- Wersje są teraz numerowane według daty, w formacie rok.miesiąc.dzień. To jest wersja 2026.10.9.0 (ostatnia liczba zmienia się tylko wtedy, gdy tego samego dnia jest więcej niż jedna wersja).
 
 ULEPSZENIA
 

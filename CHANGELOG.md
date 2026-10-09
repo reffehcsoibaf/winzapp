@@ -4,7 +4,7 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
-## v2026.10.8.0 — TeleZapp: novo nome, versão por data e atualização do WPPConnect mais rápida
+## v2026.10.9.0 — TeleZapp: novo nome, versão por data e atualização do WPPConnect mais rápida
 
 ### Novidades
 - O projeto passa a se chamar **TeleZapp** (fork do WinZapp, de Gabriel Haberkamp, que segue sendo creditado em Sobre e no README). Só muda o que a pessoa vê e ouve: títulos de janela, bandeja, notificações, mensagens, guia de uso, changelogs, README e propriedades do `.exe` (Nome do produto, Descrição, Empresa). `client/branding.py` guarda o nome em um lugar só e continua reconhecendo "WinZapp" onde o nome é comparado (conta salva com esse nome, janela de uma cópia que ainda não atualizou).
