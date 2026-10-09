@@ -4,7 +4,14 @@ Registro das modificações feitas sobre o WinZapp original
 (gabrielhhaber/WinZapp_Python), a partir da versão em que começamos a
 mexer no projeto.
 
-## Não lançado — Atualização do WPPConnect mais rápida e sem pedir de novo
+## v2026.10.8.0 — TeleZapp: novo nome, versão por data e atualização do WPPConnect mais rápida
+
+### Novidades
+- O projeto passa a se chamar **TeleZapp** (fork do WinZapp, de Gabriel Haberkamp, que segue sendo creditado em Sobre e no README). Só muda o que a pessoa vê e ouve: títulos de janela, bandeja, notificações, mensagens, guia de uso, changelogs, README e propriedades do `.exe` (Nome do produto, Descrição, Empresa). `client/branding.py` guarda o nome em um lugar só e continua reconhecendo "WinZapp" onde o nome é comparado (conta salva com esse nome, janela de uma cópia que ainda não atualizou).
+- Os **nomes técnicos ficam como estavam nesta versão**, de propósito, para quem está na 1.1.5.2 receber a atualização pelo atualizador de sempre: o executável `WinZapp.exe` e o `WinZapp.zip` (o atualizador antigo reabre o programa pelo nome do executável e procura o ZIP por esse nome), a linha `# winzapp-version:` do `SHA256SUMS.txt` (o atualizador antigo exige), a chave AppUserModelID, o valor de início automático, os nomes de mutex/IPC, a pasta de dados e o instalador. A troca desses nomes fica para uma versão seguinte, com migração.
+- As versões passam a ser numeradas por data, `ano.mês.dia.N` (o último número só sobe se houver mais de uma versão no mesmo dia). O formato de quatro números é mantido porque o atualizador das versões já instaladas só entende quatro números; 2026 é maior que 1, então a ordem continua correta. A numeração antiga (até 1.1.5.2) não é alterada.
+
+### Melhorias e correções (WPPConnect)
 
 ### Melhorias
 - A atualização do servidor WPPConnect (e o "Forçar reinstalação") deixa de baixar o Chrome inteiro toda vez: a pasta `api/.cache`, onde o navegador fica, agora sobrevive à limpeza que a atualização faz (`_KEEP_RUNTIME` em `ui/dialogs/api_setup.py`), e o passo `puppeteer browsers install` encontra a versão já instalada e pula o download (se a versão nova precisar de outro Chrome, baixa só esse). Para isso ser seguro: antes do passo, qualquer build incompleto (sem `icudtl.dat`, sem executável) é removido, porque o puppeteer pula o download sempre que a pasta da versão existe, mesmo danificada; depois dele, só o build completo mais novo de cada plataforma fica, para a pasta não acumular um navegador por atualização. Lógica em `core/browser_cache_keep.py`.

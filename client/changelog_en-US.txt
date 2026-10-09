@@ -1,3 +1,20 @@
+V2026.10.8.0
+
+This release renames the program to TeleZapp, switches version numbers to dates (year.month.day) and makes the WPPConnect update faster.
+
+WHAT'S NEW
+
+- WinZapp is now called TeleZapp, to set it apart from the original project, whose good ideas we keep picking up (and to which we also contribute improvements). The update arrives through the usual updater: if you already use WinZapp you get TeleZapp without downloading anything by hand, and your accounts, conversations and settings stay exactly as they are.
+- Versions are now numbered by date, in the year.month.day format. This is version 2026.10.8.0 (the last number only changes when there is more than one release on the same day).
+
+IMPROVEMENTS
+
+- Updating WPPConnect is faster: the internal browser (Chrome) that was already downloaded is now kept between updates instead of being downloaded in full every time. If the existing browser is incomplete it is discarded and downloaded again, and old versions are removed after the update so they don't take up space.
+
+FIXES
+
+- After updating WPPConnect and then updating the program itself, WPPConnect would offer the same update again. Updating the program now keeps the WPPConnect server version you already had when it is newer than the one bundled with the program.
+
 V1.1.5.2
 
 This release postpones the automatic update check until WinZapp has been running for a while.

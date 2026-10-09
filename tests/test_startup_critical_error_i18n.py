@@ -46,7 +46,7 @@ def test_falls_back_to_hardcoded_portuguese_when_no_partial_frame(monkeypatch):
 
     title, message = main._startup_critical_error_text("C:\\crash.log", "traceback text")
 
-    assert title == "WinZapp — Erro de inicialização"
+    assert title == "TeleZapp — Erro de inicialização"
     assert "C:\\crash.log" in message
     assert "traceback text" in message
 
@@ -57,7 +57,7 @@ def test_falls_back_when_the_partial_frame_has_no_i18n_yet(monkeypatch):
 
     title, message = main._startup_critical_error_text("C:\\crash.log", "tb")
 
-    assert title == "WinZapp — Erro de inicialização"
+    assert title == "TeleZapp — Erro de inicialização"
 
 
 def test_falls_back_when_translation_itself_raises(monkeypatch):
@@ -67,7 +67,7 @@ def test_falls_back_when_translation_itself_raises(monkeypatch):
 
     title, message = main._startup_critical_error_text("C:\\crash.log", "tb")
 
-    assert title == "WinZapp — Erro de inicialização"
+    assert title == "TeleZapp — Erro de inicialização"
     assert "C:\\crash.log" in message
 
 

@@ -13,6 +13,7 @@ import os
 import sys
 import hashlib
 from app_paths import data_path
+from branding import is_app_window_title
 
 _AUTORUN_KEY  = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
 _AUTORUN_NAME = "WinZapp"
@@ -112,7 +113,8 @@ def acquire_single_instance_mutex() -> bool:
 
 def activate_existing_window() -> None:
     """
-    Enumerate top-level windows, find one whose title starts with "WinZapp",
+    Enumerate top-level windows, find one whose title starts with the app name (TeleZapp, or WinZapp for
+    a copy that has not updated yet),
     restore it (in case it is hidden or minimised), and bring it to the
     foreground.  Safe to call even if no matching window is found.
     """
@@ -125,7 +127,7 @@ def activate_existing_window() -> None:
     def _enum_proc(hwnd, lparam):
         buf = ctypes.create_unicode_buffer(256)
         ctypes.windll.user32.GetWindowTextW(hwnd, buf, 256)
-        if buf.value.startswith("WinZapp"):
+        if is_app_window_title(buf.value):
             found[0] = hwnd
             return False   # stop enumeration
         return True        # keep going
