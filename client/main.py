@@ -28520,7 +28520,7 @@ class MainWindow(wx.Frame):
         try:
             r = api_post(url, json={}, headers=headers, timeout=15)
             if r.status_code not in (200, 201):
-                logging.warning("[fetch_privacy_settings] HTTP %s", r.status_code)
+                logging.warning("[fetch_privacy_settings] HTTP %s: %s", r.status_code, (r.text or "")[:300])
                 return None
             body = r.json()
             return body.get("response") if isinstance(body, dict) else None
