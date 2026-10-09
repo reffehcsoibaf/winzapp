@@ -12,6 +12,7 @@ import wx
 import wx.adv
 from core.i18n import I18n
 from app_paths import resource_path
+from branding import APP_NAME, is_default_account_name
 
 _ID_OPEN    = wx.NewIdRef(count=1)
 _ID_OFFLINE = wx.NewIdRef(count=1)
@@ -146,11 +147,11 @@ class TrayIcon(wx.adv.TaskBarIcon):
         # tray tooltip make clear WHICH account this icon is (plan Zad 4.4).
         # With a single connected account the name is redundant (nothing to
         # distinguish), so it is only shown when more than one account is paired.
-        app_label = "WinZapp"
+        app_label = APP_NAME
         if getattr(mw, "_is_multi_account", lambda: False)():
-            app_label = getattr(mw, "account_name", None) or "WinZapp"
-        if app_label != "WinZapp":
-            app_label = f"WinZapp — {app_label}"
+            app_label = getattr(mw, "account_name", None) or APP_NAME
+        if not is_default_account_name(app_label):
+            app_label = f"{APP_NAME} — {app_label}"
         parts  = [app_label]
         if getattr(self.main_window, "offline_mode", False):
             parts.append(i18n.t("tray_offline_mode"))

@@ -6,6 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 WinZapp is a free, self-hosted Windows desktop WhatsApp client built specifically for **accessibility** (blind/low-vision users via NVDA/JAWS/Narrator through `accessible_output2`). It's a hybrid app: a Python 3.13 + wxPython GUI process drives a locally-run **WPPConnect Server** (Node.js, cloned/built from the upstream `wppconnect-team/wppconnect-server` repo) that acts as the actual WhatsApp Web gateway. The two processes talk over local HTTP REST (`http://127.0.0.1:6300/api/...`) and Socket.IO (real-time events).
 
+## Nome (TeleZapp) e versões
+
+O projeto se chama **TeleZapp** (fork do WinZapp). O nome que a pessoa vê vem de `client/branding.py` (`APP_NAME`); `LEGACY_APP_NAME` ("WinZapp") continua reconhecido onde o nome é comparado. Versões: `ano.mês.dia.N` (quatro números, o último só sobe se houver mais de uma no mesmo dia) — o atualizador das cópias já instaladas só entende quatro números e 2026 > 1, então a ordem se mantém.
+
+**Nomes técnicos que continuam "WinZapp" até uma versão de migração**, porque cópias já instaladas dependem deles (travados por `tests/test_telezapp_transition.py`): `WinZapp.exe` e `WinZapp.zip` (o atualizador antigo reabre o programa pelo nome do executável e procura o ZIP por esse nome), a linha `# winzapp-version:` do `SHA256SUMS.txt`, `_AUTORUN_NAME` e o AppUserModelID/`APP_ID` (renomear orfanaria configurações e permitiria duas instâncias), nomes de mutex/IPC, a pasta de dados e o instalador. Ao mexer em qualquer um deles, a mudança precisa de migração e de um plano para quem está numa versão anterior.
+
 ## Commands
 
 ### Dev setup

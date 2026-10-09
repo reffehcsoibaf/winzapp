@@ -41,6 +41,7 @@ import time
 import uuid
 import wx
 from app_paths import _is_frozen
+from branding import APP_NAME, is_default_account_name
 from core.i18n import I18n
 from core.message_queue import PendingMessage
 from core.utils import looks_like_binary_blob, link_preview_text, is_voice_message
@@ -499,7 +500,7 @@ def format_notification_title(msg: dict, main_window, i18n) -> str:
     # name must not leak into the toast title either, or hiding the message
     # text alone would still announce exactly who wrote to you.
     if remote_jid and main_window.is_chat_locked(remote_jid):
-        return i18n.t("locked_chat_notif_title") or "WinZapp"
+        return i18n.t("locked_chat_notif_title") or APP_NAME
 
     if remote_jid.endswith("@g.us"):
         chat = main_window.chats.get(remote_jid) or {"remoteJid": remote_jid}
@@ -562,7 +563,7 @@ def format_notification_title(msg: dict, main_window, i18n) -> str:
     # account_name == "WinZapp" (or unset) → no prefix. With a single connected
     # account the name is redundant → no prefix either.
     acc_name = getattr(main_window, "account_name", None)
-    if (acc_name and acc_name != "WinZapp"
+    if (acc_name and not is_default_account_name(acc_name)
             and getattr(main_window, "_is_multi_account", lambda: False)()):
         title = f"[{acc_name}] {title}"
     return title
@@ -784,7 +785,7 @@ class NotificationManager:
             key_path = r"SOFTWARE\Classes\AppUserModelId\WinZapp"
             with winreg.CreateKeyEx(winreg.HKEY_CURRENT_USER, key_path,
                                     0, winreg.KEY_WRITE) as key:
-                winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, "WinZapp")
+                winreg.SetValueEx(key, "DisplayName", 0, winreg.REG_SZ, APP_NAME)
                 if _is_frozen():
                     exe = sys.argv[0] if sys.argv and sys.argv[0] else sys.executable
                     winreg.SetValueEx(key, "IconUri", 0, winreg.REG_SZ,

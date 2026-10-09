@@ -1,3 +1,20 @@
+V2026.10.9.0
+
+Esta versión cambia el nombre del programa a TeleZapp, numera las versiones por fecha (año.mes.día) y hace más rápida la actualización de WPPConnect.
+
+NOVEDADES
+
+- WinZapp pasa a llamarse TeleZapp, para diferenciarse del proyecto original, del que seguimos aprovechando buenas ideas (y al que también aportamos mejoras). La actualización llega por el actualizador de siempre: quien ya usa WinZapp recibe TeleZapp sin descargar nada a mano, y sus cuentas, conversaciones y ajustes se quedan como están.
+- Las versiones pasan a numerarse por fecha, con el formato año.mes.día. Esta es la versión 2026.10.9.0 (el último número solo cambia si hay más de una versión el mismo día).
+
+MEJORAS
+
+- Actualizar WPPConnect es más rápido: el navegador interno (Chrome) que ya estaba descargado se conserva entre actualizaciones, en lugar de descargarse entero cada vez. Si el navegador existente está incompleto, se descarta y se descarga de nuevo, y las versiones antiguas se borran después de la actualización para que no ocupen espacio.
+
+CORRECCIONES
+
+- Después de actualizar WPPConnect y luego el propio programa, WPPConnect volvía a ofrecer la misma actualización. Ahora la actualización del programa conserva la versión del servidor WPPConnect que ya tenías, cuando es más nueva que la que viene con el programa.
+
 V1.1.5.2
 
 Esta versión aplaza la búsqueda automática de actualizaciones hasta que WinZapp lleve un rato funcionando.

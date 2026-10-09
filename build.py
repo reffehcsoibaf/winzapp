@@ -550,13 +550,13 @@ def _write_version_file(work_dir):
     StringFileInfo([
       StringTable(
         '040904B0',
-        [StringStruct('CompanyName', 'WinZapp'),
-         StringStruct('FileDescription', 'WinZapp - accessible WhatsApp client'),
+        [StringStruct('CompanyName', 'TeleZapp'),
+         StringStruct('FileDescription', 'TeleZapp - accessible WhatsApp client'),
          StringStruct('FileVersion', '{display}'),
          StringStruct('InternalName', 'WinZapp'),
-         StringStruct('LegalCopyright', '© 2026 WinZapp - LGPLv3'),
+         StringStruct('LegalCopyright', '© 2026 TeleZapp - LGPLv3'),
          StringStruct('OriginalFilename', 'WinZapp.exe'),
-         StringStruct('ProductName', 'WinZapp'),
+         StringStruct('ProductName', 'TeleZapp'),
          StringStruct('ProductVersion', '{display}')])
     ]),
     VarFileInfo([VarStruct('Translation', [1033, 1200])])

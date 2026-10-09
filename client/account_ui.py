@@ -20,6 +20,8 @@ from __future__ import annotations
 
 import logging
 
+from branding import APP_NAME
+
 # ── pure helpers (unit-tested, no wx) ────────────────────────────────────────
 
 # Ctrl+Alt+1..9. Was Ctrl+Shift+1..9 (chosen specifically to avoid Ctrl+Alt,
@@ -560,7 +562,7 @@ class AccountManagerDialog:
 
     def _error(self, key):
         wx = _wx()
-        wx.MessageBox(self.i18n.t(key), self.i18n.t("error").format(app_name="WinZapp"),
+        wx.MessageBox(self.i18n.t(key), self.i18n.t("error").format(app_name=APP_NAME),
                       wx.OK | wx.ICON_ERROR)
 
     def show(self):

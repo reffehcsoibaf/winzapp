@@ -83,6 +83,7 @@ from ui.conversations import (
 )
 from status_panel import StatusPanel
 from version import __version__
+from branding import APP_NAME
 from window_title import format_window_title
 import json
 from traceback import format_exc, format_exception
@@ -1764,7 +1765,7 @@ class MainWindow(wx.Frame):
         # Multi-account context (plan Zad 2.2). account_id is None only in
         # legacy/single-account fallback; new startup always passes it.
         self.account_id = account_id
-        self.account_name = account_name or "WinZapp"
+        self.account_name = account_name or APP_NAME
         self.startup_source = startup_source
         self.resume_pending = resume_pending
         self.registry = registry
@@ -1809,7 +1810,7 @@ class MainWindow(wx.Frame):
         self._wpp_update_checker = None
         self._notification_sound_cache = {}
 
-        self.app_name = "WinZapp"
+        self.app_name = APP_NAME
         # Per-account window title so each account is distinguishable to the
         # screen reader and to IPC/activation (plan Zad 2.2 / 4.2).
         self.SetTitle(self._format_title())
@@ -2775,10 +2776,10 @@ class MainWindow(wx.Frame):
     def _format_title(self, unread=0):
         """Window title including the account name (plan Zad 2.2/4.2).
 
-        Single/legacy account -> plain 'WinZapp'; multi-account -> 'WinZapp — <name>'.
+        Single/legacy account -> plain 'TeleZapp'; multi-account -> 'TeleZapp — <name>'.
         Kept as a pure helper so it's unit-testable and reused by tray/refresh.
         """
-        return format_window_title("WinZapp", self.account_name, unread,
+        return format_window_title(APP_NAME, self.account_name, unread,
                                    is_multi=self._is_multi_account())
 
     def _is_multi_account(self) -> bool:
@@ -3797,11 +3798,11 @@ class MainWindow(wx.Frame):
         Rebuild the frame title from the app name, the account name (multi-
         account), the number of conversations with unread messages and the
         current status, e.g.:
-          "WinZapp"
-          "WinZapp — Midzi"
-          "WinZapp — Midzi (2)"
-          "WinZapp — Midzi (2) | modo offline"
-          "WinZapp — Midzi (3) | baixando mídias"
+          "TeleZapp"
+          "TeleZapp — Midzi"
+          "TeleZapp — Midzi (2)"
+          "TeleZapp — Midzi (2) | modo offline"
+          "TeleZapp — Midzi (3) | baixando mídias"
         """
         unread_chats = 0
         if not getattr(self, "_initial_sync_running", False):
@@ -30682,8 +30683,8 @@ def _startup_critical_error_text(crash_path: str, tb: str) -> tuple[str, str]:
         except Exception:
             pass
     return (
-        "WinZapp — Erro de inicialização",
-        f"O WinZapp encontrou um erro crítico ao iniciar e não pôde continuar.\n\n"
+        f"{APP_NAME} — Erro de inicialização",
+        f"O {APP_NAME} encontrou um erro crítico ao iniciar e não pôde continuar.\n\n"
         f"Detalhes foram salvos em:\n{crash_path}\n\n{tb[:800]}",
     )
 
@@ -30833,15 +30834,15 @@ if __name__ == "__main__":
         _mode = _startup["mode"]
         if _mode == "error":
             ctypes.windll.user32.MessageBoxW(
-                0, f"WinZapp: {_startup.get('reason', 'nieprawidłowe konto')}",
-                "WinZapp", 0x10)
+                0, f"{APP_NAME}: {_startup.get('reason', 'nieprawidłowe konto')}",
+                APP_NAME, 0x10)
             sys.exit(2)
         elif _mode == "manager":
             # Global manager mode: no account/data_path, no Node (plan sekcja F).
             # TODO(Zad 4.5/4.6): show the account manager. For now, inform+exit.
             ctypes.windll.user32.MessageBoxW(
-                0, "WinZapp: brak kont do uruchomienia (menedżer kont w budowie).",
-                "WinZapp", 0x40)
+                0, f"{APP_NAME}: brak kont do uruchomienia (menedżer kont w budowie).",
+                APP_NAME, 0x40)
             sys.exit(0)
         elif _mode == "first_run":
             _acc = _registry.add("default", state="pending")
@@ -30868,7 +30869,7 @@ if __name__ == "__main__":
         # 3) Bind this process to its account BEFORE mutex/AppUserModelID/window.
         app_paths.set_active_account(_account_id)
         _account = _registry.get(_account_id) or {}
-        _account_name = _account.get("name", "WinZapp")
+        _account_name = _account.get("name", APP_NAME)
 
         # Per-account AUMID so Windows groups toasts per account (GPT r4 #8).
         try:

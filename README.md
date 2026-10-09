@@ -1,6 +1,8 @@
-# WinZapp
+# TeleZapp
 
-WinZapp is a **free, self-hosted, open-source desktop WhatsApp client for Windows**, built primarily for **accessibility for blind and low-vision users**.
+TeleZapp is a **free, self-hosted, open-source desktop WhatsApp client for Windows**, built primarily for **accessibility for blind and low-vision users**.
+
+TeleZapp is a fork of [WinZapp](https://github.com/gabrielhhaber/WinZapp_Python), originally developed by Gabriel Haberkamp. The two projects share a common base and exchange ideas and code in both directions. Some technical names still use the old spelling for now (`WinZapp.exe`, `WinZapp.zip`, the release manifest header) so that copies already installed keep updating.
 It is designed from the ground up to work with screen readers (NVDA, JAWS, Narrator) through [accessible-output2](https://github.com/accessibleapps/accessible_output2), with a fully keyboard-navigable interface built on plain wxPython controls rather than custom-drawn UI.
 
 The application is split into two processes that run together locally:
@@ -23,7 +25,7 @@ The application is split into two processes that run together locally:
 * Outgoing sends go through a background queue with automatic retry and duplicate-delivery protection for ambiguous network failures.
 
 ### JID handling
-WhatsApp uses several different identifier formats for the same contact (`@s.whatsapp.net`, the legacy `@c.us`, and `@lid` for linked/multi-device identities). WinZapp normalizes these to a single canonical form per contact, bridges `@lid` identities to phone numbers as they are resolved, and handles the Brazilian 8/9-digit mobile number variants transparently.
+WhatsApp uses several different identifier formats for the same contact (`@s.whatsapp.net`, the legacy `@c.us`, and `@lid` for linked/multi-device identities). TeleZapp normalizes these to a single canonical form per contact, bridges `@lid` identities to phone numbers as they are resolved, and handles the Brazilian 8/9-digit mobile number variants transparently.
 
 ### Auto-updater
 * Checks GitHub Releases for new versions and can download and install updates automatically.
@@ -66,7 +68,7 @@ cd client
 python main.py
 ```
 
-`setup_api.py` clones WPPConnect Server into `client/api/`, restores WinZapp's own patched files on top, then installs its Node dependencies and builds it. Re-run it whenever `client/api/` needs to be rebuilt from scratch — it preserves `node_modules` across re-clones.
+`setup_api.py` clones WPPConnect Server into `client/api/`, restores TeleZapp's own patched files on top, then installs its Node dependencies and builds it. Re-run it whenever `client/api/` needs to be rebuilt from scratch — it preserves `node_modules` across re-clones.
 
 ### Running tests
 
@@ -114,4 +116,4 @@ The resulting files are written to the `dist/` directory.
 
 ## License and Disclaimer
 
-WinZapp is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). It works by automating the WhatsApp Web interface and is not built on any official WhatsApp/Meta API. Use of this software is at your own risk. This project is not affiliated with, maintained by, or endorsed by Meta Platforms, Inc.
+TeleZapp is licensed under the GNU General Public License v3.0 (see [LICENSE](LICENSE)). It works by automating the WhatsApp Web interface and is not built on any official WhatsApp/Meta API. Use of this software is at your own risk. This project is not affiliated with, maintained by, or endorsed by Meta Platforms, Inc.
