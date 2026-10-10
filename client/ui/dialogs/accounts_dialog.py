@@ -24,6 +24,8 @@ Three tabs, reflecting how far each one actually is:
     Configurações again once it's ready.
 """
 
+import logging
+
 import wx
 
 # Disabled 2026-09-17: WPPConnect's change-username route (Whatsapp.setProfileName
@@ -146,9 +148,18 @@ class AccountsDialog(wx.Dialog):
 
     def _load_values(self):
         wa_privacy = self.main_window.fetch_privacy_settings()
+        if wa_privacy and not isinstance(wa_privacy, dict):
+            logging.warning("[privacy] The server answered with %s instead of an object: %r",
+                            type(wa_privacy).__name__, wa_privacy)
+            wa_privacy = None
+        elif not wa_privacy:
+            # None = the request failed (fetch_privacy_settings logged why);
+            # {} = it worked but WhatsApp returned no privacy fields.
+            logging.warning("[privacy] No privacy settings to show: %r", wa_privacy)
         self._wa_privacy_apply_btn.Enable(bool(wa_privacy))
         if wa_privacy:
             self._wa_privacy_status_label.SetLabel("")
+            unrecognized = []
             for attr_prefix, _label_key, options in self._WA_PRIVACY_FIELDS:
                 server_field = self._WA_PRIVACY_SERVER_FIELD[attr_prefix]
                 current_value = wa_privacy.get(server_field, "")
@@ -158,6 +169,17 @@ class AccountsDialog(wx.Dialog):
                     choice.SetSelection(raw_values.index(current_value))
                 else:
                     choice.SetSelection(wx.NOT_FOUND)
+                    unrecognized.append(f"{server_field}={current_value!r}")
+            if unrecognized:
+                # A dropdown left blank used to be indistinguishable from "the
+                # settings were not read". Say so, and name what came back:
+                # either WhatsApp holds a value this tab has no option for
+                # (e.g. "my contacts except..." is stored as contact_blacklist)
+                # or the response does not have the shape this tab expects.
+                logging.warning("[privacy] Values this tab cannot show: %s | full response: %r",
+                                ", ".join(unrecognized), wa_privacy)
+                self._wa_privacy_status_label.SetLabel(
+                    self._i18n.t("wa_privacy_unrecognized_values").format(values=", ".join(unrecognized)))
         else:
             self._wa_privacy_status_label.SetLabel(self._i18n.t("wa_privacy_load_failed"))
 

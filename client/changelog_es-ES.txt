@@ -10,6 +10,7 @@ NOVEDADES
 MEJORAS
 
 - Actualizar WPPConnect es más rápido: el navegador interno (Chrome) que ya estaba descargado se conserva entre actualizaciones, en lugar de descargarse entero cada vez. Si el navegador existente está incompleto, se descarta y se descarga de nuevo, y las versiones antiguas se borran después de la actualización para que no ocupen espacio.
+- El servidor WPPConnect pasa a la versión 2.3.4 y wa-js a la versión oficial 4.6.1, que ya incluye las correcciones de las pestañas Privacidad y Nombre del perfil. La instalación del servidor deja de compilar wa-js en tu equipo, lo que ahorra unos minutos. La primera vez que abras esta versión, el programa ofrece una reinstalación de la API para cambiar esas bibliotecas.
 
 CORRECCIONES
 

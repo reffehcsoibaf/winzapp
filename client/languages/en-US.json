@@ -1192,6 +1192,7 @@
   "wa_privacy_apply_success": "Privacy updated on WhatsApp.",
   "wa_privacy_apply_partial_error": "Some settings could not be applied.",
   "wa_privacy_load_failed": "Couldn't load current WhatsApp privacy settings.",
+  "wa_privacy_unrecognized_values": "Some options hold a value this program cannot display and are left unselected: {values}.",
   "wa_privacy_debug_find_button": "Debug: locate privacy function",
   "wa_privacy_debug_running": "Searching… this can take a few seconds.",
   "wa_privacy_debug_failed": "Couldn't complete the search (no response from the server).",
