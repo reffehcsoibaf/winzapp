@@ -1180,11 +1180,49 @@ export async function getPrivacySettings(req: Request, res: Response) {
    * (lastSeen, online, about, profilePicture, readReceipts, groupAdd,
    * status) — none of this is wrapped by @wppconnect-team/wppconnect, so
    * this goes through page.evaluate directly, same as getMessageAck above.
+   *
+   * WPP.privacy.get() reads the six account fields and then also awaits
+   * getStatusPrivacySetting(). On WhatsApp Web builds where the status module
+   * stopped wrapping its exports in `default` (>= 2.3000.1048775404), wa-js
+   * 4.6.1 and earlier leave that binding unresolved (fixed by wa-js#3693,
+   * which is in no npm release yet), so get() throws "(0 , n.getStatusPrivacy
+   * Setting) is not a function" and the tab received nothing even though the
+   * six fields it shows are readable. When get() fails, read them directly
+   * from WPP.whatsapp.functions instead. The status field is best-effort and
+   * left out when it cannot be read: this tab does not use it.
    */
   try {
-    const settings = await req.client.page.evaluate(() =>
-      (window as any).WPP.privacy.get()
+    const { settings, usedFallback } = await req.client.page.evaluate(
+      async () => {
+        const WPP = (window as any).WPP;
+        try {
+          return { settings: await WPP.privacy.get(), usedFallback: false };
+        } catch (e) {
+          const fns = WPP.whatsapp && WPP.whatsapp.functions;
+          if (!fns || typeof fns.getUserPrivacySettings !== 'function') {
+            throw e;
+          }
+          const fields = { ...fns.getUserPrivacySettings() };
+          let status: any;
+          try {
+            if (typeof fns.getStatusPrivacySetting === 'function') {
+              status = await fns.getStatusPrivacySetting();
+            }
+          } catch (_statusError) {
+            status = undefined;
+          }
+          return {
+            settings: status === undefined ? fields : { ...fields, status },
+            usedFallback: true,
+          };
+        }
+      }
     );
+    if (usedFallback) {
+      req.logger.warn(
+        'WPP.privacy.get() failed; answered from getUserPrivacySettings()'
+      );
+    }
     return res.status(200).json({ status: 'success', response: settings });
   } catch (e) {
     req.logger.error(e);
